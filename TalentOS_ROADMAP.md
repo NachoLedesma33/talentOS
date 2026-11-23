@@ -119,43 +119,43 @@ No confundir “completo” con “grande”. Cada fase debe producir un increme
 ## Tareas
 
 ### Repositorio y estructura
-- [ ] Crear estructura monorepo según el SDD.
-- [ ] Configurar `.gitignore`.
-- [ ] Configurar `.editorconfig`.
-- [ ] Configurar archivos de formato y lint.
-- [ ] Crear README con instrucciones iniciales.
-- [ ] Crear `.env.example` sin secretos.
+- [x] Crear estructura monorepo según el SDD.
+- [x] Configurar `.gitignore`.
+- [x] Configurar `.editorconfig`.
+- [x] Configurar archivos de formato y lint.
+- [x] Crear README con instrucciones iniciales.
+- [x] Crear `.env.example` sin secretos.
 
 ### Backend
-- [ ] Crear aplicación FastAPI.
-- [ ] Configurar settings tipados.
-- [ ] Agregar endpoint `/health`.
-- [ ] Agregar endpoint `/ready` con chequeos de dependencias cuando corresponda.
-- [ ] Configurar manejo centralizado de errores.
-- [ ] Configurar logs estructurados y request ID.
-- [ ] Configurar Ruff y type checking.
+- [x] Crear aplicación FastAPI.
+- [x] Configurar settings tipados.
+- [x] Agregar endpoint `/health`.
+- [x] Agregar endpoint `/ready` con chequeos de dependencias cuando corresponda.
+- [x] Configurar manejo centralizado de errores.
+- [x] Configurar logs estructurados y request ID.
+- [x] Configurar Ruff y type checking.
 
 ### Persistencia e infraestructura local
-- [ ] Crear Docker Compose.
+- [x] Crear Docker Compose.
 - [ ] Levantar PostgreSQL.
-- [ ] Configurar SQLAlchemy.
-- [ ] Configurar Alembic.
+- [x] Configurar SQLAlchemy.
+- [x] Configurar Alembic.
 - [ ] Levantar Redis.
 - [ ] Verificar conectividad entre servicios.
-- [ ] Crear comando documentado para iniciar y detener el entorno.
+- [x] Crear comando documentado para iniciar y detener el entorno.
 
 ### Frontend
-- [ ] Crear aplicación Next.js con TypeScript.
-- [ ] Configurar lint y typecheck.
-- [ ] Crear layout base.
-- [ ] Crear página inicial y pantalla de error.
-- [ ] Definir tokens iniciales del design system.
+- [x] Crear aplicación Next.js con TypeScript.
+- [x] Configurar lint y typecheck.
+- [x] Crear layout base.
+- [x] Crear página inicial y pantalla de error.
+- [x] Definir tokens iniciales del design system.
 
 ### Calidad y CI
-- [ ] Configurar GitHub Actions.
+- [x] Configurar GitHub Actions.
 - [ ] Ejecutar lint, typecheck y tests en CI.
-- [ ] Agregar tests smoke para API.
-- [ ] Verificar build de frontend y backend.
+- [x] Agregar tests smoke para API.
+- [x] Verificar build de frontend y backend.
 
 ## Entregables
 
@@ -887,7 +887,7 @@ Actualizar esta tabla durante el desarrollo.
 | Fase | Estado | Fecha de inicio | Fecha de cierre | Evidencia / notas |
 |---|---|---|---|---|
 | 0 — Descubrimiento | DONE | 2026-11-23 | 2026-11-23 | `AGENTS.md`, 9 ADRs en `docs/decisions/`, 15 skills en `.opencode/skills/`, `docs/DEVELOPMENT_WORKFLOW.md`, `docs/ENVIRONMENTS.md`; entorno medido; sin dependencias nuevas; sin código de negocio. |
-| 1 — Fundación | NOT_STARTED | — | — | — |
+| 1 — Fundación | BLOCKED | 2026-11-23 | — | Commits ce4f218, aacea0c, adf5ebd + cierre; compose config OK; ruff/mypy OK; pytest 12 passed; npm typecheck/lint/test/build OK; wheel API OK; alembic upgrade/check/downgrade OK en harness SQLite. BLOCKED: docker compose up -d postgres redis -> "unable to get image 'postgres:16': failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified." CI en PR pendiente de push. |
 | 2 — Identidad | NOT_STARTED | — | — | — |
 | 3 — Recruitment Core | NOT_STARTED | — | — | — |
 | 4 — Document Intelligence | NOT_STARTED | — | — | — |

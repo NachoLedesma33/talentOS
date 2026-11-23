@@ -1,5 +1,5 @@
-# Entorno local de Fase 1: solo infraestructura y API.
-# `web` y `worker` se agregan en unidades posteriores: sus imágenes aún no existen.
+# Entorno local de Fase 1: infraestructura, API y web.
+# El `worker` se agregará cuando exista código de procesamiento asíncrono.
 services:
   postgres:
     image: postgres:16
@@ -48,6 +48,18 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/web/Dockerfile
+    environment:
+      WEB_BASE_URL: ${WEB_BASE_URL:-http://localhost:3000}
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
 
 volumes:
   postgres_data:
