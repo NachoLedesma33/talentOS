@@ -9,6 +9,7 @@ from sqlalchemy import create_engine
 import app.applications.models  # noqa: F401
 import app.audit.models  # noqa: F401
 import app.candidates.models  # noqa: F401
+import app.documents.models  # noqa: F401
 import app.identity.models  # noqa: F401
 import app.jobs.models  # noqa: F401
 from app.core.config import get_settings
