@@ -123,6 +123,23 @@ export default function DashboardPage() {
 
       <OrganizationSelector onActiveOrganizationChange={setActiveOrganizationId} />
       <MembersPanel organizationId={activeOrganizationId} />
+
+      <section aria-labelledby="recruitment-heading" className="space-y-2">
+        <h2 id="recruitment-heading" className="text-sm font-semibold text-text-muted">
+          Recruitment Core
+        </h2>
+        <ul className="flex flex-wrap gap-4 text-sm">
+          <li>
+            <a href="/jobs">Vacantes</a>
+          </li>
+          <li>
+            <a href="/candidates">Candidatos</a>
+          </li>
+          <li>
+            <a href="/applications">Pipeline</a>
+          </li>
+        </ul>
+      </section>
     </div>
   );
 }

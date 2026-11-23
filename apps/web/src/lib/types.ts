@@ -70,3 +70,159 @@ export interface ErrorEnvelope {
     request_id: string;
   };
 }
+
+/** DTOs espejo de los schemas Pydantic de Fase 3 (Recruitment Core). */
+
+export type JobStatus = "draft" | "open" | "paused" | "closed" | "archived";
+
+export type RequirementCategory =
+  | "skill"
+  | "experience"
+  | "education"
+  | "language"
+  | "certification"
+  | "other";
+
+export type RequirementImportance = "required" | "desirable";
+
+export type CandidateProfileStatus = "draft" | "review" | "confirmed" | "archived";
+
+export type ApplicationStage =
+  | "applied"
+  | "screening"
+  | "interview"
+  | "offer"
+  | "hired"
+  | "rejected";
+
+export type ApplicationSource = "manual" | "import" | "referral" | "careers";
+
+/** Envelope de listado con paginación devuelto por los tres recursos. */
+export interface Paginated<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface Job {
+  id: string;
+  title: string;
+  description: string;
+  status: JobStatus;
+  modality: string | null;
+  location: string | null;
+  seniority: string | null;
+  owner_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JobCreate {
+  title: string;
+  description: string;
+  modality: string | null;
+  location: string | null;
+  seniority: string | null;
+  owner_id: string;
+}
+
+export interface JobRequirement {
+  id: string;
+  job_id: string;
+  category: RequirementCategory;
+  description: string;
+  importance: RequirementImportance;
+  expected_level: string | null;
+  acceptable_evidence: string[];
+  weight: number;
+  weight_justification: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RequirementCreate {
+  category: RequirementCategory;
+  description: string;
+  importance: RequirementImportance;
+  weight: number;
+  weight_justification: string;
+}
+
+export interface JobVersion {
+  id: string;
+  job_id: string;
+  version: number;
+  snapshot: Record<string, unknown>;
+  created_at: string;
+}
+
+export type JobList = Paginated<Job>;
+export type RequirementList = JobRequirement[];
+export type JobVersionList = JobVersion[];
+
+export interface Candidate {
+  id: string;
+  name: string;
+  email: string;
+  location: string | null;
+  profile_status: CandidateProfileStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CandidateCreate {
+  name: string;
+  email: string;
+  location: string | null;
+}
+
+export interface Note {
+  id: string;
+  candidate_id: string;
+  author_id: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ActivityEntry {
+  id: string;
+  action: string;
+  actor_id: string | null;
+  resource_type: string;
+  resource_id: string;
+  timestamp: string;
+}
+
+export type CandidateList = Paginated<Candidate>;
+export type NoteList = Note[];
+export type ActivityList = ActivityEntry[];
+
+export interface Application {
+  id: string;
+  job_id: string;
+  candidate_id: string;
+  stage: ApplicationStage;
+  source: ApplicationSource | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StageChange {
+  id: string;
+  application_id: string;
+  from_stage: ApplicationStage | null;
+  to_stage: ApplicationStage;
+  actor_id: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface StageChangeRequest {
+  to_stage: ApplicationStage;
+  note?: string;
+}
+
+export type ApplicationList = Paginated<Application>;
+export type StageChangeList = StageChange[];

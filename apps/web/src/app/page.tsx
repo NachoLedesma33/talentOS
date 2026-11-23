@@ -31,6 +31,15 @@ export default function Home() {
           <li>
             <a href="/dashboard">Panel</a>
           </li>
+          <li>
+            <a href="/jobs">Vacantes</a>
+          </li>
+          <li>
+            <a href="/candidates">Candidatos</a>
+          </li>
+          <li>
+            <a href="/applications">Pipeline</a>
+          </li>
         </ul>
       </section>
 
