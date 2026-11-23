@@ -137,11 +137,11 @@ No confundir “completo” con “grande”. Cada fase debe producir un increme
 
 ### Persistencia e infraestructura local
 - [x] Crear Docker Compose.
-- [ ] Levantar PostgreSQL.
+- [x] Levantar PostgreSQL.
 - [x] Configurar SQLAlchemy.
 - [x] Configurar Alembic.
-- [ ] Levantar Redis.
-- [ ] Verificar conectividad entre servicios.
+- [x] Levantar Redis.
+- [x] Verificar conectividad entre servicios.
 - [x] Crear comando documentado para iniciar y detener el entorno.
 
 ### Frontend
@@ -153,7 +153,7 @@ No confundir “completo” con “grande”. Cada fase debe producir un increme
 
 ### Calidad y CI
 - [x] Configurar GitHub Actions.
-- [ ] Ejecutar lint, typecheck y tests en CI.
+- [x] Ejecutar lint, typecheck y tests en CI.
 - [x] Agregar tests smoke para API.
 - [x] Verificar build de frontend y backend.
 
@@ -887,7 +887,7 @@ Actualizar esta tabla durante el desarrollo.
 | Fase | Estado | Fecha de inicio | Fecha de cierre | Evidencia / notas |
 |---|---|---|---|---|
 | 0 — Descubrimiento | DONE | 2026-11-23 | 2026-11-23 | `AGENTS.md`, 9 ADRs en `docs/decisions/`, 15 skills en `.opencode/skills/`, `docs/DEVELOPMENT_WORKFLOW.md`, `docs/ENVIRONMENTS.md`; entorno medido; sin dependencias nuevas; sin código de negocio. |
-| 1 — Fundación | BLOCKED | 2026-11-23 | — | Commits ce4f218, aacea0c, adf5ebd + cierre; compose config OK; ruff/mypy OK; pytest 12 passed; npm typecheck/lint/test/build OK; wheel API OK; alembic upgrade/check/downgrade OK en harness SQLite. BLOCKED: docker compose up -d postgres redis -> "unable to get image 'postgres:16': failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine; check if the path is correct and if the daemon is running: open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified." CI en PR pendiente de push. |
+| 1 — Fundación | DONE | 2026-11-23 | 2026-11-23 | Commits ce4f218, aacea0c, adf5ebd, 7ded81a; compose OK; postgres healthy y redis PONG; ruff/mypy OK; pytest 12 passed; npm typecheck/lint/test/build OK; alembic upgrade/downgrade OK en harness SQLite; CI run 45260245209 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45260245209). |
 | 2 — Identidad | NOT_STARTED | — | — | — |
 | 3 — Recruitment Core | NOT_STARTED | — | — | — |
 | 4 — Document Intelligence | NOT_STARTED | — | — | — |
