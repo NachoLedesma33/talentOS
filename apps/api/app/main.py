@@ -9,7 +9,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api.routes import health
+from app.api.routes import auth, health
 from app.core.config import get_settings
 from app.core.logging import configure_logging, log_structured
 
@@ -103,3 +103,4 @@ async def request_validation_exception_handler(
 
 
 app.include_router(health.router)
+app.include_router(auth.router)

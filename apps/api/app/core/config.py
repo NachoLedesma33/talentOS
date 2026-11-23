@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     REDIS_URL: RedisDsn = RedisDsn("redis://localhost:6379/0")
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
     LLM_PROVIDER: Literal["mock"] = "mock"
+    SESSION_COOKIE_NAME: str = "talentos_session"
+    SESSION_TTL_SECONDS: int = 86400
 
 
 @lru_cache(maxsize=1)

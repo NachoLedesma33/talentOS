@@ -16,6 +16,8 @@ dependencies = [
     "sqlalchemy>=2,<3",           # ORM 2.x: sesiones y metadata de persistencia; dominio y repositorios lo usarán sin SQL libre.
     "alembic>=1.13,<2",           # Migraciones versionadas y reversibles del esquema (criterio de Fase 1).
     "psycopg[binary]>=3.1,<4",    # Driver exigido por el DSN local `postgresql+psycopg` documentado en SDD 17.2.
+    "bcrypt>=4,<6",               # Hash de contraseñas con coste ajustable; nunca texto plano en DB.
+    "email-validator>=2,<3",      # Requerido por Pydantic EmailStr para validar emails de entrada.
 ]
 
 [project.optional-dependencies]
