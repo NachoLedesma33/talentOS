@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from app.api.routes import auth, candidates, health, jobs, organizations
+from app.api.routes import applications, auth, candidates, health, jobs, organizations
 from app.core.config import get_settings
 from app.core.logging import configure_logging, log_structured
 
@@ -117,3 +117,4 @@ app.include_router(auth.router)
 app.include_router(organizations.router)
 app.include_router(jobs.router)
 app.include_router(candidates.router)
+app.include_router(applications.router)

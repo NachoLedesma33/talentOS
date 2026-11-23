@@ -6,6 +6,7 @@ from alembic import context
 from sqlalchemy import create_engine
 
 # Importar entidades registra sus tablas en Base.metadata antes de migrar/comparar.
+import app.applications.models  # noqa: F401
 import app.audit.models  # noqa: F401
 import app.candidates.models  # noqa: F401
 import app.identity.models  # noqa: F401
