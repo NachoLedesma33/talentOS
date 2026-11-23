@@ -1,5 +1,20 @@
+"""Dependencias de identidad, organización activa y matriz mínima de roles.
+
+Matriz de esta unidad (sin matrices genéricas):
+
+- ``owner``: todo; crear organización, invitar, cambiar roles y configuración.
+- ``admin``: invitar y cambiar roles no-owner, configuración operativa; no puede
+  degradar al último owner ni asignar/quitar el rol ``owner``.
+- ``recruiter``: recursos de reclutamiento (vacantes/candidatos); aún sin endpoints
+  en esta unidad; no administra miembros.
+- ``reviewer``: lectura y aprobaciones; no invita ni cambia roles.
+- ``viewer``: solo lectura de recursos autorizados.
+"""
+
 from __future__ import annotations
 
+import uuid
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Annotated
 from urllib.parse import urlsplit
@@ -10,12 +25,15 @@ from sqlalchemy.orm import Session as DBSession
 
 from app.core import config
 from app.db.session import get_db
+from app.identity.models import Membership, MembershipRole, Organization, User, UserStatus
 from app.identity.models import Session as UserSession
-from app.identity.models import User, UserStatus
+from app.identity.repositories import get_membership
 from app.identity.security import hash_token
 
 _UNAUTHORIZED_MESSAGE = "Autenticación requerida."
 _FORBIDDEN_MESSAGE = "Origen no permitido."
+_ROLE_MESSAGE = "Rol insuficiente."
+_ORGANIZATION_MESSAGE = "Organización no disponible."
 _MUTATING_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
 DbDependency = Annotated[DBSession, Depends(get_db)]
@@ -48,6 +66,56 @@ def get_current_user(request: Request, db: DbDependency) -> User:
     if user is None or user.status is not UserStatus.ACTIVE:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=_UNAUTHORIZED_MESSAGE)
     return user
+
+
+CurrentUser = Annotated[User, Depends(get_current_user)]
+
+
+def get_current_organization(
+    request: Request,
+    user: CurrentUser,
+    db: DbDependency,
+) -> Organization:
+    """Resuelve la org activa solo si el usuario autenticado tiene membresía."""
+    raw_organization_id = request.headers.get("X-Organization-ID")
+    if not raw_organization_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=_ORGANIZATION_MESSAGE)
+    try:
+        organization_id = uuid.UUID(raw_organization_id)
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=_ORGANIZATION_MESSAGE
+        ) from None
+
+    membership = get_membership(db, user.id, organization_id)
+    if membership is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=_ORGANIZATION_MESSAGE)
+    organization = db.get(Organization, organization_id)
+    if organization is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=_ORGANIZATION_MESSAGE)
+
+    request.state.organization_id = str(organization.id)
+    return organization
+
+
+CurrentOrganization = Annotated[Organization, Depends(get_current_organization)]
+
+
+def require_roles(*roles: MembershipRole) -> Callable[..., Membership]:
+    """Devuelve una dependencia que exige uno de los roles en la org activa."""
+    allowed = frozenset(roles)
+
+    def _require_roles(
+        user: CurrentUser,
+        organization: CurrentOrganization,
+        db: DbDependency,
+    ) -> Membership:
+        membership = get_membership(db, user.id, organization.id)
+        if membership is None or membership.role not in allowed:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=_ROLE_MESSAGE)
+        return membership
+
+    return _require_roles
 
 
 def _origin_key(url: str) -> tuple[str, str] | None:

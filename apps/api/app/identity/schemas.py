@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
-from app.identity.models import UserStatus
+from app.identity.models import MembershipRole, UserStatus
 from app.identity.security import MAX_PASSWORD_BYTES
 
 
@@ -48,8 +49,44 @@ class UserResponse(BaseModel):
 
 
 class MeResponse(UserResponse):
-    # La membresía se implementa en la unidad 3; hoy siempre se devuelve vacía.
+    # Contrato de la unidad 2: /auth/me no cambia en esta unidad.
     organizations: list[dict[str, str]] = Field(default_factory=list)
+
+
+class OrganizationCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    name: str = Field(min_length=1, max_length=200)
+    slug: str = Field(
+        min_length=1, max_length=100, pattern=r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
+    )
+
+
+class OrganizationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    slug: str
+    created_at: datetime
+
+
+class MemberInvite(_InputModel):
+    email: EmailStr
+    role: MembershipRole
+
+
+class MemberRoleUpdate(BaseModel):
+    role: MembershipRole
+
+
+class MemberResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    user_id: uuid.UUID
+    email: str
+    name: str
+    role: MembershipRole
 
 
 class MessageResponse(BaseModel):
