@@ -1,0 +1,30 @@
+# Entornos y secretos
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.pyc
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Node / Next.js
+node_modules/
+.next/
+dist/
+out/
+
+# Artefactos de tests
+test-results/
+playwright-report/
+coverage/
+junit.xml
+*.log
