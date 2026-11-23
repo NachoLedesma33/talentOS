@@ -184,31 +184,31 @@ No confundir “completo” con “grande”. Cada fase debe producir un increme
 
 ## Tareas
 
-- [ ] Modelar `User`, `Organization` y `Membership`.
-- [ ] Crear migraciones.
-- [ ] Implementar registro.
-- [ ] Implementar login y logout.
-- [ ] Elegir y documentar estrategia de sesión/token.
-- [ ] Implementar hash seguro de contraseñas.
-- [ ] Implementar usuario actual (`/me`).
-- [ ] Implementar creación de organización.
-- [ ] Implementar selección de organización activa.
-- [ ] Implementar roles `owner`, `admin`, `recruiter`, `reviewer`, `viewer`.
-- [ ] Crear dependencias de autorización en FastAPI.
-- [ ] Aplicar scoping de organización en servicios y repositorios.
-- [ ] Crear interfaz de login y registro.
-- [ ] Crear selector de organización.
-- [ ] Crear gestión básica de miembros.
-- [ ] Registrar eventos relevantes en auditoría.
+- [x] Modelar `User`, `Organization` y `Membership`.
+- [x] Crear migraciones.
+- [x] Implementar registro.
+- [x] Implementar login y logout.
+- [x] Elegir y documentar estrategia de sesión/token.
+- [x] Implementar hash seguro de contraseñas.
+- [x] Implementar usuario actual (`/me`).
+- [x] Implementar creación de organización.
+- [x] Implementar selección de organización activa.
+- [x] Implementar roles `owner`, `admin`, `recruiter`, `reviewer`, `viewer`.
+- [x] Crear dependencias de autorización en FastAPI.
+- [x] Aplicar scoping de organización en servicios y repositorios.
+- [x] Crear interfaz de login y registro.
+- [x] Crear selector de organización.
+- [x] Crear gestión básica de miembros.
+- [x] Registrar eventos relevantes en auditoría.
 
 ## Pruebas obligatorias
 
-- [ ] Usuario no autenticado no accede a endpoints privados.
-- [ ] Un usuario no puede leer recursos de otra organización.
-- [ ] Un usuario no puede modificar `organization_id` para escalar acceso.
-- [ ] Los roles tienen permisos diferenciados.
-- [ ] Las tareas asíncronas preservan el contexto de organización.
-- [ ] Las sesiones inválidas o expiradas se rechazan.
+- [x] Usuario no autenticado no accede a endpoints privados.
+- [x] Un usuario no puede leer recursos de otra organización.
+- [x] Un usuario no puede modificar `organization_id` para escalar acceso.
+- [x] Los roles tienen permisos diferenciados.
+- [ ] Las tareas asíncronas preservan el contexto de organización. (N/A en Fase 2: no existen workers; verificar en Fase 4 al crearlos.)
+- [x] Las sesiones inválidas o expiradas se rechazan.
 
 ## Criterio de salida
 
@@ -888,7 +888,7 @@ Actualizar esta tabla durante el desarrollo.
 |---|---|---|---|---|
 | 0 — Descubrimiento | DONE | 2026-11-23 | 2026-11-23 | `AGENTS.md`, 9 ADRs en `docs/decisions/`, 15 skills en `.opencode/skills/`, `docs/DEVELOPMENT_WORKFLOW.md`, `docs/ENVIRONMENTS.md`; entorno medido; sin dependencias nuevas; sin código de negocio. |
 | 1 — Fundación | DONE | 2026-11-23 | 2026-11-23 | Commits ce4f218, aacea0c, adf5ebd, 7ded81a; compose OK; postgres healthy y redis PONG; ruff/mypy OK; pytest 12 passed; npm typecheck/lint/test/build OK; alembic upgrade/downgrade OK en harness SQLite; CI run 45260245209 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45260245209). |
-| 2 — Identidad | NOT_STARTED | — | — | — |
+| 2 — Identidad | DONE | 2026-11-23 | 2026-11-23 | Commits 6100629, 173d976, f900157, 4ecc26e; 46 tests pytest (incluye cross-tenant, sesión expirada y matriz de roles); ruff/mypy OK; npm typecheck/lint/test/build OK; CI run 45268242607 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45268242607). Única excepción: contexto org en tareas asíncronas, N/A sin workers y diferido a Fase 4. |
 | 3 — Recruitment Core | NOT_STARTED | — | — | — |
 | 4 — Document Intelligence | NOT_STARTED | — | — | — |
 | 5 — Matching | NOT_STARTED | — | — | — |
