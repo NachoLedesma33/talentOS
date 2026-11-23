@@ -222,44 +222,44 @@ Dos organizaciones con usuarios y datos distintos pueden utilizar la aplicación
 
 ## 6.1 Vacantes
 
-- [ ] Modelar `Job`, `JobRequirement` y `JobVersion`.
-- [ ] Crear migraciones, constraints e índices.
-- [ ] Implementar CRUD de vacantes.
-- [ ] Implementar estados: draft, open, paused, closed, archived.
-- [ ] Implementar requisitos obligatorios y deseables.
-- [ ] Implementar tipos de requisitos.
-- [ ] Implementar versionado de requisitos.
-- [ ] Crear formularios frontend.
-- [ ] Crear listado, filtros y detalle de vacante.
+- [x] Modelar `Job`, `JobRequirement` y `JobVersion`.
+- [x] Crear migraciones, constraints e índices.
+- [x] Implementar CRUD de vacantes.
+- [x] Implementar estados: draft, open, paused, closed, archived.
+- [x] Implementar requisitos obligatorios y deseables.
+- [x] Implementar tipos de requisitos.
+- [x] Implementar versionado de requisitos.
+- [x] Crear formularios frontend.
+- [x] Crear listado, filtros y detalle de vacante.
 
 ## 6.2 Candidatos
 
-- [ ] Modelar `Candidate`.
-- [ ] Implementar alta, edición y consulta.
-- [ ] Implementar búsqueda y paginación.
-- [ ] Implementar notas internas con permisos.
-- [ ] Implementar historial de actividad.
-- [ ] Crear perfil de candidato.
+- [x] Modelar `Candidate`.
+- [x] Implementar alta, edición y consulta.
+- [x] Implementar búsqueda y paginación.
+- [x] Implementar notas internas con permisos.
+- [x] Implementar historial de actividad.
+- [x] Crear perfil de candidato.
 
 ## 6.3 Postulaciones y pipeline
 
-- [ ] Modelar `Application`.
-- [ ] Definir etapas configuradas por el sistema.
-- [ ] Implementar transiciones válidas.
-- [ ] Implementar asociación candidato-vacante.
-- [ ] Evitar duplicados de postulación según regla de negocio.
-- [ ] Implementar vista de pipeline.
-- [ ] Registrar cada cambio de etapa.
+- [x] Modelar `Application`.
+- [x] Definir etapas configuradas por el sistema.
+- [x] Implementar transiciones válidas.
+- [x] Implementar asociación candidato-vacante.
+- [x] Evitar duplicados de postulación según regla de negocio.
+- [x] Implementar vista de pipeline.
+- [x] Registrar cada cambio de etapa.
 
 ## Criterios de aceptación
 
-- [ ] Crear una vacante con requisitos.
-- [ ] Crear un candidato.
-- [ ] Asociarlo a la vacante.
-- [ ] Moverlo por etapas permitidas.
-- [ ] Consultar el historial.
-- [ ] Verificar aislamiento por organización.
-- [ ] Completar tests de reglas de dominio y API.
+- [x] Crear una vacante con requisitos.
+- [x] Crear un candidato.
+- [x] Asociarlo a la vacante.
+- [x] Moverlo por etapas permitidas.
+- [x] Consultar el historial.
+- [x] Verificar aislamiento por organización.
+- [x] Completar tests de reglas de dominio y API.
 
 **Hito demostrable:** gestión básica de un proceso de selección sin IA.
 
@@ -889,7 +889,7 @@ Actualizar esta tabla durante el desarrollo.
 | 0 — Descubrimiento | DONE | 2026-11-23 | 2026-11-23 | `AGENTS.md`, 9 ADRs en `docs/decisions/`, 15 skills en `.opencode/skills/`, `docs/DEVELOPMENT_WORKFLOW.md`, `docs/ENVIRONMENTS.md`; entorno medido; sin dependencias nuevas; sin código de negocio. |
 | 1 — Fundación | DONE | 2026-11-23 | 2026-11-23 | Commits ce4f218, aacea0c, adf5ebd, 7ded81a; compose OK; postgres healthy y redis PONG; ruff/mypy OK; pytest 12 passed; npm typecheck/lint/test/build OK; alembic upgrade/downgrade OK en harness SQLite; CI run 45260245209 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45260245209). |
 | 2 — Identidad | DONE | 2026-11-23 | 2026-11-23 | Commits 6100629, 173d976, f900157, 4ecc26e; 46 tests pytest (incluye cross-tenant, sesión expirada y matriz de roles); ruff/mypy OK; npm typecheck/lint/test/build OK; CI run 45268242607 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45268242607). Única excepción: contexto org en tareas asíncronas, N/A sin workers y diferido a Fase 4. |
-| 3 — Recruitment Core | NOT_STARTED | — | — | — |
+| 3 — Recruitment Core | DONE | 2026-11-23 | 2026-11-23 | Commits 7199f96, efd89a4, e27aed7, 6b957d8, 7b1e740; dominio y API de jobs/candidates/applications; 119 tests pytest (cross-tenant, roles, transiciones, duplicados, auditoría); ruff/mypy OK; npm typecheck/lint/test/build OK; alembic upgrade/downgrade OK en harness SQLite; CI run 45283604138 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45283604138). Sin IA, sin entrevistas. |
 | 4 — Document Intelligence | NOT_STARTED | — | — | — |
 | 5 — Matching | NOT_STARTED | — | — | — |
 | 6 — Agent Runtime | NOT_STARTED | — | — | — |
