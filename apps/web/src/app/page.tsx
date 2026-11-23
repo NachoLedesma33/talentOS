@@ -17,6 +17,23 @@ export default function Home() {
         Fase 1 — Fundación del monorepo
       </p>
 
+      <section aria-labelledby="access-heading" className="space-y-2">
+        <h2 id="access-heading" className="text-sm font-semibold text-text-muted">
+          Accesos
+        </h2>
+        <ul className="flex flex-wrap gap-4 text-sm">
+          <li>
+            <a href="/login">Iniciar sesión</a>
+          </li>
+          <li>
+            <a href="/register">Crear cuenta</a>
+          </li>
+          <li>
+            <a href="/dashboard">Panel</a>
+          </li>
+        </ul>
+      </section>
+
       <section aria-labelledby="api-endpoints-heading" className="space-y-2">
         <h2
           id="api-endpoints-heading"

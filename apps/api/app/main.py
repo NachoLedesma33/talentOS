@@ -6,6 +6,7 @@ from collections.abc import Awaitable, Callable
 
 from fastapi import FastAPI, Request, Response, status
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -17,6 +18,15 @@ settings = get_settings()
 configure_logging(settings.LOG_LEVEL)
 
 app = FastAPI(title=settings.APP_NAME, version="0.1.0")
+
+# CORS explícito para el origen web; sin "*" porque la sesión usa cookies.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[str(settings.WEB_BASE_URL).rstrip("/")],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=["X-Organization-ID", "X-Request-ID", "Content-Type"],
+)
 
 _ERROR_CODES: dict[int, str] = {
     400: "bad_request",
