@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DBSession
 
 from app.jobs.models import Job, JobRequirement, JobStatus, JobVersion
@@ -30,6 +30,16 @@ def list_jobs(
         stmt = stmt.where(Job.status == status)
     stmt = stmt.order_by(Job.created_at, Job.id).limit(limit).offset(offset)
     return list(db.execute(stmt).scalars().all())
+
+
+def count_jobs(
+    db: DBSession, organization_id: uuid.UUID, status: JobStatus | None = None
+) -> int:
+    """Cuenta las vacantes del tenant con el mismo filtro, sin paginación."""
+    stmt = select(func.count()).select_from(Job).where(Job.organization_id == organization_id)
+    if status is not None:
+        stmt = stmt.where(Job.status == status)
+    return int(db.scalar(stmt) or 0)
 
 
 def get_requirement(
@@ -77,3 +87,19 @@ def get_version(
         )
     )
     return db.execute(stmt).scalar_one_or_none()
+
+
+def list_versions(
+    db: DBSession, organization_id: uuid.UUID, job_id: uuid.UUID
+) -> list[JobVersion]:
+    """Lista versiones de una vacante propia, ordenadas por número de versión."""
+    stmt = (
+        select(JobVersion)
+        .join(Job, Job.id == JobVersion.job_id)
+        .where(
+            Job.organization_id == organization_id,
+            JobVersion.job_id == job_id,
+        )
+        .order_by(JobVersion.version)
+    )
+    return list(db.execute(stmt).scalars().all())

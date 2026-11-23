@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DBSession
 
+from app.audit.service import record_audit
 from app.identity.repositories import user_belongs_to_organization
 from app.jobs.models import (
     Job,
@@ -16,7 +17,20 @@ from app.jobs.models import (
     RequirementCategory,
     RequirementImportance,
 )
-from app.jobs.repositories import get_job, list_requirements
+from app.jobs.repositories import (
+    count_jobs,
+    get_requirement,
+    list_requirements,
+)
+from app.jobs.repositories import (
+    get_job as get_job_row,
+)
+from app.jobs.repositories import (
+    list_jobs as list_job_rows,
+)
+from app.jobs.repositories import (
+    list_versions as list_job_versions,
+)
 
 
 class JobsDomainError(Exception):
@@ -53,7 +67,7 @@ _ALLOWED_TRANSITIONS: dict[JobStatus, frozenset[JobStatus]] = {
 
 
 def _require_job(db: DBSession, organization_id: uuid.UUID, job_id: uuid.UUID) -> Job:
-    job = get_job(db, organization_id, job_id)
+    job = get_job_row(db, organization_id, job_id)
     if job is None:
         raise JobNotFoundError
     return job
@@ -66,6 +80,25 @@ def _require_organization_owner(
         raise OwnerNotMemberError
 
 
+def get_job(db: DBSession, *, organization_id: uuid.UUID, job_id: uuid.UUID) -> Job:
+    """Expone la vacante propia al router; el repositorio aplica el filtro de tenant."""
+    return _require_job(db, organization_id, job_id)
+
+
+def list_jobs(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    status: JobStatus | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> tuple[list[Job], int]:
+    """Devuelve la página de vacantes del tenant y el total sin paginar."""
+    jobs = list_job_rows(db, organization_id, status=status, limit=limit, offset=offset)
+    total = count_jobs(db, organization_id, status=status)
+    return jobs, total
+
+
 def create_job(
     db: DBSession,
     *,
@@ -76,6 +109,7 @@ def create_job(
     modality: str | None = None,
     location: str | None = None,
     seniority: str | None = None,
+    actor_id: uuid.UUID | None = None,
 ) -> Job:
     """Crea una vacante en borrador; el responsable debe ser miembro del tenant."""
     clean_title = title.strip()
@@ -94,6 +128,15 @@ def create_job(
         owner_id=owner_id,
     )
     db.add(job)
+    db.flush()
+    record_audit(
+        db,
+        organization_id=organization_id,
+        actor_id=actor_id,
+        action="job.created",
+        resource_type="job",
+        resource_id=job.id,
+    )
     db.commit()
     return job
 
@@ -109,6 +152,7 @@ def update_job(
     location: str | None = None,
     seniority: str | None = None,
     owner_id: uuid.UUID | None = None,
+    actor_id: uuid.UUID | None = None,
 ) -> Job:
     """Actualiza campos explícitos; `None` significa «sin cambio»."""
     job = _require_job(db, organization_id, job_id)
@@ -129,6 +173,15 @@ def update_job(
         _require_organization_owner(db, organization_id, owner_id)
         job.owner_id = owner_id
 
+    db.flush()
+    record_audit(
+        db,
+        organization_id=organization_id,
+        actor_id=actor_id,
+        action="job.updated",
+        resource_type="job",
+        resource_id=job.id,
+    )
     db.commit()
     return job
 
@@ -145,6 +198,7 @@ def add_requirement(
     acceptable_evidence: list[str] | None = None,
     weight: float = 0.0,
     weight_justification: str = "",
+    actor_id: uuid.UUID | None = None,
 ) -> JobRequirement:
     """Agrega un requisito con peso justificado cuando es mayor que cero."""
     job = _require_job(db, organization_id, job_id)
@@ -175,6 +229,15 @@ def add_requirement(
         weight_justification=clean_justification,
     )
     db.add(requirement)
+    db.flush()
+    record_audit(
+        db,
+        organization_id=organization_id,
+        actor_id=actor_id,
+        action="requirement.added",
+        resource_type="requirement",
+        resource_id=requirement.id,
+    )
     db.commit()
     return requirement
 
@@ -185,18 +248,32 @@ def change_status(
     organization_id: uuid.UUID,
     job_id: uuid.UUID,
     new_status: JobStatus,
+    actor_id: uuid.UUID | None = None,
 ) -> Job:
     """Aplica solo transiciones permitidas; `archived` es terminal."""
     job = _require_job(db, organization_id, job_id)
     if new_status not in _ALLOWED_TRANSITIONS.get(job.status, frozenset()):
         raise InvalidJobStatusTransitionError
     job.status = new_status
+    db.flush()
+    record_audit(
+        db,
+        organization_id=organization_id,
+        actor_id=actor_id,
+        action="job.status_changed",
+        resource_type="job",
+        resource_id=job.id,
+    )
     db.commit()
     return job
 
 
 def create_version(
-    db: DBSession, *, organization_id: uuid.UUID, job_id: uuid.UUID
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    job_id: uuid.UUID,
+    actor_id: uuid.UUID | None = None,
 ) -> JobVersion:
     """Guarda un snapshot inmutable de la vacante y sus requisitos."""
     job = _require_job(db, organization_id, job_id)
@@ -246,8 +323,95 @@ def create_version(
     version = JobVersion(job_id=job.id, version=next_version, snapshot=snapshot)
     db.add(version)
     try:
+        db.flush()
+        record_audit(
+            db,
+            organization_id=organization_id,
+            actor_id=actor_id,
+            action="version.created",
+            resource_type="job_version",
+            resource_id=version.id,
+        )
         db.commit()
     except IntegrityError:
         db.rollback()
         raise JobVersionConflictError from None
     return version
+
+
+def update_requirement(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    job_id: uuid.UUID,
+    requirement_id: uuid.UUID,
+    category: RequirementCategory | None = None,
+    description: str | None = None,
+    importance: RequirementImportance | None = None,
+    expected_level: str | None = None,
+    acceptable_evidence: list[str] | None = None,
+    weight: float | None = None,
+    weight_justification: str | None = None,
+    actor_id: uuid.UUID | None = None,
+) -> JobRequirement:
+    """Actualiza un requisito propio; `None` significa «sin cambio»."""
+    _require_job(db, organization_id, job_id)
+    requirement = get_requirement(db, organization_id, requirement_id)
+    if requirement is None or requirement.job_id != job_id:
+        raise JobNotFoundError
+
+    if description is not None:
+        clean_description = description.strip()
+        if not clean_description:
+            raise JobValidationError("requirement description must not be blank")
+        requirement.description = clean_description
+    if category is not None:
+        requirement.category = category
+    if importance is not None:
+        requirement.importance = importance
+    if expected_level is not None:
+        requirement.expected_level = expected_level.strip()
+
+    effective_weight = requirement.weight if weight is None else weight
+    if not math.isfinite(effective_weight) or not 0.0 <= effective_weight <= 1.0:
+        raise JobValidationError("weight must be between 0 and 1")
+    effective_justification = (
+        requirement.weight_justification
+        if weight_justification is None
+        else weight_justification.strip()
+    )
+    if effective_weight > 0.0 and not effective_justification:
+        raise JobValidationError("weight > 0 requires a justification")
+    if weight is not None:
+        requirement.weight = weight
+    if weight_justification is not None:
+        requirement.weight_justification = effective_justification
+
+    if acceptable_evidence is not None:
+        evidence: list[str] = []
+        for item in acceptable_evidence:
+            clean_item = item.strip()
+            if not clean_item:
+                raise JobValidationError("acceptable evidence must not be blank")
+            evidence.append(clean_item)
+        requirement.acceptable_evidence = evidence
+
+    db.flush()
+    record_audit(
+        db,
+        organization_id=organization_id,
+        actor_id=actor_id,
+        action="requirement.updated",
+        resource_type="requirement",
+        resource_id=requirement.id,
+    )
+    db.commit()
+    return requirement
+
+
+def list_versions(
+    db: DBSession, *, organization_id: uuid.UUID, job_id: uuid.UUID
+) -> list[JobVersion]:
+    """Lista versiones de una vacante verificada en la organización activa."""
+    job = _require_job(db, organization_id, job_id)
+    return list_job_versions(db, organization_id, job.id)
