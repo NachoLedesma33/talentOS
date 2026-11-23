@@ -152,6 +152,33 @@ def download_document_file(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=_NOT_FOUND_MESSAGE) from None
 
 
+@router.post("/{document_id}/extract", status_code=status.HTTP_202_ACCEPTED)
+def extract_document(
+    _origin: OriginChecked,
+    document_id: uuid.UUID,
+    actor: CurrentUser,
+    active_organization: CurrentOrganization,
+    _member: WriteMember,
+    db: DbDependency,
+) -> dict[str, object]:
+    """Encola la extracción y devuelve metadatos; el estado se consulta por GET."""
+    try:
+        return documents_service.start_extraction(
+            db,
+            active_organization.id,
+            document_id,
+            actor.id,
+        )
+    except documents_service.DocumentNotFoundError:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=_NOT_FOUND_MESSAGE) from None
+    except documents_service.DocumentsDomainError as exc:
+        if exc.code == "forbidden":
+            raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Rol insuficiente.") from None
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="Estado de documento inválido."
+        ) from None
+
+
 @router.get("/{document_id}", response_model=DocumentResponse)
 def get_document(
     document_id: uuid.UUID,

@@ -1,5 +1,4 @@
-# Entorno local de Fase 1: infraestructura, API y web.
-# El `worker` se agregará cuando exista código de procesamiento asíncrono.
+# Entorno local: infraestructura, API, web y worker de extracción de documentos.
 services:
   postgres:
     image: postgres:16
@@ -43,6 +42,30 @@ services:
       - ./apps/api:/app
     ports:
       - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: infra/docker/worker/Dockerfile
+    command: ["celery", "-A", "app.workers.celery_app:celery_app", "worker", "--loglevel=info"]
+    # Sin secretos en el repo: valores de ejemplo y, si existe, .env local no versionado.
+    env_file:
+      - .env.example
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/talentos
+      REDIS_URL: redis://redis:6379/0
+      LLM_PROVIDER: mock
+      LOG_LEVEL: INFO
+    volumes:
+      # Storage local compartido con la API: bind de ./apps/api incluye var/documents.
+      - ./apps/api:/app
     depends_on:
       postgres:
         condition: service_healthy

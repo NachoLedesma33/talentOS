@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import secrets
 import uuid
 from pathlib import Path
@@ -10,21 +11,34 @@ from sqlalchemy.orm import Session as DBSession
 
 from app.audit.service import record_audit
 from app.candidates.repositories import get_candidate as get_candidate_row
+from app.core.logging import log_structured
 from app.documents import storage
-from app.documents.models import Document, DocumentStatus
+from app.documents.extraction import (
+    EXTRACTION_MODEL,
+    EXTRACTION_PROMPT_VERSION,
+    EXTRACTION_PROVIDER,
+)
+from app.documents.models import Document, DocumentExtraction, DocumentStatus, ExtractionStatus
 from app.documents.repositories import count_documents as count_document_rows
 from app.documents.repositories import get_document as get_document_row
+from app.documents.repositories import get_extraction_for_worker
 from app.documents.repositories import list_documents as list_document_rows
 from app.documents.schemas import DownloadUrlResponse
 from app.documents.storage import DocumentStorageError, StorageErrorCode
 from app.documents.storage import _key_path as storage_key_path
+from app.documents.tasks import extract_document as extract_document_task
 from app.documents.tokens import create_download_token
 from app.documents.validation import ALLOWED_MIME, extract_extension, validate_upload
-from app.identity.repositories import user_belongs_to_organization
+from app.identity.models import MembershipRole
+from app.identity.repositories import get_membership, user_belongs_to_organization
 
 _RESOURCE_TYPE = "document"
 _DOWNLOAD_PATH = "/api/v1/documents/files"
 _DOWNLOAD_TTL_SECONDS = 60
+_EXTRACTION_WRITE_ROLES = frozenset(
+    {MembershipRole.OWNER, MembershipRole.ADMIN, MembershipRole.RECRUITER}
+)
+_BROKER_FAILURE_CODE = "broker_unavailable"
 
 
 class DocumentsDomainError(Exception):
@@ -194,6 +208,7 @@ def prepare_download(
     except SQLAlchemyError:
         db.rollback()
         raise
+
     return document, path
 
 
@@ -228,3 +243,121 @@ def delete_document(
     except SQLAlchemyError:
         db.rollback()
         raise
+
+
+def _mark_broker_failure(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    document_id: uuid.UUID,
+    extraction_id: uuid.UUID,
+    actor_id: uuid.UUID,
+) -> None:
+    """Segunda transacción: deja rastro del fallo del broker sin guardar la excepción."""
+    db.rollback()
+    document = db.get(Document, document_id)
+    extraction = db.get(DocumentExtraction, extraction_id)
+    if document is not None and document.organization_id == organization_id:
+        document.status = DocumentStatus.FAILED
+        document.error_code = _BROKER_FAILURE_CODE
+    if extraction is not None and extraction.document_id == document_id:
+        extraction.status = ExtractionStatus.FAILED
+        extraction.pages = []
+        extraction.error_code = _BROKER_FAILURE_CODE
+    record_audit(
+        db,
+        organization_id=organization_id,
+        actor_id=actor_id,
+        action="document.extraction_failed",
+        resource_type=_RESOURCE_TYPE,
+        resource_id=document_id,
+    )
+    db.commit()
+
+
+def start_extraction(
+    db: DBSession,
+    organization_id: uuid.UUID,
+    document_id: uuid.UUID,
+    uploader_id: uuid.UUID,
+) -> dict[str, object]:
+    """Autoriza, crea la extracción pendiente y encola IDs; sin importar el archivo."""
+    membership = get_membership(db, uploader_id, organization_id)
+    if membership is None or membership.role not in _EXTRACTION_WRITE_ROLES:
+        raise DocumentsDomainError("forbidden")
+
+    document = _require_document(db, organization_id, document_id)
+    if document.status not in (DocumentStatus.UPLOADED, DocumentStatus.FAILED):
+        raise DocumentsDomainError("invalid_status")
+
+    extraction = get_extraction_for_worker(
+        db, document.id, EXTRACTION_PROVIDER, EXTRACTION_PROMPT_VERSION
+    )
+    if extraction is not None and extraction.status is ExtractionStatus.COMPLETED:
+        raise DocumentsDomainError("invalid_status")
+    if extraction is None:
+        extraction = DocumentExtraction(
+            id=uuid.uuid4(),
+            document_id=document.id,
+            provider=EXTRACTION_PROVIDER,
+            model=EXTRACTION_MODEL,
+            prompt_version=EXTRACTION_PROMPT_VERSION,
+            status=ExtractionStatus.PENDING,
+            pages=[],
+        )
+        db.add(extraction)
+    else:
+        extraction.status = ExtractionStatus.PENDING
+        extraction.pages = []
+        extraction.error_code = None
+
+    document.status = DocumentStatus.PROCESSING
+    document.page_count = None
+    document.error_code = None
+    record_audit(
+        db,
+        organization_id=organization_id,
+        actor_id=uploader_id,
+        action="document.extraction_requested",
+        resource_type=_RESOURCE_TYPE,
+        resource_id=document.id,
+    )
+    db.commit()
+
+    document_id_value = document.id
+    extraction_id = extraction.id
+    correlation_id = str(uuid.uuid4())
+    try:
+        extract_document_task.delay(str(document_id_value), str(organization_id))
+    except Exception:
+        # Nunca registrar mensaje, URL ni traza del broker: solo el código estable.
+        _mark_broker_failure(
+            db,
+            organization_id=organization_id,
+            document_id=document_id_value,
+            extraction_id=extraction_id,
+            actor_id=uploader_id,
+        )
+        log_structured(
+            logging.WARNING,
+            f"document_extraction_broker_failed document_id={document_id_value} result=failed",
+            correlation_id=correlation_id,
+            organization_id=str(organization_id),
+        )
+        final_status = DocumentStatus.FAILED
+    else:
+        log_structured(
+            logging.INFO,
+            f"document_extraction_requested document_id={document_id_value} result=queued",
+            correlation_id=correlation_id,
+            organization_id=str(organization_id),
+        )
+        final_status = DocumentStatus.PROCESSING
+
+    return {
+        "document_id": str(document_id_value),
+        "extraction_id": str(extraction_id),
+        "status": final_status.value,
+        "provider": EXTRACTION_PROVIDER,
+        "prompt_version": EXTRACTION_PROMPT_VERSION,
+    }

@@ -19,6 +19,16 @@ def get_document(
     return db.execute(stmt).scalar_one_or_none()
 
 
+def get_document_for_worker(db: DBSession, document_id: uuid.UUID) -> Document | None:
+    """Solo uso interno del worker: sin filtro de tenant, devuelve su organization_id.
+
+    El worker debe comparar ese valor con el organization_id que viaja en la tarea antes
+    de leer cualquier byte; nunca se expone al cliente.
+    """
+    stmt = select(Document).where(Document.id == document_id)
+    return db.execute(stmt).scalar_one_or_none()
+
+
 def list_documents(
     db: DBSession,
     organization_id: uuid.UUID,
@@ -61,6 +71,21 @@ def get_extraction(
             DocumentExtraction.document_id == document_id,
             DocumentExtraction.id == extraction_id,
         )
+    )
+    return db.execute(stmt).scalar_one_or_none()
+
+
+def get_extraction_for_worker(
+    db: DBSession,
+    document_id: uuid.UUID,
+    provider: str,
+    prompt_version: str,
+) -> DocumentExtraction | None:
+    """Busca la extracción de la clave única; el tenant ya fue verificado por el worker."""
+    stmt = select(DocumentExtraction).where(
+        DocumentExtraction.document_id == document_id,
+        DocumentExtraction.provider == provider,
+        DocumentExtraction.prompt_version == prompt_version,
     )
     return db.execute(stmt).scalar_one_or_none()
 
