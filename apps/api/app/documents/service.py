@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import secrets
 import uuid
+from pathlib import Path
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session as DBSession
@@ -14,11 +15,16 @@ from app.documents.models import Document, DocumentStatus
 from app.documents.repositories import count_documents as count_document_rows
 from app.documents.repositories import get_document as get_document_row
 from app.documents.repositories import list_documents as list_document_rows
+from app.documents.schemas import DownloadUrlResponse
 from app.documents.storage import DocumentStorageError, StorageErrorCode
+from app.documents.storage import _key_path as storage_key_path
+from app.documents.tokens import create_download_token
 from app.documents.validation import ALLOWED_MIME, extract_extension, validate_upload
 from app.identity.repositories import user_belongs_to_organization
 
 _RESOURCE_TYPE = "document"
+_DOWNLOAD_PATH = "/api/v1/documents/files"
+_DOWNLOAD_TTL_SECONDS = 60
 
 
 class DocumentsDomainError(Exception):
@@ -142,6 +148,53 @@ def list_documents(
     )
     total = count_document_rows(db, organization_id, candidate_id=candidate_id)
     return documents, total
+
+
+def issue_download_url(document: Document) -> DownloadUrlResponse:
+    """Firma un enlace interno de 60 s sin filtrar ruta de storage en la respuesta."""
+    token, expires_at = create_download_token(
+        document_id=document.id,
+        organization_id=document.organization_id,
+        ttl_seconds=_DOWNLOAD_TTL_SECONDS,
+    )
+    return DownloadUrlResponse(url=f"{_DOWNLOAD_PATH}/{token}", expires_at=expires_at)
+
+
+def resolve_download_path(document: Document) -> Path:
+    """Resuelve la ruta privada desde la fila del tenant, sin exponerla al cliente."""
+    try:
+        path = storage_key_path(document.organization_id, document.id, document.internal_name)
+        if not path.is_file():
+            raise DocumentNotFoundError
+        return path
+    except (DocumentStorageError, OSError):
+        raise DocumentNotFoundError from None
+
+
+def prepare_download(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    document_id: uuid.UUID,
+    actor_id: uuid.UUID,
+) -> tuple[Document, Path]:
+    """Autoriza el token, comprueba el archivo y audita solo metadatos del acceso."""
+    document = _require_document(db, organization_id, document_id)
+    path = resolve_download_path(document)
+    try:
+        record_audit(
+            db,
+            organization_id=organization_id,
+            actor_id=actor_id,
+            action="document.downloaded",
+            resource_type=_RESOURCE_TYPE,
+            resource_id=document.id,
+        )
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        raise
+    return document, path
 
 
 def delete_document(

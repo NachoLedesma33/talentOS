@@ -18,6 +18,7 @@ dependencies = [
     "psycopg[binary]>=3.1,<4",    # Driver exigido por el DSN local `postgresql+psycopg` documentado en SDD 17.2.
     "bcrypt>=4,<6",               # Hash de contraseñas con coste ajustable; nunca texto plano en DB.
     "email-validator>=2,<3",      # Requerido por Pydantic EmailStr para validar emails de entrada.
+    "python-multipart>=0.0.9,<1",  # Fase 4 unidad 2: FastAPI necesita parser multipart para UploadFile en POST /upload.
 ]
 
 [project.optional-dependencies]
