@@ -12,6 +12,15 @@ dependencies = [
     "uvicorn>=0.30,<1",           # Servidor ASGI para ejecución local.
     "pydantic>=2.7,<3",           # Contratos tipados y validación de entrada/salida.
     "pydantic-settings>=2.3,<3",  # Settings tipados leídos desde variables de entorno.
+    # Dependencias nuevas de la unidad 2 (Fase 1): justificación exigida por AGENTS.md.
+    "sqlalchemy>=2,<3",           # ORM 2.x: sesiones y metadata de persistencia; dominio y repositorios lo usarán sin SQL libre.
+    "alembic>=1.13,<2",           # Migraciones versionadas y reversibles del esquema (criterio de Fase 1).
+    "psycopg[binary]>=3.1,<4",    # Driver exigido por el DSN local `postgresql+psycopg` documentado en SDD 17.2.
+]
+
+[project.optional-dependencies]
+# `dev` agrupa las herramientas de calidad; README instala `apps/api[dev]`.
+dev = [
     "pytest>=8,<10",              # Ejecución de tests unitarios y de API.
     "httpx>=0.28,<1",             # TestClient ASGI sin servicios externos.
     "ruff>=0.6,<1",               # Lint y orden de imports de Python.
