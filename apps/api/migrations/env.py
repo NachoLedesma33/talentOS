@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 
 # Importar entidades registra sus tablas en Base.metadata antes de migrar/comparar.
 import app.audit.models  # noqa: F401
+import app.candidates.models  # noqa: F401
 import app.identity.models  # noqa: F401
 import app.jobs.models  # noqa: F401
 from app.core.config import get_settings
