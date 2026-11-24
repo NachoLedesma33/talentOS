@@ -56,6 +56,9 @@ LLM_API_KEY=
 LLM_MODEL=
 LLM_BASE_URL=
 
+# Fernet de 32 bytes en base64 url-safe; sin valor en el repositorio.
+INTEGRATION_ENCRYPTION_KEY=
+
 LOG_LEVEL=INFO
 ```
 
@@ -67,6 +70,7 @@ LOG_LEVEL=INFO
 | `AUTH_SECRET` | Firma de sesiones/tokens; obligatorio fuera de modo mock. |
 | `STORAGE_*` | Configuración de storage privado compatible S3; se habilita con el flujo de documentos. |
 | `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_BASE_URL` | Selección de proveedor; `mock` es el default de desarrollo y test. |
+| `INTEGRATION_ENCRYPTION_KEY` | Clave Fernet (32 bytes en base64 url-safe) para cifrar la configuración de integraciones. Se genera por despliegue y nunca se versiona; vacía permite arrancar en modo mock, pero las operaciones de integración responden `integration_key_missing`. No exigida por `missing_required_settings`. Formato: una clave Fernet de 32 bytes codificada en base64; sin valor real aquí. |
 | `LOG_LEVEL` | Nivel de logs estructurados; sin CVs, tokens ni datos personales en los mensajes. |
 
 ## Estado actual de archivos de entorno

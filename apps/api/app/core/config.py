@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     LLM_API_KEY: str = ""
     LLM_MODEL: str = ""
     LLM_TIMEOUT_SECONDS: float = 30.0
+    # Clave Fernet por despliegue; vacía permite arrancar en modo mock, pero
+    # las operaciones de integraciones fallan con `integration_key_missing`.
+    INTEGRATION_ENCRYPTION_KEY: str = ""
     SESSION_COOKIE_NAME: str = "talentos_session"
     SESSION_TTL_SECONDS: int = 86400
 

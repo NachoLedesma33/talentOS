@@ -27,6 +27,8 @@ dependencies = [
     "httpx>=0.28,<1",             # Cliente HTTP del proveedor remoto; antes solo estaba en dev para TestClient.
     # Unidad 1 (Fase 6): ADR-006 elige LangGraph para grafos con estado, checkpoints y aprobación humana.
     "langgraph>=1.2.24,<2",       # API verificada en Python 3.12: StateGraph, BaseCheckpointSaver e interrupt.
+    # Unidad 1 (Fase 9): ADR-013 elige cryptography/Fernet para cifrar configs sensibles en reposo sin crypto casera.
+    "cryptography>=44,<45",       # Fernet AEAD mantenido y listo para uso: cifrado autenticado de secrets por organización.
 ]
 
 [project.optional-dependencies]
