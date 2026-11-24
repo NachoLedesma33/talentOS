@@ -28,6 +28,20 @@ import type {
   AutomationVersionResult,
 } from "../lib/types";
 import { AutomationApprovalControls } from "./AutomationApprovalControls";
+import {
+  AUTOMATION_ACTION_TYPES,
+  AUTOMATION_CONDITION_FIELDS,
+  AUTOMATION_CONDITION_OPERATORS,
+  AUTOMATION_EMPTY_ACTION_PAYLOAD,
+  AUTOMATION_STAGE_VALUES,
+  AutomationNodeEditor,
+  MAX_ACTIONS,
+  MAX_CONDITIONS,
+  automationConditionValues,
+  buildAutomationVersionPayload,
+  createAutomationAction,
+  createAutomationCondition,
+} from "./AutomationNodeEditor";
 import { AutomationRunTimeline } from "./AutomationRunTimeline";
 
 const PAGE_SIZE = 20;
@@ -49,29 +63,10 @@ const RUN_STATUS_LABELS: Record<AutomationRunStatus, string> = {
   timed_out: "Agotado por tiempo",
 };
 
-const CONDITION_FIELDS: AutomationConditionField[] = [
-  "to_stage",
-  "from_stage",
-  "job_status",
-];
-const CONDITION_OPERATORS: AutomationConditionOperator[] = ["eq", "neq", "in"];
-const ACTION_TYPES: AutomationActionType[] = [
-  "create_task",
-  "create_message_draft",
-  "request_approval",
-  "record_note",
-  "propose_stage_change",
-  "run_authorized_analysis",
-];
-const STAGE_VALUES: ApplicationStage[] = [
-  "applied",
-  "screening",
-  "interview",
-  "offer",
-  "hired",
-  "rejected",
-];
-const JOB_STATUS_VALUES = ["draft", "open", "paused", "closed", "archived"];
+const CONDITION_FIELDS = AUTOMATION_CONDITION_FIELDS;
+const CONDITION_OPERATORS = AUTOMATION_CONDITION_OPERATORS;
+const ACTION_TYPES = AUTOMATION_ACTION_TYPES;
+const STAGE_VALUES = AUTOMATION_STAGE_VALUES;
 const ALL_STATUSES: Array<AutomationStatus | "all"> = [
   "all",
   "draft",
@@ -79,8 +74,6 @@ const ALL_STATUSES: Array<AutomationStatus | "all"> = [
   "inactive",
   "archived",
 ];
-
-const EMPTY_PAYLOAD = { template_id: null, note: null, target_stage: null };
 
 interface ExecutionState {
   kind: AutomationRunMode;
@@ -99,6 +92,12 @@ function describeError(cause: unknown, fallback: string): string {
   return fallback;
 }
 
+function editorModeButtonClass(active: boolean): string {
+  return `rounded-sm border px-3 py-1 text-sm font-semibold ${
+    active ? "border-accent bg-surface-muted text-accent" : "border-border bg-surface text-text"
+  }`;
+}
+
 function requestAutomationList(status: AutomationStatus | "all", pageOffset: number): Promise<AutomationList> {
   const params = new URLSearchParams({
     limit: String(PAGE_SIZE),
@@ -106,18 +105,6 @@ function requestAutomationList(status: AutomationStatus | "all", pageOffset: num
   });
   if (status !== "all") params.set("status", status);
   return apiFetch<AutomationList>(`/api/v1/automations?${params.toString()}`);
-}
-
-function options(field: AutomationConditionField): string[] {
-  return field === "job_status" ? JOB_STATUS_VALUES : STAGE_VALUES;
-}
-
-function initialCondition(): AutomationCondition {
-  return { field: "to_stage", operator: "eq", value: "interview" };
-}
-
-function initialAction(): AutomationAction {
-  return { type: "create_task", payload: { ...EMPTY_PAYLOAD } };
 }
 
 /** Muestra sólo metadatos de la versión; nunca notas libres ni campos extra. */
@@ -148,8 +135,9 @@ export function AutomationRulePanel() {
   const [offset, setOffset] = useState(0);
   const [list, setList] = useState<AutomationList | null>(null);
   const [detail, setDetail] = useState<AutomationDetail | null>(null);
-  const [conditions, setConditions] = useState<AutomationCondition[]>([initialCondition()]);
-  const [actions, setActions] = useState<AutomationAction[]>([initialAction()]);
+  const [conditions, setConditions] = useState<AutomationCondition[]>([createAutomationCondition()]);
+  const [actions, setActions] = useState<AutomationAction[]>([createAutomationAction()]);
+  const [editorMode, setEditorMode] = useState<"form" | "visual">("form");
   const [applicationId, setApplicationId] = useState("");
   const [idempotencyKey, setIdempotencyKey] = useState("");
   const [runs, setRuns] = useState<AutomationRunSummary[]>([]);
@@ -296,18 +284,11 @@ export function AutomationRulePanel() {
       return;
     }
 
-    const payload: AutomationVersionCreate = {
+    const payload: AutomationVersionCreate = buildAutomationVersionPayload({
       trigger: { event_type: "application.stage_changed" },
       conditions,
-      actions: actions.map((action) => ({
-        type: action.type,
-        payload: {
-          ...EMPTY_PAYLOAD,
-          target_stage:
-            action.type === "propose_stage_change" ? action.payload.target_stage : null,
-        },
-      })),
-    };
+      actions,
+    });
     setBusy("version");
     setError(null);
     setNotice(null);
@@ -636,6 +617,25 @@ export function AutomationRulePanel() {
             </div>
           </section>
 
+          <div role="group" aria-label="Modo de edición de la versión" className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              aria-pressed={editorMode === "form"}
+              onClick={() => setEditorMode("form")}
+              className={editorModeButtonClass(editorMode === "form")}
+            >
+              Formulario
+            </button>
+            <button
+              type="button"
+              aria-pressed={editorMode === "visual"}
+              onClick={() => setEditorMode("visual")}
+              className={editorModeButtonClass(editorMode === "visual")}
+            >
+              Editor visual
+            </button>
+          </div>
+
           <form onSubmit={(event) => void saveVersion(event)} className="space-y-3">
             <div className="space-y-1">
               <h3 className="text-base font-semibold">Nueva versión</h3>
@@ -657,11 +657,22 @@ export function AutomationRulePanel() {
               </select>
             </div>
 
+            {editorMode === "visual" ? (
+              <AutomationNodeEditor
+                value={{ trigger: { event_type: "application.stage_changed" }, conditions, actions }}
+                onChange={(next) => {
+                  setConditions(next.conditions);
+                  setActions(next.actions);
+                }}
+                disabled={working}
+              />
+            ) : (
+              <div className="space-y-2">
             <fieldset disabled={working} className="space-y-2 rounded-sm border border-border p-3">
               <legend className="px-1 text-sm font-semibold">Condiciones</legend>
               <ol className="space-y-3">
                 {conditions.map((condition, index) => {
-                  const choices = options(condition.field);
+                  const choices = automationConditionValues(condition.field);
                   const isList = condition.operator === "in";
                   const valueKey = isList ? "Valores" : "Valor";
                   return (
@@ -681,7 +692,7 @@ export function AutomationRulePanel() {
                             updateCondition(index, {
                               field,
                               operator: condition.operator,
-                              value: options(field)[0],
+                              value: automationConditionValues(field)[0],
                             });
                           }}
                           className="rounded-sm border border-border bg-surface px-2 py-2 text-sm"
@@ -760,8 +771,8 @@ export function AutomationRulePanel() {
               </ol>
               <button
                 type="button"
-                onClick={() => setConditions((current) => [...current, initialCondition()])}
-                disabled={working}
+                onClick={() => setConditions((current) => [...current, createAutomationCondition()])}
+                disabled={working || conditions.length >= MAX_CONDITIONS}
                 className="rounded-sm border border-border px-3 py-1 text-sm font-semibold disabled:opacity-60"
               >
                 Agregar condición
@@ -787,7 +798,7 @@ export function AutomationRulePanel() {
                           const type = event.target.value as AutomationActionType;
                           updateAction(index, {
                             type,
-                            payload: { ...EMPTY_PAYLOAD },
+                            payload: { ...AUTOMATION_EMPTY_ACTION_PAYLOAD },
                           });
                         }}
                         className="rounded-sm border border-border bg-surface px-2 py-2 text-sm"
@@ -840,13 +851,15 @@ export function AutomationRulePanel() {
               </ol>
               <button
                 type="button"
-                onClick={() => setActions((current) => [...current, initialAction()])}
-                disabled={working}
+                onClick={() => setActions((current) => [...current, createAutomationAction()])}
+                disabled={working || actions.length >= MAX_ACTIONS}
                 className="rounded-sm border border-border px-3 py-1 text-sm font-semibold disabled:opacity-60"
               >
                 Agregar acción
               </button>
             </fieldset>
+              </div>
+            )}
 
             <button
               type="submit"
