@@ -184,6 +184,65 @@ def decide_approval(
     return approval
 
 
+def count_tool_invocations(
+    db: DBSession,
+    organization_id: uuid.UUID,
+    agent_run_id: uuid.UUID,
+    tool_name: str,
+) -> int:
+    """Cuenta eventos `tool.invoked` persistidos para aplicar rate limit."""
+    events = list_agent_events(db, organization_id, agent_run_id, limit=1000)
+    return sum(
+        1
+        for event in events
+        if event.event_type == AgentEventType.TOOL_INVOKED
+        and event.payload.get("tool") == tool_name
+    )
+
+
+def find_tool_event_by_hash(
+    db: DBSession,
+    organization_id: uuid.UUID,
+    agent_run_id: uuid.UUID,
+    tool_name: str,
+    idempotency_hash: str,
+) -> AgentEvent | None:
+    """Busca la invocación exitosa ya persistida para reutilizar su resultado."""
+    events = list_agent_events(db, organization_id, agent_run_id, limit=1000)
+    for event in reversed(events):
+        payload = event.payload
+        if (
+            event.event_type == AgentEventType.TOOL_INVOKED
+            and payload.get("tool") == tool_name
+            and payload.get("status") == "succeeded"
+            and payload.get("idempotency_hash") == idempotency_hash
+        ):
+            return event
+    return None
+
+
+def find_approval_by_payload_hash(
+    db: DBSession,
+    organization_id: uuid.UUID,
+    agent_run_id: uuid.UUID,
+    idempotency_hash: str,
+) -> Approval | None:
+    """Busca la aprobación del tenant creada por una misma clave de idempotencia."""
+    stmt = (
+        select(Approval)
+        .where(
+            Approval.organization_id == organization_id,
+            Approval.agent_run_id == agent_run_id,
+        )
+        .order_by(Approval.created_at, Approval.id)
+    )
+    approvals = list(db.execute(stmt).scalars().all())
+    for approval in reversed(approvals):
+        if approval.payload.get("idempotency_hash") == idempotency_hash:
+            return approval
+    return None
+
+
 def get_checkpoint(
     db: DBSession,
     organization_id: uuid.UUID,
