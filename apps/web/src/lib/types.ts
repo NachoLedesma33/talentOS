@@ -505,3 +505,129 @@ export interface AgentResumeResponse {
   queued: boolean;
   correlation_id: string;
 }
+
+/** DTOs espejo de `/api/v1/interviews` (Fase 7). Sin score ni decisión de contratación. */
+
+export type InterviewGuideStatus = "draft" | "published" | "archived";
+export type InterviewQuestionCategory = "technical" | "deep_dive";
+export type InterviewQuestionStatus = "draft" | "approved" | "rejected" | "archived";
+export type InterviewFeedbackStatus = "pending" | "submitted" | "needs_review";
+
+export interface InterviewQuestion {
+  id: string;
+  requirement_id: string;
+  category: InterviewQuestionCategory;
+  question: string;
+  evidence_focus: string;
+  competency: string;
+  status: InterviewQuestionStatus;
+  position: number;
+  review_required: boolean;
+  model_version: string;
+  prompt_version: string;
+}
+
+export interface InterviewGuideSummary {
+  id: string;
+  application_id: string;
+  title: string;
+  status: InterviewGuideStatus;
+  version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InterviewGuideDetail extends InterviewGuideSummary {
+  job_version_id: string | null;
+  model_version: string | null;
+  prompt_version: string | null;
+  limitations: string[];
+  review_required: boolean;
+  needs_review: boolean;
+  questions: InterviewQuestion[];
+}
+
+export type InterviewGuideList = Paginated<InterviewGuideSummary>;
+
+export interface GuideGeneration {
+  guide_id: string;
+  application_id: string;
+  version: number;
+  status: InterviewGuideStatus;
+  model_version: string;
+  prompt_version: string;
+  job_version_id: string | null;
+  questions: InterviewQuestion[];
+  rejected_questions: InterviewQuestion[];
+  limitations: string[];
+  review_required: boolean;
+  needs_review: boolean;
+  created: boolean;
+}
+
+export interface GenerateGuideRequest {
+  application_id: string;
+}
+
+export interface InterviewGuideUpdate {
+  title?: string;
+  status?: InterviewGuideStatus;
+}
+
+export interface InterviewQuestionCreateRequest {
+  requirement_id: string;
+  position: number;
+  category: InterviewQuestionCategory;
+  question: string;
+  evidence_focus: string;
+  competency: string;
+  review_required: boolean;
+  model_version: string;
+  prompt_version: string;
+}
+
+export interface InterviewQuestionUpdateRequest {
+  question?: string;
+  evidence_focus?: string;
+  competency?: string;
+  position?: number;
+  status?: InterviewQuestionStatus;
+}
+
+export interface InterviewFeedback {
+  id: string;
+  question_id: string;
+  requirement_id: string;
+  interviewer_id: string;
+  status: InterviewFeedbackStatus;
+  observed_evidence: string[];
+  gaps: string[];
+  follow_up_needed: boolean;
+  notes: string | null;
+  submitted_at: string | null;
+  created_at: string;
+}
+
+export type InterviewFeedbackList = Paginated<InterviewFeedback>;
+
+export interface InterviewFeedbackSubmitRequest {
+  observed_evidence: string[];
+  gaps: string[];
+  follow_up_needed: boolean;
+  notes?: string | null;
+}
+
+export interface GuideRevision {
+  id: string;
+  version: number;
+  created_by: string;
+  created_at: string;
+  snapshot: Record<string, unknown>;
+}
+
+export type GuideRevisionList = Paginated<GuideRevision>;
+
+/** El backend añade `reason_code` a los 422 de política; `apiFetch` sólo expone code/message. */
+export interface PolicyErrorEnvelope {
+  error: ErrorEnvelope["error"] & { reason_code?: string };
+}
