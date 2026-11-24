@@ -18,6 +18,7 @@ from app.api.routes import (
     candidates,
     documents,
     health,
+    interviews,
     jobs,
     organizations,
 )
@@ -131,3 +132,4 @@ app.include_router(applications.router)
 app.include_router(documents.router)
 app.include_router(assessment.router)
 app.include_router(agents.router)
+app.include_router(interviews.router)

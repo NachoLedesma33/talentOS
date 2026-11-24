@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Mapping
+from typing import cast
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DBSession
@@ -11,10 +13,12 @@ from app.interviews.models import (
     InterviewFeedbackStatus,
     InterviewGuide,
     InterviewGuideRevision,
+    InterviewGuideStatus,
     InterviewQuestion,
     InterviewQuestionCategory,
     InterviewTenantMismatchError,
 )
+from app.jobs.models import Job, JobVersion
 
 
 def get_guide(
@@ -34,13 +38,31 @@ def list_guides(
     application_id: uuid.UUID | None = None,
     limit: int = 50,
     offset: int = 0,
+    status: InterviewGuideStatus | None = None,
 ) -> list[InterviewGuide]:
-    """Lista guías del tenant con filtro opcional y paginación."""
+    """Lista guías del tenant con filtros opcionales y paginación."""
     stmt = select(InterviewGuide).where(InterviewGuide.organization_id == organization_id)
     if application_id is not None:
         stmt = stmt.where(InterviewGuide.application_id == application_id)
+    if status is not None:
+        stmt = stmt.where(InterviewGuide.status == status)
     stmt = stmt.order_by(InterviewGuide.created_at, InterviewGuide.id).limit(limit).offset(offset)
     return list(db.execute(stmt).scalars().all())
+
+
+def count_guides(
+    db: DBSession,
+    organization_id: uuid.UUID,
+    application_id: uuid.UUID | None = None,
+    status: InterviewGuideStatus | None = None,
+) -> int:
+    """Cuenta solo las guías del tenant con los mismos filtros del listado."""
+    filters = [InterviewGuide.organization_id == organization_id]
+    if application_id is not None:
+        filters.append(InterviewGuide.application_id == application_id)
+    if status is not None:
+        filters.append(InterviewGuide.status == status)
+    return int(db.scalar(select(func.count()).select_from(InterviewGuide).where(*filters)) or 0)
 
 
 def next_version(
@@ -52,6 +74,38 @@ def next_version(
         InterviewGuide.application_id == application_id,
     )
     return int(db.scalar(stmt) or 0) + 1
+
+
+def allowed_requirement_ids(
+    db: DBSession, organization_id: uuid.UUID, job_version_id: uuid.UUID
+) -> frozenset[uuid.UUID]:
+    """Requisitos del snapshot inmutable de una versión verificada del tenant."""
+    version = db.get(JobVersion, job_version_id)
+    if version is None:
+        return frozenset()
+    job = db.get(Job, version.job_id)
+    if job is None or job.organization_id != organization_id:
+        return frozenset()
+    snapshot_job = version.snapshot.get("job")
+    if isinstance(snapshot_job, Mapping):
+        snapshot_org = cast(Mapping[str, object], snapshot_job).get("organization_id")
+        if snapshot_org is not None and snapshot_org != str(organization_id):
+            return frozenset()
+    raw_requirements = version.snapshot.get("requirements")
+    if not isinstance(raw_requirements, (list, tuple)):
+        return frozenset()
+    allowed: set[uuid.UUID] = set()
+    for item in raw_requirements:
+        if not isinstance(item, Mapping):
+            continue
+        raw_id = cast(Mapping[str, object], item).get("id")
+        if not isinstance(raw_id, str):
+            continue
+        try:
+            allowed.add(uuid.UUID(raw_id))
+        except ValueError:
+            continue
+    return frozenset(allowed)
 
 
 def get_guide_for_generation(
@@ -127,9 +181,13 @@ def get_revision(
 
 
 def list_revisions(
-    db: DBSession, organization_id: uuid.UUID, guide_id: uuid.UUID
+    db: DBSession,
+    organization_id: uuid.UUID,
+    guide_id: uuid.UUID,
+    limit: int | None = None,
+    offset: int = 0,
 ) -> list[InterviewGuideRevision]:
-    """Historial completo de la guía, ordenado por versión dentro del tenant."""
+    """Historial de la guía, ordenado por versión dentro del tenant."""
     stmt = (
         select(InterviewGuideRevision)
         .where(
@@ -138,7 +196,20 @@ def list_revisions(
         )
         .order_by(InterviewGuideRevision.version, InterviewGuideRevision.id)
     )
+    if limit is not None:
+        stmt = stmt.limit(limit).offset(offset)
     return list(db.execute(stmt).scalars().all())
+
+
+def count_revisions(
+    db: DBSession, organization_id: uuid.UUID, guide_id: uuid.UUID
+) -> int:
+    """Cuenta las revisiones visibles al tenant para una guía concreta."""
+    stmt = select(func.count()).select_from(InterviewGuideRevision).where(
+        InterviewGuideRevision.organization_id == organization_id,
+        InterviewGuideRevision.guide_id == guide_id,
+    )
+    return int(db.scalar(stmt) or 0)
 
 
 def get_question(
@@ -210,3 +281,16 @@ def list_feedback(
         offset
     )
     return list(db.execute(stmt).scalars().all())
+
+
+def count_feedback(
+    db: DBSession,
+    organization_id: uuid.UUID,
+    question_id: uuid.UUID | None = None,
+) -> int:
+    """Cuenta el feedback del tenant para una pregunta; sin exponer otras orgs."""
+    filters = [InterviewFeedback.organization_id == organization_id]
+    if question_id is not None:
+        filters.append(InterviewFeedback.question_id == question_id)
+    stmt = select(func.count()).select_from(InterviewFeedback).where(*filters)
+    return int(db.scalar(stmt) or 0)
