@@ -335,21 +335,21 @@ Un usuario carga un CV sintético, el worker lo procesa, la IA produce informaci
 
 ## Tareas
 
-- [ ] Definir schema de evaluación por requisito.
-- [ ] Definir estados `supported`, `partial`, `not_found`, `needs_review`.
-- [ ] Obtener versión inmutable de requisitos de la vacante.
-- [ ] Obtener perfil y documentos confirmados del candidato.
-- [ ] Crear contexto mínimo para el modelo.
-- [ ] Implementar evaluación criterio por criterio.
-- [ ] Asociar citas o referencias a fragmentos fuente.
-- [ ] Verificar que las referencias existan.
-- [ ] Detectar contradicciones y evidencia insuficiente.
-- [ ] Generar resumen de fortalezas y brechas.
-- [ ] Generar preguntas para información faltante.
-- [ ] Crear pantalla de evaluación.
-- [ ] Implementar revisión humana.
-- [ ] Guardar versión del modelo, prompt y evaluación.
-- [ ] Permitir comparar evaluaciones de versiones distintas.
+- [x] Definir schema de evaluación por requisito.
+- [x] Definir estados `supported`, `partial`, `not_found`, `needs_review`.
+- [x] Obtener versión inmutable de requisitos de la vacante.
+- [x] Obtener perfil y documentos confirmados del candidato.
+- [x] Crear contexto mínimo para el modelo.
+- [x] Implementar evaluación criterio por criterio.
+- [x] Asociar citas o referencias a fragmentos fuente.
+- [x] Verificar que las referencias existan.
+- [x] Detectar contradicciones y evidencia insuficiente.
+- [x] Generar resumen de fortalezas y brechas.
+- [x] Generar preguntas para información faltante.
+- [x] Crear pantalla de evaluación.
+- [x] Implementar revisión humana.
+- [x] Guardar versión del modelo, prompt y evaluación.
+- [x] Permitir comparar evaluaciones de versiones distintas.
 
 ## Reglas
 
@@ -362,14 +362,14 @@ Un usuario carga un CV sintético, el worker lo procesa, la IA produce informaci
 
 ## Pruebas obligatorias
 
-- [ ] Requisito claramente respaldado.
-- [ ] Evidencia parcial.
-- [ ] Requisito no encontrado.
-- [ ] Documento contradictorio.
-- [ ] Referencia de evidencia inexistente.
-- [ ] Requisito modificado después de una evaluación.
-- [ ] Revisión humana que corrige un resultado.
-- [ ] Evaluación repetible con mock.
+- [x] Requisito claramente respaldado.
+- [x] Evidencia parcial.
+- [x] Requisito no encontrado.
+- [x] Documento contradictorio.
+- [x] Referencia de evidencia inexistente.
+- [x] Requisito modificado después de una evaluación.
+- [x] Revisión humana que corrige un resultado.
+- [x] Evaluación repetible con mock.
 
 ## Criterio de salida
 
@@ -891,7 +891,7 @@ Actualizar esta tabla durante el desarrollo.
 | 2 — Identidad | DONE | 2026-11-23 | 2026-11-23 | Commits 6100629, 173d976, f900157, 4ecc26e; 46 tests pytest (incluye cross-tenant, sesión expirada y matriz de roles); ruff/mypy OK; npm typecheck/lint/test/build OK; CI run 45268242607 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45268242607). Única excepción: contexto org en tareas asíncronas, N/A sin workers y diferido a Fase 4. |
 | 3 — Recruitment Core | DONE | 2026-11-23 | 2026-11-23 | Commits 7199f96, efd89a4, e27aed7, 6b957d8, 7b1e740; dominio y API de jobs/candidates/applications; 119 tests pytest (cross-tenant, roles, transiciones, duplicados, auditoría); ruff/mypy OK; npm typecheck/lint/test/build OK; alembic upgrade/downgrade OK en harness SQLite; CI run 45283604138 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45283604138). Sin IA, sin entrevistas. |
 | 4 — Document Intelligence | DONE | 2026-11-23 | 2026-11-23 | Commits eae1ca8, db7c737, fe9342b, a85d036, c7ce1a9, 58b8e33; upload PDF/DOCX validado y storage local privado; worker Celery tenant-aware (contexto de organización verificado en tarea); LLMProvider mock/remoto, cv_analyst v1 y evidencia verificada; revisión/corrección humana con auditoría; ADR-010; 191 tests pytest, ruff/mypy OK, npm typecheck/lint/test/build OK, alembic upgrade/downgrade OK en harness SQLite; CI run 45298709917 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45298709917). |
-| 5 — Matching | NOT_STARTED | — | — | — |
+| 5 — Matching | DONE | 2026-11-23 | 2026-11-24 | Commits d72ab25, a60231f, 315985a, 4684a44, eea6895; Assessment y RequirementEvaluation tenant-scoped; matching_analyst v1 con versión inmutable, evidencia verificada, contradicciones y needs_review; API run/detalle/comparación/revisión humana; UI de evaluación; sin score ni descarte automático; fix de test flaky de firma base64; 228 tests pytest, ruff/mypy OK, npm typecheck/lint/test/build OK, alembic upgrade/downgrade OK en harness SQLite; CI run 45315963988 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45315963988). |
 | 6 — Agent Runtime | NOT_STARTED | — | — | — |
 | 7 — Interview Assistant | NOT_STARTED | — | — | — |
 | 8 — Automation Engine | NOT_STARTED | — | — | — |
