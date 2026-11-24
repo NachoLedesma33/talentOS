@@ -50,7 +50,12 @@ function parseErrorEnvelope(value: unknown): ErrorEnvelope | null {
  */
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
-  if (options.body !== undefined && !headers.has("Content-Type")) {
+  // FormData define su propio boundary; fijar Content-Type rompería el multipart.
+  if (
+    options.body !== undefined &&
+    !(typeof FormData !== "undefined" && options.body instanceof FormData) &&
+    !headers.has("Content-Type")
+  ) {
     headers.set("Content-Type", "application/json");
   }
 

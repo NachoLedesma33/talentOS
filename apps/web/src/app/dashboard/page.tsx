@@ -138,6 +138,9 @@ export default function DashboardPage() {
           <li>
             <a href="/applications">Pipeline</a>
           </li>
+          <li>
+            <a href="/documents">Documentos</a>
+          </li>
         </ul>
       </section>
     </div>

@@ -21,7 +21,15 @@ from app.db.session import get_db
 from app.documents import service as documents_service
 from app.documents import tokens
 from app.documents.models import Document
-from app.documents.schemas import DocumentListResponse, DocumentResponse, DownloadUrlResponse
+from app.documents.schemas import (
+    DocumentListResponse,
+    DocumentResponse,
+    DownloadUrlResponse,
+    ExtractionResponse,
+    ReviewRequest,
+    ReviewResponse,
+    ReviewSummaryResponse,
+)
 from app.documents.validation import MAX_SIZE_BYTES, UploadValidationError
 from app.identity.dependencies import (
     get_current_organization,
@@ -63,6 +71,22 @@ def _validation_error(request: Request, code: str) -> JSONResponse:
                 "request_id": str(request_id),
             }
         },
+    )
+
+
+def _review_error(exc: documents_service.DocumentsDomainError) -> HTTPException:
+    """Traduce códigos de dominio sin filtrar valores de campo ni evidencia."""
+    if exc.code == "forbidden":
+        return HTTPException(status.HTTP_403_FORBIDDEN, detail="Rol insuficiente.")
+    if exc.code == "review_required":
+        return HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail="Revisión individual requerida antes de confirmar en bloque.",
+        )
+    if exc.code == "not_found":
+        return HTTPException(status.HTTP_404_NOT_FOUND, detail=_NOT_FOUND_MESSAGE)
+    return HTTPException(
+        status.HTTP_409_CONFLICT, detail="Estado de extracción inválido."
     )
 
 
@@ -177,6 +201,78 @@ def extract_document(
         raise HTTPException(
             status.HTTP_409_CONFLICT, detail="Estado de documento inválido."
         ) from None
+
+
+@router.get("/{document_id}/extraction", response_model=ExtractionResponse)
+def get_extraction(
+    document_id: uuid.UUID,
+    active_organization: CurrentOrganization,
+    db: DbDependency,
+) -> ExtractionResponse:
+    """Devuelve campos y evidencia acotada; nunca páginas completas del CV."""
+    try:
+        return documents_service.list_extraction_fields(
+            db, organization_id=active_organization.id, document_id=document_id
+        )
+    except documents_service.DocumentNotFoundError:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=_NOT_FOUND_MESSAGE) from None
+
+
+@router.post(
+    "/{document_id}/extraction/fields/{field_id}/confirm",
+    response_model=ReviewResponse,
+)
+def confirm_extraction_field(
+    _origin: OriginChecked,
+    document_id: uuid.UUID,
+    field_id: uuid.UUID,
+    payload: ReviewRequest,
+    actor: CurrentUser,
+    active_organization: CurrentOrganization,
+    _member: WriteMember,
+    db: DbDependency,
+) -> ReviewResponse:
+    """Confirmación humana explícita; la API vuelve a verificar rol y tenant."""
+    try:
+        field = documents_service.confirm_field(
+            db,
+            organization_id=active_organization.id,
+            document_id=document_id,
+            field_id=field_id,
+            actor_id=actor.id,
+            value=payload.value,
+        )
+    except documents_service.DocumentNotFoundError:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=_NOT_FOUND_MESSAGE) from None
+    except documents_service.DocumentsDomainError as exc:
+        raise _review_error(exc) from None
+    return documents_service.review_response(field)
+
+
+@router.post(
+    "/{document_id}/extraction/confirm-all",
+    response_model=ReviewSummaryResponse,
+)
+def confirm_extraction_all(
+    _origin: OriginChecked,
+    document_id: uuid.UUID,
+    actor: CurrentUser,
+    active_organization: CurrentOrganization,
+    _member: WriteMember,
+    db: DbDependency,
+) -> ReviewSummaryResponse:
+    """Confirma solo evidencia válida; dudosos e inyección exigen revisión individual."""
+    try:
+        return documents_service.confirm_all(
+            db,
+            organization_id=active_organization.id,
+            document_id=document_id,
+            actor_id=actor.id,
+        )
+    except documents_service.DocumentNotFoundError:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=_NOT_FOUND_MESSAGE) from None
+    except documents_service.DocumentsDomainError as exc:
+        raise _review_error(exc) from None
 
 
 @router.get("/{document_id}", response_model=DocumentResponse)

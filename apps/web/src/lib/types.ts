@@ -226,3 +226,86 @@ export interface StageChangeRequest {
 
 export type ApplicationList = Paginated<Application>;
 export type StageChangeList = StageChange[];
+
+/** Documentos privados: el backend nunca devuelve rutas internas ni el CV crudo. */
+export interface Document {
+  id: string;
+  candidate_id: string;
+  original_filename: string;
+  content_type: string;
+  extension: string;
+  size_bytes: number;
+  checksum_sha256: string;
+  status: "uploaded" | "processing" | "processed" | "failed";
+  page_count: number | null;
+  created_at: string;
+}
+
+export type ExtractedFieldName =
+  | "name"
+  | "email"
+  | "location"
+  | "experience"
+  | "education"
+  | "skills"
+  | "projects"
+  | "languages";
+
+export type ExtractedFieldStatus =
+  | "extracted"
+  | "needs_review"
+  | "missing"
+  | "confirmed"
+  | "corrected";
+
+export interface EvidenceRef {
+  document_id: string;
+  page: number;
+  quote: string;
+  offset: number | null;
+}
+
+export interface ExtractionField {
+  id: string;
+  field_name: ExtractedFieldName;
+  value: unknown;
+  status: ExtractedFieldStatus;
+  evidence: EvidenceRef[];
+  confirmed_by: string | null;
+  confirmed_at: string | null;
+}
+
+export interface Extraction {
+  id: string;
+  document_id: string;
+  provider: string;
+  model: string;
+  prompt_version: string;
+  status: "pending" | "completed" | "failed";
+  injection_detected: boolean;
+  review_required: boolean;
+  fields: ExtractionField[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReviewResult {
+  field_id: string;
+  field_name: ExtractedFieldName;
+  status: ExtractedFieldStatus;
+  value: unknown;
+  confirmed_by: string | null;
+  confirmed_at: string | null;
+}
+
+export interface ReviewSummary {
+  document_id: string;
+  extraction_id: string;
+  confirmed: number;
+  corrected: number;
+  needs_review: number;
+  pending: number;
+  total: number;
+  review_required: boolean;
+  injection_detected: boolean;
+}

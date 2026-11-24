@@ -4,7 +4,18 @@ import uuid
 from datetime import UTC, datetime
 from enum import Enum, StrEnum
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String, UniqueConstraint, Uuid
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    UniqueConstraint,
+    Uuid,
+    false,
+)
 from sqlalchemy import (
     Enum as SAEnum,
 )
@@ -133,6 +144,13 @@ class DocumentExtraction(Base):
     )
     pages: Mapped[list[dict[str, object]]] = mapped_column(JSON, nullable=False, default=list)
     error_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # Señales de control de la IA: nunca se exponen páginas completas al cliente.
+    injection_detected: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
+    review_required: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow
     )

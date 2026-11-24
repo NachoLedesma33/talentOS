@@ -109,3 +109,41 @@ def list_fields(
         .order_by(ExtractedField.created_at, ExtractedField.id)
     )
     return list(db.execute(stmt).scalars().all())
+
+
+def get_latest_extraction(
+    db: DBSession, organization_id: uuid.UUID, document_id: uuid.UUID
+) -> DocumentExtraction | None:
+    """Última extracción del documento propio, sin exponer otras organizaciones."""
+    stmt = (
+        select(DocumentExtraction)
+        .join(Document, Document.id == DocumentExtraction.document_id)
+        .where(
+            Document.organization_id == organization_id,
+            DocumentExtraction.document_id == document_id,
+        )
+        .order_by(DocumentExtraction.created_at.desc(), DocumentExtraction.id.desc())
+    )
+    return db.execute(stmt).scalars().first()
+
+
+def get_field(
+    db: DBSession,
+    organization_id: uuid.UUID,
+    document_id: uuid.UUID,
+    extraction_id: uuid.UUID,
+    field_id: uuid.UUID,
+) -> ExtractedField | None:
+    """Devuelve un campo solo si documento, extracción y tenant coinciden."""
+    stmt = (
+        select(ExtractedField)
+        .join(DocumentExtraction, DocumentExtraction.id == ExtractedField.extraction_id)
+        .join(Document, Document.id == DocumentExtraction.document_id)
+        .where(
+            Document.organization_id == organization_id,
+            DocumentExtraction.document_id == document_id,
+            ExtractedField.extraction_id == extraction_id,
+            ExtractedField.id == field_id,
+        )
+    )
+    return db.execute(stmt).scalar_one_or_none()

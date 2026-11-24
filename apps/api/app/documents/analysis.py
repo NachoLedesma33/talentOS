@@ -297,6 +297,10 @@ def analyze_extraction(
     if has_injection and not injection_refs:
         limitation_codes.append("prompt_injection_evidence_invalid")
 
+    # Señales de control persistentes: la revisión humana las consume desde la API.
+    extraction.injection_detected = has_injection
+    extraction.review_required = review_required or has_injection
+
     db.add_all(rows)
     db.commit()
 

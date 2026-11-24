@@ -4,7 +4,10 @@ import hashlib
 import logging
 import secrets
 import uuid
+from collections.abc import Mapping
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session as DBSession
@@ -18,12 +21,29 @@ from app.documents.extraction import (
     EXTRACTION_PROMPT_VERSION,
     EXTRACTION_PROVIDER,
 )
-from app.documents.models import Document, DocumentExtraction, DocumentStatus, ExtractionStatus
+from app.documents.models import (
+    Document,
+    DocumentExtraction,
+    DocumentStatus,
+    ExtractedField,
+    ExtractedFieldStatus,
+    ExtractionStatus,
+)
 from app.documents.repositories import count_documents as count_document_rows
 from app.documents.repositories import get_document as get_document_row
 from app.documents.repositories import get_extraction_for_worker
+from app.documents.repositories import get_field as get_field_row
+from app.documents.repositories import get_latest_extraction as get_latest_extraction_row
 from app.documents.repositories import list_documents as list_document_rows
-from app.documents.schemas import DownloadUrlResponse
+from app.documents.repositories import list_fields as list_field_rows
+from app.documents.schemas import (
+    DownloadUrlResponse,
+    EvidenceResponse,
+    ExtractionResponse,
+    FieldResponse,
+    ReviewResponse,
+    ReviewSummaryResponse,
+)
 from app.documents.storage import DocumentStorageError, StorageErrorCode
 from app.documents.storage import _key_path as storage_key_path
 from app.documents.tasks import extract_document as extract_document_task
@@ -361,3 +381,284 @@ def start_extraction(
         "provider": EXTRACTION_PROVIDER,
         "prompt_version": EXTRACTION_PROMPT_VERSION,
     }
+
+
+_FIELD_RESOURCE_TYPE = "extracted_field"
+_TERMINAL_STATUSES = frozenset(
+    {ExtractedFieldStatus.CONFIRMED, ExtractedFieldStatus.CORRECTED}
+)
+
+
+def _utcnow() -> datetime:
+    return datetime.now(UTC)
+
+
+def _require_review_writer(
+    db: DBSession, organization_id: uuid.UUID, actor_id: uuid.UUID
+) -> None:
+    """Autoriza la confirmación en el dominio, no solo en la capa HTTP."""
+    membership = get_membership(db, actor_id, organization_id)
+    if membership is None or membership.role not in _EXTRACTION_WRITE_ROLES:
+        raise DocumentsDomainError("forbidden")
+
+
+def _resolve_extraction(
+    db: DBSession, organization_id: uuid.UUID, document_id: uuid.UUID
+) -> tuple[Document, DocumentExtraction]:
+    document = _require_document(db, organization_id, document_id)
+    extraction = get_latest_extraction_row(db, organization_id, document_id)
+    if extraction is None:
+        raise DocumentNotFoundError
+    return document, extraction
+
+
+def _evidence_response(raw: object) -> EvidenceResponse | None:
+    if not isinstance(raw, Mapping):
+        return None
+    item = cast(Mapping[str, object], raw)
+    raw_document_id = item.get("document_id")
+    page = item.get("page")
+    quote = item.get("quote")
+    offset = item.get("offset")
+    if not isinstance(raw_document_id, str) or not isinstance(page, int):
+        return None
+    if not isinstance(quote, str):
+        return None
+    try:
+        document_id = uuid.UUID(raw_document_id)
+    except ValueError:
+        return None
+    return EvidenceResponse(
+        document_id=document_id,
+        page=page,
+        quote=quote,
+        offset=offset if isinstance(offset, int) else None,
+    )
+
+
+def _field_response(field: ExtractedField) -> FieldResponse:
+    raw_evidence = cast(object, field.evidence)
+    evidence: list[EvidenceResponse] = []
+    if isinstance(raw_evidence, list):
+        for item in raw_evidence:
+            parsed = _evidence_response(item)
+            if parsed is not None:
+                evidence.append(parsed)
+    return FieldResponse(
+        id=field.id,
+        field_name=field.field_name,
+        value=field.value,
+        status=field.status,
+        evidence=evidence,
+        confirmed_by=field.confirmed_by,
+        confirmed_at=field.confirmed_at,
+    )
+
+
+def _extraction_response(
+    extraction: DocumentExtraction, fields: list[ExtractedField]
+) -> ExtractionResponse:
+    return ExtractionResponse(
+        id=extraction.id,
+        document_id=extraction.document_id,
+        provider=extraction.provider,
+        model=extraction.model,
+        prompt_version=extraction.prompt_version,
+        status=extraction.status,
+        injection_detected=extraction.injection_detected,
+        review_required=extraction.review_required,
+        fields=[_field_response(field) for field in fields],
+        created_at=extraction.created_at,
+        updated_at=extraction.updated_at,
+    )
+
+
+def review_response(field: ExtractedField) -> ReviewResponse:
+    return ReviewResponse(
+        field_id=field.id,
+        field_name=field.field_name,
+        status=field.status,
+        value=field.value,
+        confirmed_by=field.confirmed_by,
+        confirmed_at=field.confirmed_at,
+    )
+
+
+def _all_resolved(fields: list[ExtractedField]) -> bool:
+    return bool(fields) and all(field.status in _TERMINAL_STATUSES for field in fields)
+
+
+def _refresh_review_flag(extraction: DocumentExtraction, fields: list[ExtractedField]) -> None:
+    # Una señal de inyección nunca se limpia automáticamente: obliga a revisión humana.
+    extraction.review_required = extraction.injection_detected or not _all_resolved(fields)
+
+
+def _record_field_confirmation(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    actor_id: uuid.UUID,
+    field_id: uuid.UUID,
+) -> None:
+    """Auditoría sin valores: solo actor, tenant, acción y resource ID."""
+    record_audit(
+        db,
+        organization_id=organization_id,
+        actor_id=actor_id,
+        action="document.field_confirmed",
+        resource_type=_FIELD_RESOURCE_TYPE,
+        resource_id=field_id,
+    )
+
+
+def _record_review_completion(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    actor_id: uuid.UUID,
+    document_id: uuid.UUID,
+) -> None:
+    record_audit(
+        db,
+        organization_id=organization_id,
+        actor_id=actor_id,
+        action="document.review_completed",
+        resource_type=_RESOURCE_TYPE,
+        resource_id=document_id,
+    )
+
+
+def _original_value(value: object) -> object:
+    """Compara correcciones `{text: ...}`/`{items: ...}` con el valor extraído."""
+    if isinstance(value, Mapping):
+        item = cast(Mapping[str, object], value)
+        if len(item) == 1 and "text" in item:
+            return item["text"]
+        if len(item) == 1 and "items" in item:
+            return item["items"]
+    return value
+
+
+def list_extraction_fields(
+    db: DBSession, *, organization_id: uuid.UUID, document_id: uuid.UUID
+) -> ExtractionResponse:
+    """Devuelve campos y señales de revisión del documento propio, sin texto crudo."""
+    _, extraction = _resolve_extraction(db, organization_id, document_id)
+    fields = list_field_rows(db, organization_id, document_id, extraction.id)
+    return _extraction_response(extraction, fields)
+
+
+def confirm_field(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    document_id: uuid.UUID,
+    field_id: uuid.UUID,
+    actor_id: uuid.UUID,
+    value: dict[str, object] | None = None,
+) -> ExtractedField:
+    """Confirma o corrige un campo explícitamente; la corrección cambia su estado."""
+    _require_review_writer(db, organization_id, actor_id)
+    document, extraction = _resolve_extraction(db, organization_id, document_id)
+    field = get_field_row(db, organization_id, document_id, extraction.id, field_id)
+    if field is None:
+        raise DocumentNotFoundError
+    if field.status in _TERMINAL_STATUSES:
+        raise DocumentsDomainError("invalid_status")
+
+    original = field.value
+    if value is not None:
+        field.value = value
+        field.status = (
+            ExtractedFieldStatus.CORRECTED
+            if _original_value(value) != original
+            else ExtractedFieldStatus.CONFIRMED
+        )
+    else:
+        field.status = ExtractedFieldStatus.CONFIRMED
+    field.confirmed_by = actor_id
+    field.confirmed_at = _utcnow()
+
+    fields = list_field_rows(db, organization_id, document_id, extraction.id)
+    was_complete = _all_resolved(fields)
+    _refresh_review_flag(extraction, fields)
+    _record_field_confirmation(
+        db, organization_id=organization_id, actor_id=actor_id, field_id=field.id
+    )
+    if not was_complete and _all_resolved(fields):
+        _record_review_completion(
+            db,
+            organization_id=organization_id,
+            actor_id=actor_id,
+            document_id=document.id,
+        )
+    db.commit()
+    return field
+
+
+def confirm_all(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    document_id: uuid.UUID,
+    actor_id: uuid.UUID,
+) -> ReviewSummaryResponse:
+    """Confirma solo campos con evidencia; los dudosos quedan en `needs_review`."""
+    _require_review_writer(db, organization_id, actor_id)
+    document, extraction = _resolve_extraction(db, organization_id, document_id)
+    fields = list_field_rows(db, organization_id, document_id, extraction.id)
+    if not fields:
+        raise DocumentsDomainError("invalid_status")
+
+    unresolved = [field for field in fields if field.status not in _TERMINAL_STATUSES]
+    if extraction.injection_detected and unresolved:
+        # La inyección exige revisión individual antes de cualquier confirmación en bloque.
+        raise DocumentsDomainError("review_required")
+
+    was_complete = _all_resolved(fields)
+    now = _utcnow()
+    for field in fields:
+        if field.status is ExtractedFieldStatus.EXTRACTED and field.evidence:
+            field.status = ExtractedFieldStatus.CONFIRMED
+            field.confirmed_by = actor_id
+            field.confirmed_at = now
+            _record_field_confirmation(
+                db, organization_id=organization_id, actor_id=actor_id, field_id=field.id
+            )
+        elif field.status in (
+            ExtractedFieldStatus.NEEDS_REVIEW,
+            ExtractedFieldStatus.MISSING,
+        ):
+            # Nunca auto-confirmar evidencia ausente o dudosa.
+            field.status = ExtractedFieldStatus.NEEDS_REVIEW
+            field.confirmed_by = None
+            field.confirmed_at = None
+
+    _refresh_review_flag(extraction, fields)
+    if not was_complete and _all_resolved(fields):
+        _record_review_completion(
+            db,
+            organization_id=organization_id,
+            actor_id=actor_id,
+            document_id=document.id,
+        )
+    db.commit()
+
+    return ReviewSummaryResponse(
+        document_id=document.id,
+        extraction_id=extraction.id,
+        confirmed=sum(1 for field in fields if field.status is ExtractedFieldStatus.CONFIRMED),
+        corrected=sum(1 for field in fields if field.status is ExtractedFieldStatus.CORRECTED),
+        needs_review=sum(
+            1 for field in fields if field.status is ExtractedFieldStatus.NEEDS_REVIEW
+        ),
+        pending=sum(
+            1
+            for field in fields
+            if field.status in (ExtractedFieldStatus.EXTRACTED, ExtractedFieldStatus.MISSING)
+        ),
+        total=len(fields),
+        review_required=extraction.review_required,
+        injection_detected=extraction.injection_detected,
+    )
+
