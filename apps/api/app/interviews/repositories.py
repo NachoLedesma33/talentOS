@@ -54,6 +54,35 @@ def next_version(
     return int(db.scalar(stmt) or 0) + 1
 
 
+def get_guide_for_generation(
+    db: DBSession,
+    organization_id: uuid.UUID,
+    application_id: uuid.UUID,
+    *,
+    job_version_id: uuid.UUID,
+    prompt_version: str,
+) -> InterviewGuide | None:
+    """Busca la guía ya generada para versión de vacante y prompt del tenant."""
+    stmt = (
+        select(InterviewGuide)
+        .join(
+            InterviewGuideRevision,
+            (InterviewGuideRevision.guide_id == InterviewGuide.id)
+            & (InterviewGuideRevision.version == InterviewGuide.version)
+            & (InterviewGuideRevision.organization_id == organization_id),
+        )
+        .where(
+            InterviewGuide.organization_id == organization_id,
+            InterviewGuide.application_id == application_id,
+            InterviewGuideRevision.snapshot["job_version_id"].as_string()
+            == str(job_version_id),
+            InterviewGuideRevision.snapshot["prompt_version"].as_string() == prompt_version,
+        )
+        .order_by(InterviewGuide.version)
+    )
+    return db.execute(stmt).scalar_one_or_none()
+
+
 def save_revision(
     db: DBSession,
     *,

@@ -3,7 +3,14 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictBool,
+    field_validator,
+    model_validator,
+)
 
 from app.agents.schemas import validate_safe_payload
 from app.interviews.models import (
@@ -14,6 +21,7 @@ from app.interviews.models import (
 )
 
 _EvidenceLine = Annotated[str, Field(min_length=1, max_length=500)]
+_LimitationLine = Annotated[str, Field(min_length=1, max_length=200)]
 
 
 class _InputModel(BaseModel):
@@ -89,3 +97,46 @@ class InterviewFeedbackUpdate(_InputModel):
     gaps: list[_EvidenceLine] | None = Field(default=None, max_length=20)
     follow_up_needed: bool | None = None
     notes: str | None = Field(default=None, max_length=1000)
+
+
+class _GenerationModel(BaseModel):
+    """Contrato del proveedor: JSON estricto, sin claves dinámicas ni coerción."""
+
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid", strict=True)
+
+
+class InterviewQuestionDraft(_GenerationModel):
+    """Pregunta propuesta: ligada a un requisito y centrada en evidencia profesional."""
+
+    requirement_id: uuid.UUID
+    category: InterviewQuestionCategory = Field(strict=False)
+    question: str = Field(min_length=10, max_length=2000)
+    evidence_focus: str = Field(min_length=5, max_length=1000)
+    competency: str = Field(min_length=2, max_length=100)
+    limitations: list[_LimitationLine] = Field(default_factory=list, max_length=5)
+
+    @field_validator("requirement_id", mode="before")
+    @classmethod
+    def _requirement_from_json(cls, value: object) -> uuid.UUID:
+        if isinstance(value, uuid.UUID):
+            return value
+        if isinstance(value, str):
+            return uuid.UUID(value)
+        raise ValueError("requirement_id debe ser UUID")
+
+
+class InterviewQuestionsOutput(_GenerationModel):
+    """Salida del `interview_assistant`; sin score, decisión ni atributos protegidos."""
+
+    questions: list[InterviewQuestionDraft] = Field(default_factory=list, max_length=20)
+    model_version: str = Field(min_length=1, max_length=100)
+    prompt_version: str = Field(min_length=1, max_length=50)
+    limitations: list[_LimitationLine] = Field(default_factory=list, max_length=10)
+    review_required: StrictBool = False
+
+    @model_validator(mode="after")
+    def _unique_requirement_category(self) -> InterviewQuestionsOutput:
+        keys = [(item.requirement_id, item.category) for item in self.questions]
+        if len(keys) != len(set(keys)):
+            raise ValueError("Pregunta duplicada para requisito y categoría")
+        return self
