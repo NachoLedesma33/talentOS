@@ -1,9 +1,9 @@
-"""Contrato del único workflow real de la Fase 6: `matching_review` v1.1.0.
+"""Contratos explícitos de los dos workflows reales de la Fase 6.
 
-No hay registro genérico de agentes: este módulo describe exactamente el grafo
-implementado en `app.agents.workflow` (SDD 9.3, ADR-006). Las tools listadas
-son las únicas definidas en `app.agents.tools`; ningún documento puede ampliar
-esta lista ni los permisos por nodo.
+No hay registro genérico de agentes: este módulo describe exactamente los grafos
+implementados en `app.agents.workflow` y `app.agents.orchestrator` (SDD 9.3,
+ADR-006). Las tools listadas son subset del registry de `app.agents.tools`;
+ningún documento puede ampliar esta lista ni los permisos por nodo.
 """
 
 from __future__ import annotations
@@ -35,11 +35,24 @@ class MatchingTool(StrEnum):
     CREATE_ASSESSMENT_DRAFT = "create_assessment_draft"
 
 
+class OrchestrationNode(StrEnum):
+    """Nodos ordenados del orquestador; el orden es parte del contrato."""
+
+    RECEIVE_TASK = "receive_task"
+    SELECT_FLOW = "select_flow"
+    DELEGATE = "delegate"
+    REQUEST_APPROVAL = "request_approval"
+    FINALIZE = "finalize"
+
+
+WorkflowNodeName = MatchingNode | OrchestrationNode
+
+
 @dataclass(frozen=True)
 class NodeContract:
     """Límite ejecutable por nodo: timeout y reintentos acotados."""
 
-    name: MatchingNode
+    name: WorkflowNodeName
     timeout_seconds: float
     max_retries: int = 1
 
@@ -53,10 +66,11 @@ class WorkflowContract:
     nodes: tuple[NodeContract, ...]
     allowed_tools: frozenset[str]
     max_retries: int
-    interrupt_before_effects: MatchingNode
+    approval_action_type: str
+    interrupt_before_effects: WorkflowNodeName
     terminal_statuses: frozenset[AgentRunStatus]
 
-    def node(self, name: MatchingNode) -> NodeContract:
+    def node(self, name: WorkflowNodeName) -> NodeContract:
         """Devuelve el contrato del nodo; falla si el nombre no pertenece al grafo."""
         for contract in self.nodes:
             if contract.name is name:
@@ -78,7 +92,39 @@ MATCHING_REVIEW_WORKFLOW = WorkflowContract(
     ),
     allowed_tools=frozenset(tool.value for tool in MatchingTool),
     max_retries=1,
+    approval_action_type="create_assessment",
     interrupt_before_effects=MatchingNode.REQUEST_APPROVAL,
+    terminal_statuses=frozenset(
+        {
+            AgentRunStatus.COMPLETED,
+            AgentRunStatus.FAILED,
+            AgentRunStatus.CANCELLED,
+            AgentRunStatus.TIMED_OUT,
+        }
+    ),
+)
+
+
+RECRUITMENT_ORCHESTRATION_WORKFLOW = WorkflowContract(
+    workflow="recruitment_orchestration",
+    version="1.0.0",
+    nodes=(
+        NodeContract(OrchestrationNode.RECEIVE_TASK, timeout_seconds=2.0),
+        NodeContract(OrchestrationNode.SELECT_FLOW, timeout_seconds=2.0),
+        NodeContract(OrchestrationNode.DELEGATE, timeout_seconds=2.0),
+        NodeContract(OrchestrationNode.REQUEST_APPROVAL, timeout_seconds=2.0),
+        NodeContract(OrchestrationNode.FINALIZE, timeout_seconds=2.0),
+    ),
+    allowed_tools=frozenset(
+        {
+            MatchingTool.GET_JOB_REQUIREMENTS.value,
+            MatchingTool.GET_CANDIDATE_PROFILE.value,
+            MatchingTool.GET_CONFIRMED_DOCUMENT_TEXT.value,
+        }
+    ),
+    max_retries=1,
+    approval_action_type="delegate_specialized_flow",
+    interrupt_before_effects=OrchestrationNode.REQUEST_APPROVAL,
     terminal_statuses=frozenset(
         {
             AgentRunStatus.COMPLETED,

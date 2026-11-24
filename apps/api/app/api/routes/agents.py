@@ -13,7 +13,10 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DBSession
 
 from app.agents import service as agents_service
-from app.agents.contracts import MATCHING_REVIEW_WORKFLOW
+from app.agents.contracts import (
+    MATCHING_REVIEW_WORKFLOW,
+    RECRUITMENT_ORCHESTRATION_WORKFLOW,
+)
 from app.agents.models import (
     AgentDomainError,
     AgentEvent,
@@ -32,6 +35,7 @@ from app.agents.repositories import (
 from app.agents.schemas import (
     DecideApprovalRequest,
     StartAgentRunRequest,
+    StartOrchestrationRunRequest,
     validate_safe_payload,
 )
 from app.agents.tasks import resume_agent_workflow
@@ -158,7 +162,13 @@ def _http_error(exc: AgentDomainError) -> HTTPException:
     code = str(exc)
     if code in {"forbidden", "permission_denied"}:
         return HTTPException(status.HTTP_403_FORBIDDEN, detail="Rol insuficiente.")
-    if code in {"invalid_decision", "invalid_idempotency_key", "invalid_context"}:
+    if code in {
+        "invalid_decision",
+        "invalid_idempotency_key",
+        "invalid_context",
+        "unknown_workflow",
+        "idempotency_workflow_conflict",
+    }:
         return HTTPException(status.HTTP_400_BAD_REQUEST, detail="Solicitud inválida.")
     if code in {"workflow_not_waiting_approval", "approval_pending", "approval_actor_mismatch"}:
         return HTTPException(
@@ -251,18 +261,18 @@ def _log(
     )
 
 
-@router.post("/runs", response_model=AgentRunDetail)
-def start_run(
+def _start_run_response(
     request: Request,
     response: Response,
-    _origin: OriginChecked,
-    payload: StartAgentRunRequest,
-    actor: CurrentUser,
-    active_organization: CurrentOrganization,
-    _member: WriteMember,
-    db: DbDependency,
+    payload: StartAgentRunRequest | StartOrchestrationRunRequest,
+    actor: User,
+    active_organization: Organization,
+    member: Membership,
+    db: DBSession,
+    *,
+    workflow: str,
 ) -> AgentRunDetail:
-    """Crea la ejecución o devuelve la existente; la idempotencia la resuelve el dominio."""
+    """Arranca cualquier contrato con la misma auditoría, logs y detalle público."""
     existing = get_agent_run_by_idempotency_key(
         db, active_organization.id, payload.idempotency_key
     )
@@ -271,10 +281,11 @@ def start_run(
             db,
             organization_id=active_organization.id,
             actor_id=actor.id,
-            actor_role=_member.role,
+            actor_role=member.role,
             application_id=payload.application_id,
             idempotency_key=payload.idempotency_key,
             correlation_id=payload.correlation_id,
+            workflow=workflow,
         )
     except AgentDomainError as exc:
         raise _http_error(exc) from None
@@ -303,6 +314,54 @@ def start_run(
         status.HTTP_201_CREATED if created else status.HTTP_200_OK
     )
     return _detail(db, run)
+
+
+@router.post("/runs", response_model=AgentRunDetail)
+def start_run(
+    request: Request,
+    response: Response,
+    _origin: OriginChecked,
+    payload: StartAgentRunRequest,
+    actor: CurrentUser,
+    active_organization: CurrentOrganization,
+    _member: WriteMember,
+    db: DbDependency,
+) -> AgentRunDetail:
+    """Crea la ejecución o devuelve la existente; la idempotencia la resuelve el dominio."""
+    return _start_run_response(
+        request,
+        response,
+        payload,
+        actor,
+        active_organization,
+        _member,
+        db,
+        workflow=MATCHING_REVIEW_WORKFLOW.workflow,
+    )
+
+
+@router.post("/orchestration/runs", response_model=AgentRunDetail)
+def start_orchestration_run(
+    request: Request,
+    response: Response,
+    _origin: OriginChecked,
+    payload: StartOrchestrationRunRequest,
+    actor: CurrentUser,
+    active_organization: CurrentOrganization,
+    _member: WriteMember,
+    db: DbDependency,
+) -> AgentRunDetail:
+    """Arranca el orquestador dedicado; el workflow no viaja en el body."""
+    return _start_run_response(
+        request,
+        response,
+        payload,
+        actor,
+        active_organization,
+        _member,
+        db,
+        workflow=RECRUITMENT_ORCHESTRATION_WORKFLOW.workflow,
+    )
 
 
 @router.get("/runs", response_model=AgentRunListResponse)

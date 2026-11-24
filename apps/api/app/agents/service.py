@@ -1,16 +1,16 @@
-"""Servicio del workflow `matching_review`: transiciones, HITL y traza segura.
+"""Servicio de los workflows `matching_review` y `recruitment_orchestration`.
 
 Toda operación recibe el tenant de la sesión autenticada. El estado de dominio
 vive en `AgentRun`; LangGraph solo aporta el grafo y su checkpoint aislado.
-Ninguna aprobación se resuelve automáticamente: `resume_workflow` exige una
-decisión persistida por el mismo actor que la tomó.
+El workflow se elige explícitamente entre dos contratos; ninguna aprobación se
+resuelve automáticamente: `resume_workflow` exige decisión persistida del actor.
 """
 
 from __future__ import annotations
 
 import hashlib
 import uuid
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from typing import Any, cast
 
@@ -21,7 +21,11 @@ from langgraph.types import Command
 from sqlalchemy.orm import Session as DBSession
 
 from app.agents.checkpoints import SQLAgentCheckpointSaver
-from app.agents.contracts import MATCHING_REVIEW_WORKFLOW, MatchingNode
+from app.agents.contracts import (
+    MATCHING_REVIEW_WORKFLOW,
+    RECRUITMENT_ORCHESTRATION_WORKFLOW,
+    WorkflowContract,
+)
 from app.agents.models import (
     AgentDomainError,
     AgentEventType,
@@ -31,6 +35,11 @@ from app.agents.models import (
     Approval,
     ApprovalStatus,
     thread_id_for,
+)
+from app.agents.orchestrator import (
+    build_orchestration_registry,
+    build_recruitment_orchestration_graph,
+    select_flow_from_persisted_facts,
 )
 from app.agents.repositories import (
     create_agent_event,
@@ -51,7 +60,6 @@ from app.agents.repositories import (
 from app.agents.schemas import workflow_state
 from app.agents.tools import ToolRegistry
 from app.agents.workflow import (
-    MatchingState,
     WorkflowDependencies,
     build_config,
     build_matching_review_graph,
@@ -80,11 +88,43 @@ _SAFE_STATE_KEYS = (
     "evaluation_statuses",
     "evidence_refs",
     "needs_review",
+    "job_id",
+    "job_version_id",
+    "candidate_id",
+    "selected_flow",
+    "delegated_run_id",
+    "delegated_guide_id",
     "approval_status",
     "approval_decided_by",
     "draft_id",
     "error_type",
 )
+
+GraphBuilder = Callable[[WorkflowDependencies], Any]
+# Mapa EXPLÍCITO: dos contratos, dos grafos y dos registries; sin descubrimiento.
+_WORKFLOW_CONTRACTS: dict[str, WorkflowContract] = {
+    MATCHING_REVIEW_WORKFLOW.workflow: MATCHING_REVIEW_WORKFLOW,
+    RECRUITMENT_ORCHESTRATION_WORKFLOW.workflow: RECRUITMENT_ORCHESTRATION_WORKFLOW,
+}
+_GRAPH_BUILDERS: dict[str, GraphBuilder] = {
+    MATCHING_REVIEW_WORKFLOW.workflow: build_matching_review_graph,
+    RECRUITMENT_ORCHESTRATION_WORKFLOW.workflow: build_recruitment_orchestration_graph,
+}
+_REGISTRY_BUILDERS: dict[str, Callable[[], ToolRegistry]] = {
+    MATCHING_REVIEW_WORKFLOW.workflow: build_workflow_registry,
+    RECRUITMENT_ORCHESTRATION_WORKFLOW.workflow: build_orchestration_registry,
+}
+
+
+def _contract(workflow: str) -> WorkflowContract:
+    try:
+        return _WORKFLOW_CONTRACTS[workflow]
+    except KeyError as exc:
+        raise AgentDomainError("unknown_workflow") from exc
+
+
+def _contract_for_run(run: AgentRun) -> WorkflowContract:
+    return _contract(run.workflow)
 
 
 def _as_uuid(value: object, code: str) -> uuid.UUID:
@@ -147,6 +187,7 @@ def _dependencies(
     checkpointer: BaseCheckpointSaver[str] | None,
     registry: ToolRegistry | None,
 ) -> WorkflowDependencies:
+    contract = _contract_for_run(run)
     return WorkflowDependencies(
         db=db,
         organization_id=run.organization_id,
@@ -155,7 +196,7 @@ def _dependencies(
         correlation_id=run.correlation_id,
         agent_run_id=run.id,
         idempotency_key=run.idempotency_key,
-        registry=registry if registry is not None else build_workflow_registry(),
+        registry=registry if registry is not None else _REGISTRY_BUILDERS[contract.workflow](),
         provider=provider if provider is not None else get_llm_provider(),
         checkpointer=_checkpointer(checkpointer),
     )
@@ -209,9 +250,11 @@ def _status(value: object) -> AgentRunStatus:
 def _invoke(
     deps: WorkflowDependencies,
     config: RunnableConfig,
-    payload: MatchingState | Command[Any],
+    payload: Mapping[str, object] | Command[Any],
+    *,
+    workflow: str,
 ) -> tuple[Mapping[str, object], Any]:
-    graph = build_matching_review_graph(deps)
+    graph = _GRAPH_BUILDERS[_contract(workflow).workflow](deps)
     try:
         result = graph.invoke(payload, config)
     except GraphInterrupt:
@@ -237,8 +280,9 @@ def _apply_terminal(
     *,
     correlation_id: uuid.UUID,
 ) -> AgentRunStatus:
+    contract = _contract_for_run(run)
     status = _status(state.get("status"))
-    if status not in MATCHING_REVIEW_WORKFLOW.terminal_statuses:
+    if status not in contract.terminal_statuses:
         return status
     update_agent_run_status(db, run, status)
     event_type = _STATUS_EVENTS[status]
@@ -251,11 +295,13 @@ def _apply_terminal(
         run,
         event_type,
         {
-            "node": MatchingNode.FINALIZE.value,
+            "node": contract.nodes[-1].name.value,
             "status": status.value,
             "duration_ms": duration_ms,
             "error_type": str(state.get("error_type") or "") or None,
             "draft_id": str(state.get("draft_id") or "") or None,
+            "delegated_run_id": str(state.get("delegated_run_id") or "") or None,
+            "delegated_guide_id": str(state.get("delegated_guide_id") or "") or None,
         },
         correlation_id=correlation_id,
     )
@@ -267,8 +313,14 @@ def _apply_terminal(
         correlation_id=correlation_id,
     )
     draft_id = state.get("draft_id")
+    delegated_run_id = state.get("delegated_run_id")
+    delegated_guide_id = state.get("delegated_guide_id")
     if status is AgentRunStatus.COMPLETED and draft_id:
         set_agent_run_output(db, run, f"draft:{draft_id}")
+    elif status is AgentRunStatus.COMPLETED and delegated_run_id:
+        set_agent_run_output(db, run, f"child:{delegated_run_id}")
+    elif status is AgentRunStatus.COMPLETED and delegated_guide_id:
+        set_agent_run_output(db, run, f"guide:{delegated_guide_id}")
     return status
 
 
@@ -293,7 +345,8 @@ def _view(
     state: Mapping[str, object] = {}
     next_nodes: tuple[str, ...] = ()
     try:
-        snapshot = build_matching_review_graph(deps).get_state(config)
+        graph = _GRAPH_BUILDERS[_contract_for_run(run).workflow](deps)
+        snapshot = graph.get_state(config)
         state = cast(Mapping[str, object], snapshot.values)
         next_nodes = tuple(str(node) for node in snapshot.next)
     except Exception:
@@ -310,8 +363,8 @@ def _view(
     return {
         "agent_run_id": str(run.id),
         "organization_id": str(run.organization_id),
-        "workflow": MATCHING_REVIEW_WORKFLOW.workflow,
-        "version": MATCHING_REVIEW_WORKFLOW.version,
+        "workflow": run.workflow,
+        "version": run.version,
         "status": run.status.value,
         "thread_id": thread_id_for(run.organization_id, run.id),
         "approval_id": str(latest.id) if latest is not None else None,
@@ -348,24 +401,29 @@ def start_workflow(
     actor_role: MembershipRole | str,
     application_id: uuid.UUID | str,
     idempotency_key: str,
+    workflow: str = MATCHING_REVIEW_WORKFLOW.workflow,
     correlation_id: uuid.UUID | None = None,
     provider: LLMProvider | None = None,
     checkpointer: BaseCheckpointSaver[str] | None = None,
     registry: ToolRegistry | None = None,
 ) -> dict[str, object]:
     """Crea una ejecución idempotente, valida el tenant y corre hasta el HITL real."""
+    contract = _contract(workflow)
     org_id = _as_uuid(organization_id, "invalid_context")
     actor = _as_uuid(actor_id, "invalid_context")
     application = _as_uuid(application_id, "invalid_context")
     user, role = _require_actor(
         db, org_id, actor, actor_role, allowed_roles=_WRITE_ROLES
     )
-    if resolve_application(db, org_id, application) is None:
+    resolved = resolve_application(db, org_id, application)
+    if resolved is None:
         raise AgentTenantMismatchError("Postulación no disponible para la organización")
     if not idempotency_key.strip() or len(idempotency_key) > 100:
         raise AgentDomainError("invalid_idempotency_key")
     existing = get_agent_run_by_idempotency_key(db, org_id, idempotency_key)
     if existing is not None:
+        if existing.workflow != contract.workflow:
+            raise AgentDomainError("idempotency_workflow_conflict")
         return _view(
             db,
             existing,
@@ -375,30 +433,37 @@ def start_workflow(
             registry=registry,
         )
 
+    is_orchestration = contract is RECRUITMENT_ORCHESTRATION_WORKFLOW
+    selected_flow: str | None = None
+    if is_orchestration:
+        selected_flow = select_flow_from_persisted_facts(db, org_id, application)
     correlation = correlation_id or uuid.uuid4()
     run = get_or_create_agent_run(
         db,
         organization_id=org_id,
-        workflow=MATCHING_REVIEW_WORKFLOW.workflow,
-        version=MATCHING_REVIEW_WORKFLOW.version,
+        workflow=contract.workflow,
+        version=contract.version,
         idempotency_key=idempotency_key,
         correlation_id=correlation,
         actor_id=user.id,
         input_ref=str(application),
     )
     approval_hash = hashlib.sha256(idempotency_key.encode("utf-8")).hexdigest()
+    approval_payload: dict[str, object] = {
+        "action_type": contract.approval_action_type,
+        "application_id": str(application),
+        "requested_by": str(user.id),
+        "requested_at": datetime.now(UTC).isoformat(),
+        "idempotency_hash": approval_hash,
+    }
+    if selected_flow is not None:
+        approval_payload["selected_flow"] = selected_flow
     approval = create_approval(
         db,
         organization_id=org_id,
         agent_run_id=run.id,
-        action_type="create_assessment",
-        payload={
-            "action_type": "create_assessment",
-            "application_id": str(application),
-            "requested_by": str(user.id),
-            "requested_at": datetime.now(UTC).isoformat(),
-            "idempotency_hash": approval_hash,
-        },
+        action_type=contract.approval_action_type,
+        payload=approval_payload,
     )
     _emit(
         db,
@@ -411,11 +476,17 @@ def start_workflow(
         db,
         run,
         AgentEventType.APPROVAL_REQUESTED,
-        {"approval_id": str(approval.id), "action_type": "create_assessment"},
+        {"approval_id": str(approval.id), "action_type": contract.approval_action_type},
         correlation_id=correlation,
     )
     update_agent_run_status(db, run, AgentRunStatus.RUNNING)
-    _emit(db, run, AgentEventType.RUN_STARTED, {"node": "load_context"}, correlation_id=correlation)
+    _emit(
+        db,
+        run,
+        AgentEventType.RUN_STARTED,
+        {"node": contract.nodes[0].name.value},
+        correlation_id=correlation,
+    )
     db.commit()
 
     deps = _dependencies(
@@ -427,36 +498,48 @@ def start_workflow(
         registry=registry,
     )
     config = _config(run)
-    initial = cast(
-        MatchingState,
-        {
-            **workflow_state(
-                organization_id=org_id,
-                actor_id=user.id,
-                correlation_id=correlation,
-                agent_run_id=run.id,
-                idempotency_key=run.idempotency_key,
-                status=AgentRunStatus.RUNNING,
-            ),
-            "application_id": str(application),
-            "approval_id": str(approval.id),
-        },
-    )
-    result, graph = _invoke(deps, config, initial)
+    initial: dict[str, object] = {
+        **workflow_state(
+            organization_id=org_id,
+            actor_id=user.id,
+            correlation_id=correlation,
+            agent_run_id=run.id,
+            idempotency_key=run.idempotency_key,
+            status=AgentRunStatus.RUNNING,
+        ),
+        "application_id": str(application),
+        "approval_id": str(approval.id),
+    }
+    if is_orchestration:
+        _, job, candidate, version = resolved
+        initial.update(
+            {
+                "job_id": str(job.id),
+                "job_version_id": str(version.id),
+                "candidate_id": str(candidate.id),
+                "selected_flow": selected_flow,
+                "delegated_run_id": None,
+                "delegated_guide_id": None,
+            }
+        )
+    result, graph = _invoke(deps, config, initial, workflow=contract.workflow)
     if _has_interrupt(graph, config, result):
         update_agent_run_status(db, run, AgentRunStatus.WAITING_APPROVAL)
         _emit(
             db,
             run,
             AgentEventType.RUN_WAITING_APPROVAL,
-            {"approval_id": str(approval.id), "node": MatchingNode.REQUEST_APPROVAL.value},
+            {
+                "approval_id": str(approval.id),
+                "node": contract.interrupt_before_effects.value,
+            },
             correlation_id=correlation,
         )
         _emit(
             db,
             run,
             AgentEventType.GRAPH_INTERRUPTED,
-            {"node": MatchingNode.REQUEST_APPROVAL.value},
+            {"node": contract.interrupt_before_effects.value},
             correlation_id=correlation,
         )
         _emit(
@@ -596,7 +679,8 @@ def resume_workflow(
         db, org_id, actor, actor_role, allowed_roles=_WRITE_ROLES
     )
     run = _require_run(db, org_id, run_id)
-    if run.status in MATCHING_REVIEW_WORKFLOW.terminal_statuses:
+    contract = _contract_for_run(run)
+    if run.status in contract.terminal_statuses:
         return _view(
             db,
             run,
@@ -612,7 +696,7 @@ def resume_workflow(
         item
         for item in approvals
         if item.status in (ApprovalStatus.APPROVED, ApprovalStatus.REJECTED)
-        and item.action_type == "create_assessment"
+        and item.action_type == contract.approval_action_type
     ]
     if not resolved:
         raise AgentDomainError("approval_pending")
@@ -626,7 +710,7 @@ def resume_workflow(
         run,
         AgentEventType.RUN_STARTED,
         {
-            "node": MatchingNode.REQUEST_APPROVAL.value,
+            "node": contract.interrupt_before_effects.value,
             "resumed": True,
             "decision": str(approval.status.value),
         },
@@ -649,7 +733,7 @@ def resume_workflow(
             "decided_by": str(actor),
         }
     )
-    result, _ = _invoke(deps, config, command)
+    result, _ = _invoke(deps, config, command, workflow=contract.workflow)
     _apply_terminal(db, run, result, correlation_id=run.correlation_id)
     db.commit()
     return _view(
@@ -681,7 +765,8 @@ def cancel_workflow(
         db, org_id, actor, actor_role, allowed_roles=_WRITE_ROLES
     )
     run = _require_run(db, org_id, run_id)
-    if run.status not in MATCHING_REVIEW_WORKFLOW.terminal_statuses:
+    contract = _contract_for_run(run)
+    if run.status not in contract.terminal_statuses:
         update_agent_run_status(db, run, AgentRunStatus.CANCELLED)
         _emit(
             db,

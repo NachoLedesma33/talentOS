@@ -134,6 +134,14 @@ class StartAgentRunRequest(_InputModel):
     correlation_id: uuid.UUID | None = None
 
 
+class StartOrchestrationRunRequest(_InputModel):
+    """Arranque del orquestador; el workflow lo fija el endpoint, nunca el body."""
+
+    application_id: uuid.UUID
+    idempotency_key: str = Field(min_length=1, max_length=100)
+    correlation_id: uuid.UUID | None = None
+
+
 class DecideApprovalRequest(_InputModel):
     """Decisión humana desde HTTP; el actor nunca viaja en el body."""
 
