@@ -35,7 +35,12 @@ from app.agents.tools import (
     ToolInvocationError,
     ToolRegistry,
 )
-from app.agents.workflow import build_workflow_registry
+from app.agents.workflow import (
+    WorkflowDependencies,
+    build_config,
+    build_matching_review_graph,
+    build_workflow_registry,
+)
 from app.applications.models import Application, ApplicationStage
 from app.assessment.matching_schema import AssessmentOutput
 from app.assessment.models import Assessment, RequirementEvaluationStatus
@@ -405,12 +410,75 @@ def _draft_events(db: DBSession, seed: Seed, run_id: uuid.UUID) -> list[object]:
     ]
 
 
+def _graph_state(
+    db: DBSession,
+    saver: SQLAgentCheckpointSaver,
+    seed: Seed,
+    view: dict[str, object],
+) -> dict[str, object]:
+    """Estado restaurado por el checkpointer, con alias `cv_*` ya revertidos."""
+    deps = WorkflowDependencies(
+        db=db,
+        organization_id=seed.org_a.id,
+        actor_id=seed.owner.id,
+        actor_role=MembershipRole.OWNER,
+        correlation_id=uuid.uuid4(),
+        agent_run_id=uuid.UUID(str(view["agent_run_id"])),
+        idempotency_key="inspect-state",
+        registry=build_workflow_registry(),
+        provider=_Provider(_output(seed)),
+        checkpointer=saver,
+    )
+    graph = build_matching_review_graph(deps)
+    config = build_config(
+        organization_id=seed.org_a.id, agent_run_id=deps.agent_run_id
+    )
+    return dict(cast(Mapping[str, object], graph.get_state(config).values))
+
+
+def _checkpoint_text(db: DBSession) -> str:
+    rows = db.execute(select(AgentCheckpoint)).scalars().all()
+    return json.dumps([row.payload for row in rows], ensure_ascii=False)
+
+
+def test_contract_declares_seven_nodes_and_four_tools() -> None:
+    assert [node.name.value for node in MATCHING_REVIEW_WORKFLOW.nodes] == [
+        "load_context",
+        "extract_cv_evidence",
+        "evaluate_requirements",
+        "quality_audit",
+        "request_approval",
+        "create_draft",
+        "finalize",
+    ]
+    assert MATCHING_REVIEW_WORKFLOW.allowed_tools == frozenset(
+        {
+            "get_job_requirements",
+            "get_candidate_profile",
+            "get_confirmed_document_text",
+            "create_assessment_draft",
+        }
+    )
+    cv_contract = MATCHING_REVIEW_WORKFLOW.node(MatchingNode.EXTRACT_CV_EVIDENCE)
+    assert cv_contract.timeout_seconds == 2.0
+    assert cv_contract.max_retries == 1
+    assert MATCHING_REVIEW_WORKFLOW.interrupt_before_effects is MatchingNode.REQUEST_APPROVAL
+    assert MATCHING_REVIEW_WORKFLOW.version == "1.1.0"
+
+
 def test_happy_path_completes_with_draft_and_no_sensitive_state(
     db: DBSession, saver: SQLAgentCheckpointSaver, seed: Seed
 ) -> None:
     provider = _Provider(_output(seed))
     waiting = _start(db, saver, seed, provider)
     assert waiting["status"] == "waiting_approval"
+    assert waiting["version"] == "1.1.0"
+    cv_state = _graph_state(db, saver, seed, waiting)
+    assert cv_state["cv_analysis_status"] == "available"
+    assert cv_state["cv_field_count"] == 1
+    assert cv_state["cv_evidence_refs"] == [
+        {"document_id": str(seed.document_id), "field_name": "skills"}
+    ]
 
     _decide(db, saver, seed, waiting, ApprovalStatus.APPROVED)
     done = _resume(db, saver, seed, waiting)
@@ -419,9 +487,179 @@ def test_happy_path_completes_with_draft_and_no_sensitive_state(
     assert done["draft_id"]
     assert AgentEventType.RUN_COMPLETED.value in _event_types(done)
     assert len(_draft_events(db, seed, uuid.UUID(str(done["agent_run_id"])))) == 1
-    for row in db.execute(select(AgentCheckpoint)).scalars().all():
-        assert _QUOTE not in json.dumps(row.payload, ensure_ascii=False)
-        assert "Supported by confirmed evidence" not in json.dumps(row.payload)
+    persisted = _checkpoint_text(db)
+    assert _QUOTE not in persisted
+    assert "Supported by confirmed evidence" not in persisted
+    assert "Python" not in persisted
+    assert "cv_analysis_status" not in persisted
+
+
+def test_confirmed_cv_exposure_is_available_with_bounded_references(
+    db: DBSession, saver: SQLAgentCheckpointSaver, seed: Seed
+) -> None:
+    extraction = db.scalar(
+        select(DocumentExtraction).where(
+            DocumentExtraction.document_id == seed.document_id
+        )
+    )
+    assert extraction is not None
+    extraction.structured_data = {
+        "prompt_version": "cv-extraction-v1",
+        "fields": [
+            {
+                "field_name": "skills",
+                "value": ["Python"],
+                "status": "extracted",
+                "evidence_refs": [],
+            }
+        ],
+        "limitations": [],
+        "review_required": False,
+        "prompt_injection_detected": False,
+        "prompt_injection_evidence": [],
+    }
+    db.flush()
+
+    waiting = _start(db, saver, seed, _Provider(_output(seed)), key="cv-confirmed")
+    state = _graph_state(db, saver, seed, waiting)
+
+    assert waiting["status"] == "waiting_approval"
+    assert state["cv_analysis_status"] == "available"
+    assert state["cv_field_count"] == 1
+    assert state["cv_evidence_refs"] == [
+        {"document_id": str(seed.document_id), "field_name": "skills"}
+    ]
+    persisted = _checkpoint_text(db)
+    assert _QUOTE not in persisted
+    assert "Python" not in persisted
+    assert "quote" not in persisted
+
+
+def test_cv_prompt_injection_only_marks_review_without_changing_graph(
+    db: DBSession, saver: SQLAgentCheckpointSaver, seed: Seed
+) -> None:
+    extraction = db.scalar(
+        select(DocumentExtraction).where(
+            DocumentExtraction.document_id == seed.document_id
+        )
+    )
+    assert extraction is not None
+    extraction.injection_detected = True
+    extraction.review_required = True
+    extraction.structured_data = {
+        "prompt_version": "cv-extraction-v1",
+        "fields": [],
+        "limitations": [],
+        "review_required": True,
+        "prompt_injection_detected": True,
+        "prompt_injection_evidence": [],
+    }
+    db.flush()
+
+    waiting = _start(db, saver, seed, _Provider(_output(seed)), key="cv-injection")
+    state = _graph_state(db, saver, seed, waiting)
+    registry = build_workflow_registry()
+
+    assert waiting["status"] == "waiting_approval"
+    assert state["cv_analysis_status"] == "needs_review"
+    assert state["needs_review"] is True
+    assert registry.names() == MATCHING_REVIEW_WORKFLOW.allowed_tools
+    assert [node.name.value for node in MATCHING_REVIEW_WORKFLOW.nodes] == [
+        "load_context",
+        "extract_cv_evidence",
+        "evaluate_requirements",
+        "quality_audit",
+        "request_approval",
+        "create_draft",
+        "finalize",
+    ]
+    read_tool = registry.get(MatchingTool.GET_CONFIRMED_DOCUMENT_TEXT.value)
+    assert read_tool.is_write is False
+    assert read_tool.roles == registry.get(MatchingTool.GET_JOB_REQUIREMENTS.value).roles
+    assert not _draft_events(db, seed, uuid.UUID(str(waiting["agent_run_id"])))
+
+
+def test_missing_cv_documents_or_fields_mark_review_without_graph_error(
+    db: DBSession,
+    saver: SQLAgentCheckpointSaver,
+    seed: Seed,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with monkeypatch.context() as patch:
+        patch.setattr(workflow_module, "list_documents", lambda *args, **kwargs: [])
+        no_docs = _start(db, saver, seed, _Provider(_output(seed)), key="cv-no-docs")
+    state = _graph_state(db, saver, seed, no_docs)
+    assert no_docs["status"] == "waiting_approval"
+    assert state["cv_analysis_status"] == "missing"
+    assert state["cv_field_count"] == 0
+    assert state["needs_review"] is True
+
+    extraction = db.scalar(
+        select(DocumentExtraction).where(
+            DocumentExtraction.document_id == seed.document_id
+        )
+    )
+    assert extraction is not None
+    field = db.scalar(
+        select(ExtractedField).where(ExtractedField.extraction_id == extraction.id)
+    )
+    assert field is not None
+    field.status = ExtractedFieldStatus.EXTRACTED
+    db.flush()
+    no_fields = _start(db, saver, seed, _Provider(_output(seed)), key="cv-no-fields")
+    state = _graph_state(db, saver, seed, no_fields)
+    assert no_fields["status"] == "waiting_approval"
+    assert state["cv_analysis_status"] == "missing"
+    assert state["needs_review"] is True
+
+
+def test_foreign_tenant_document_is_not_read(
+    db: DBSession,
+    saver: SQLAgentCheckpointSaver,
+    seed: Seed,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    application = db.get(Application, seed.application.id)
+    assert application is not None
+    foreign = Document(
+        organization_id=seed.org_b.id,
+        candidate_id=application.candidate_id,
+        uploaded_by=seed.foreign_owner.id,
+        original_filename="foreign-synthetic.txt",
+        internal_name=f"{uuid.uuid4()}.txt",
+        content_type="text/plain",
+        extension="txt",
+        size_bytes=len(_QUOTE.encode()),
+        checksum_sha256="1" * 64,
+        status=DocumentStatus.PROCESSED,
+        page_count=1,
+    )
+    db.add(foreign)
+    db.flush()
+
+    def _forbidden(*args: object, **kwargs: object) -> object:
+        pytest.fail("cross-tenant document reached extraction read")
+
+    with monkeypatch.context() as patch:
+        patch.setattr(workflow_module, "list_documents", lambda *args, **kwargs: [foreign])
+        patch.setattr(workflow_module, "get_latest_extraction", _forbidden)
+        waiting = _start(db, saver, seed, _Provider(_output(seed)), key="cv-cross-tenant")
+    state = _graph_state(db, saver, seed, waiting)
+
+    assert waiting["status"] == "waiting_approval"
+    assert state["cv_analysis_status"] == "missing"
+    assert state["cv_evidence_refs"] == []
+
+
+def test_contract_version_keeps_interrupt_before_effects(
+    db: DBSession, saver: SQLAgentCheckpointSaver, seed: Seed
+) -> None:
+    waiting = _start(db, saver, seed, _Provider(_output(seed)), key="cv-interrupt")
+    assert MATCHING_REVIEW_WORKFLOW.version == "1.1.0"
+    assert waiting["version"] == "1.1.0"
+    assert waiting["status"] == "waiting_approval"
+    assert waiting["draft_id"] is None
+    assert MatchingNode.REQUEST_APPROVAL.value in cast(list[str], waiting["next_nodes"])
 
 
 def test_malformed_provider_output_fails_without_draft(
@@ -521,7 +759,7 @@ def test_timeout_and_retry_are_bounded(
     assert waiting["status"] == "waiting_approval"
     assert flaky.calls == 2
 
-    moments = iter([0.0, 0.01, 1.0, 7.0, 8.0, 14.0, 14.01, 14.02])
+    moments = iter([0.0, 0.01, 0.02, 0.03, 1.0, 7.0, 8.0, 14.0, 14.01, 14.02])
     monkeypatch.setattr(workflow_module, "monotonic", lambda: next(moments))
     timed = _start(db, saver, seed, _Provider(_output(seed)), key="timeout-run")
 
@@ -579,6 +817,8 @@ def test_rejection_cancels_without_draft_or_final_assessment(
     db: DBSession, saver: SQLAgentCheckpointSaver, seed: Seed
 ) -> None:
     waiting = _start(db, saver, seed, _Provider(_output(seed)))
+    cv_state = _graph_state(db, saver, seed, waiting)
+    assert cv_state["cv_analysis_status"] == "available"
     with pytest.raises(AgentDomainError):
         _decide(
             db,
@@ -640,6 +880,7 @@ def test_prompt_injection_cannot_change_nodes_tools_or_permissions(
     assert done["status"] == "completed"
     assert [node.name.value for node in MATCHING_REVIEW_WORKFLOW.nodes] == [
         "load_context",
+        "extract_cv_evidence",
         "evaluate_requirements",
         "quality_audit",
         "request_approval",

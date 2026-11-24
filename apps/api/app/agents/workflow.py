@@ -13,7 +13,7 @@ from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from threading import RLock
 from time import monotonic
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import (
@@ -30,6 +30,7 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session as DBSession
 
 from app.agents.contracts import MATCHING_REVIEW_WORKFLOW, MatchingNode
+from app.agents.extraction_schema import ExtractedProfile
 from app.agents.matching_analyst import PROMPT_VERSION
 from app.agents.models import AgentRunStatus, ApprovalStatus, thread_id_for
 from app.agents.schemas import WorkflowState
@@ -55,11 +56,28 @@ from app.assessment.matching_schema import (
     MatchingResult,
 )
 from app.assessment.models import RequirementEvaluationStatus
+from app.documents.repositories import get_latest_extraction, list_documents, list_fields
 from app.identity.models import MembershipRole
 from app.llm.provider import LLMProvider, ProviderError
 
 MAX_EVIDENCE_REFS = 20
 MAX_STATUS_ENTRIES = 20
+MAX_CV_DOCUMENTS = 10
+MAX_CV_FIELDS = 20
+MAX_CV_EVIDENCE_REFS = 20
+# El serializador seguro prohíbe claves `cv_*`. En el checkpoint viajan alias
+# equivalentes y se restauran al leer; el estado del grafo conserva los nombres
+# del contrato sin texto de CV, citas ni chain-of-thought.
+_CV_STATE_ALIASES = {
+    "cv_analysis_status": "analysis_status",
+    "cv_field_count": "analysis_field_count",
+    "cv_evidence_refs": "analysis_evidence_refs",
+    # LangGraph deriva canales internos del nombre del nodo; ese nombre también
+    # contiene `cv_` y debe viajar con alias en el checkpoint.
+    MatchingNode.EXTRACT_CV_EVIDENCE.value: "extract_evidence",
+    f"branch:to:{MatchingNode.EXTRACT_CV_EVIDENCE.value}": "branch:to:extract_evidence",
+}
+_CV_STATE_UNALIASES = {alias: name for name, alias in _CV_STATE_ALIASES.items()}
 _RUNTIME_CONFIG_KEY = "__pregel_runtime"
 _INTERRUPT_MARKER = "__matching_interrupt__"
 _APPROVED = ApprovalStatus.APPROVED.value
@@ -79,6 +97,9 @@ class MatchingState(WorkflowState, total=False):
     requirement_ids: list[str]
     evaluation_statuses: list[str]
     evidence_refs: list[dict[str, object]]
+    cv_analysis_status: Literal["missing", "available", "needs_review"]
+    cv_field_count: int
+    cv_evidence_refs: list[dict[str, str]]
     needs_review: bool
     approval_id: str
     approval_status: str
@@ -144,6 +165,62 @@ def _decode_interrupt(value: object) -> object:
     return value
 
 
+def _map_channel_names(
+    value: object, aliases: Mapping[str, str]
+) -> object:
+    """Renombra claves de canal en los tres mapas internos del checkpoint."""
+    if not isinstance(value, Mapping):
+        return value
+    return {
+        str(aliases.get(str(name), name)): raw for name, raw in value.items()
+    }
+
+
+def _map_cv_checkpoint_keys(value: object, aliases: Mapping[str, str]) -> object:
+    """Traduce las claves `cv_*` del estado a alias seguros y viceversa."""
+    if isinstance(value, CheckpointTuple):
+        pending = [
+            (
+                str(item[0]),
+                str(aliases.get(str(item[1]), item[1])),
+                _map_cv_checkpoint_keys(item[2], aliases),
+            )
+            for item in (value.pending_writes or [])
+            if isinstance(item, (list, tuple)) and len(item) == 3
+        ]
+        return CheckpointTuple(
+            config=value.config,
+            checkpoint=cast(
+                Checkpoint, _map_cv_checkpoint_keys(value.checkpoint, aliases)
+            ),
+            metadata=cast(
+                CheckpointMetadata, _map_cv_checkpoint_keys(value.metadata, aliases)
+            ),
+            parent_config=value.parent_config,
+            pending_writes=cast(Any, pending),
+        )
+    if isinstance(value, Mapping):
+        mapped: dict[str, object] = {}
+        for key, item in value.items():
+            name = str(key)
+            if name in ("channel_values", "channel_versions"):
+                item = _map_channel_names(item, aliases)
+            elif name == "versions_seen" and isinstance(item, Mapping):
+                item = {
+                    str(node): _map_channel_names(channels, aliases)
+                    for node, channels in item.items()
+                }
+            elif name == "updated_channels" and isinstance(item, list):
+                item = [str(aliases.get(str(channel), channel)) for channel in item]
+            mapped[str(aliases.get(name, name))] = _map_cv_checkpoint_keys(item, aliases)
+        return mapped
+    if isinstance(value, list):
+        return [_map_cv_checkpoint_keys(item, aliases) for item in value]
+    if isinstance(value, tuple):
+        return tuple(_map_cv_checkpoint_keys(item, aliases) for item in value)
+    return value
+
+
 class _InterruptSafeSerializer:
     """Serializador JSON estricto que entiende las interrupciones de LangGraph."""
 
@@ -188,7 +265,11 @@ class _SanitizedCheckpointer(BaseCheckpointSaver[str]):
 
     def get_tuple(self, config: RunnableConfig) -> CheckpointTuple | None:
         with self._lock:
-            return self._wrapped.get_tuple(_safe_checkpoint_config(config))
+            stored = self._wrapped.get_tuple(_safe_checkpoint_config(config))
+        return cast(
+            CheckpointTuple | None,
+            _map_cv_checkpoint_keys(stored, _CV_STATE_UNALIASES) if stored else None,
+        )
 
     def list(
         self,
@@ -209,7 +290,11 @@ class _SanitizedCheckpointer(BaseCheckpointSaver[str]):
                     limit=limit,
                 )
             )
-        return iter(rows)
+        restored = [
+            cast(CheckpointTuple, _map_cv_checkpoint_keys(row, _CV_STATE_UNALIASES))
+            for row in rows
+        ]
+        return iter(restored)
 
     def put(
         self,
@@ -218,9 +303,13 @@ class _SanitizedCheckpointer(BaseCheckpointSaver[str]):
         metadata: CheckpointMetadata,
         new_versions: ChannelVersions,
     ) -> RunnableConfig:
+        aliased = cast(
+            tuple[Checkpoint, CheckpointMetadata, ChannelVersions],
+            _map_cv_checkpoint_keys((checkpoint, metadata, new_versions), _CV_STATE_ALIASES),
+        )
         with self._lock:
             self._wrapped.put(
-                _safe_checkpoint_config(config), checkpoint, metadata, new_versions
+                _safe_checkpoint_config(config), aliased[0], aliased[1], aliased[2]
             )
         return config
 
@@ -231,9 +320,16 @@ class _SanitizedCheckpointer(BaseCheckpointSaver[str]):
         task_id: str,
         task_path: str = "",
     ) -> None:
+        aliased_writes = [
+            (
+                str(_CV_STATE_ALIASES.get(str(channel), channel)),
+                _map_cv_checkpoint_keys(value, _CV_STATE_ALIASES),
+            )
+            for channel, value in writes
+        ]
         with self._lock:
             self._wrapped.put_writes(
-                _safe_checkpoint_config(config), writes, task_id, task_path
+                _safe_checkpoint_config(config), aliased_writes, task_id, task_path
             )
 
     def delete_thread(self, thread_id: str) -> None:
@@ -562,6 +658,89 @@ def _load_context(
     }
 
 
+def _persisted_cv_profile(extraction: object) -> ExtractedProfile | None:
+    """Reutiliza `ExtractedProfile` ya persistido; nunca invoca al proveedor."""
+    raw = getattr(extraction, "structured_data", None)
+    if raw is None:
+        return None
+    try:
+        return ExtractedProfile.model_validate(raw)
+    except (ValidationError, TypeError, ValueError):
+        return None
+
+
+def _extract_cv_evidence(
+    state: MatchingState, deps: WorkflowDependencies
+) -> dict[str, object]:
+    """Lee solo campos confirmados/corregidos; expone referencias sin citas ni texto."""
+    candidate_id = _as_uuid(state.get("candidate_id"), "invalid_context")
+    documents = list_documents(
+        deps.db,
+        deps.organization_id,
+        candidate_id=candidate_id,
+        limit=MAX_CV_DOCUMENTS,
+    )
+    refs: list[dict[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    field_count = 0
+    needs_review = False
+    has_extraction = False
+
+    for document in documents:
+        if (
+            document.organization_id != deps.organization_id
+            or document.candidate_id != candidate_id
+        ):
+            continue
+        extraction = get_latest_extraction(deps.db, deps.organization_id, document.id)
+        if extraction is None or extraction.document_id != document.id:
+            continue
+        has_extraction = True
+        profile = _persisted_cv_profile(extraction)
+        flagged = bool(getattr(extraction, "injection_detected", False)) or bool(
+            getattr(extraction, "review_required", False)
+        )
+        if profile is not None:
+            flagged = flagged or profile.prompt_injection_detected or bool(
+                profile.prompt_injection_evidence
+            )
+        needs_review = needs_review or flagged
+        profile_fields = (
+            {field.field_name.value for field in profile.fields}
+            if profile is not None
+            else None
+        )
+        for field in list_fields(
+            deps.db, deps.organization_id, document.id, extraction.id
+        ):
+            if field.status not in assessment_context.CONFIRMED_STATUSES:
+                continue
+            field_name = field.field_name.value
+            if profile_fields is not None and field_name not in profile_fields:
+                continue
+            field_count += 1
+            pair = (str(document.id), field_name)
+            if pair not in seen and len(refs) < MAX_CV_EVIDENCE_REFS:
+                seen.add(pair)
+                refs.append({"document_id": pair[0], "field_name": pair[1]})
+
+    if not refs:
+        return {
+            "cv_analysis_status": (
+                "needs_review" if has_extraction and needs_review else "missing"
+            ),
+            "cv_field_count": 0,
+            "cv_evidence_refs": [],
+            "needs_review": True,
+        }
+    return {
+        "cv_analysis_status": "needs_review" if needs_review else "available",
+        "cv_field_count": min(field_count, MAX_CV_FIELDS),
+        "cv_evidence_refs": refs[:MAX_CV_EVIDENCE_REFS],
+        "needs_review": needs_review,
+    }
+
+
 def generate_assessment_output(
     context: Mapping[str, object], provider: LLMProvider
 ) -> AssessmentOutput:
@@ -602,7 +781,7 @@ def _evaluate_requirements(
         "requirement_ids": sorted(allowed_ids),
         "evaluation_statuses": statuses,
         "evidence_refs": refs[:MAX_EVIDENCE_REFS],
-        "needs_review": bool(output.review_required),
+        "needs_review": bool(state.get("needs_review")) or bool(output.review_required),
     }
 
 
@@ -616,8 +795,10 @@ def _quality_audit(
     requirements = _requirement_ids(context)
     statuses = _statuses_to_map(state)
     refs = cast(list[dict[str, object]], state.get("evidence_refs") or [])
-    needs_review = bool(contradictions) or any(
-        requirement_id not in statuses for requirement_id in requirements
+    needs_review = (
+        bool(state.get("needs_review"))
+        or bool(contradictions)
+        or any(requirement_id not in statuses for requirement_id in requirements)
     )
     accepted: list[dict[str, object]] = []
     audited: list[str] = []
@@ -847,6 +1028,12 @@ def build_matching_review_graph(deps: WorkflowDependencies) -> Any:
         _guarded(MatchingNode.LOAD_CONTEXT, _load_context, deps),
     )
     builder.add_node(
+        MatchingNode.EXTRACT_CV_EVIDENCE.value,
+        _guarded(
+            MatchingNode.EXTRACT_CV_EVIDENCE, _extract_cv_evidence, deps
+        ),
+    )
+    builder.add_node(
         MatchingNode.EVALUATE_REQUIREMENTS.value,
         _guarded(
             MatchingNode.EVALUATE_REQUIREMENTS, _evaluate_requirements, deps
@@ -872,6 +1059,11 @@ def build_matching_review_graph(deps: WorkflowDependencies) -> Any:
     builder.add_edge(START, MatchingNode.LOAD_CONTEXT.value)
     builder.add_conditional_edges(
         MatchingNode.LOAD_CONTEXT.value,
+        _route_after("error_type"),
+        {"continue": MatchingNode.EXTRACT_CV_EVIDENCE.value, "end": END},
+    )
+    builder.add_conditional_edges(
+        MatchingNode.EXTRACT_CV_EVIDENCE.value,
         _route_after("error_type"),
         {"continue": MatchingNode.EVALUATE_REQUIREMENTS.value, "end": END},
     )

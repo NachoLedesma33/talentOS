@@ -1,4 +1,4 @@
-"""Contrato del único workflow real de la Fase 6: `matching_review` v1.0.0.
+"""Contrato del único workflow real de la Fase 6: `matching_review` v1.1.0.
 
 No hay registro genérico de agentes: este módulo describe exactamente el grafo
 implementado en `app.agents.workflow` (SDD 9.3, ADR-006). Las tools listadas
@@ -18,6 +18,7 @@ class MatchingNode(StrEnum):
     """Nodos ordenados del grafo; el orden es parte del contrato versionado."""
 
     LOAD_CONTEXT = "load_context"
+    EXTRACT_CV_EVIDENCE = "extract_cv_evidence"
     EVALUATE_REQUIREMENTS = "evaluate_requirements"
     QUALITY_AUDIT = "quality_audit"
     REQUEST_APPROVAL = "request_approval"
@@ -30,6 +31,7 @@ class MatchingTool(StrEnum):
 
     GET_JOB_REQUIREMENTS = "get_job_requirements"
     GET_CANDIDATE_PROFILE = "get_candidate_profile"
+    GET_CONFIRMED_DOCUMENT_TEXT = "get_confirmed_document_text"
     CREATE_ASSESSMENT_DRAFT = "create_assessment_draft"
 
 
@@ -64,9 +66,10 @@ class WorkflowContract:
 
 MATCHING_REVIEW_WORKFLOW = WorkflowContract(
     workflow="matching_review",
-    version="1.0.0",
+    version="1.1.0",
     nodes=(
         NodeContract(MatchingNode.LOAD_CONTEXT, timeout_seconds=2.0),
+        NodeContract(MatchingNode.EXTRACT_CV_EVIDENCE, timeout_seconds=2.0, max_retries=1),
         NodeContract(MatchingNode.EVALUATE_REQUIREMENTS, timeout_seconds=5.0),
         NodeContract(MatchingNode.QUALITY_AUDIT, timeout_seconds=2.0),
         NodeContract(MatchingNode.REQUEST_APPROVAL, timeout_seconds=2.0),
