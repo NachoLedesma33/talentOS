@@ -450,24 +450,24 @@ Un workflow completo puede iniciarse, inspeccionarse, pausarse para aprobación,
 
 ## Tareas
 
-- [ ] Definir entidades de entrevista y preguntas.
-- [ ] Crear preguntas asociadas a requisitos.
-- [ ] Generar preguntas técnicas y de profundización.
-- [ ] Explicar qué evidencia o competencia busca explorar cada pregunta.
-- [ ] Validar preguntas contra políticas de selección.
-- [ ] Permitir editar, ordenar y eliminar preguntas.
-- [ ] Crear guía de entrevista.
-- [ ] Registrar feedback humano estructurado.
-- [ ] Vincular feedback con requisitos, sin convertirlo en una decisión automática.
+- [x] Definir entidades de entrevista y preguntas.
+- [x] Crear preguntas asociadas a requisitos.
+- [x] Generar preguntas técnicas y de profundización.
+- [x] Explicar qué evidencia o competencia busca explorar cada pregunta.
+- [x] Validar preguntas contra políticas de selección.
+- [x] Permitir editar, ordenar y eliminar preguntas.
+- [x] Crear guía de entrevista.
+- [x] Registrar feedback humano estructurado.
+- [x] Vincular feedback con requisitos, sin convertirlo en una decisión automática.
 
 ## Criterios de aceptación
 
-- [ ] Crear guía desde una vacante.
-- [ ] Generar preguntas vinculadas a requisitos concretos.
-- [ ] Editar y guardar guía.
-- [ ] Registrar feedback.
-- [ ] Ver historial de cambios.
-- [ ] Evitar preguntas discriminatorias o irrelevantes mediante reglas y revisión.
+- [x] Crear guía desde una vacante.
+- [x] Generar preguntas vinculadas a requisitos concretos.
+- [x] Editar y guardar guía.
+- [x] Registrar feedback.
+- [x] Ver historial de cambios.
+- [x] Evitar preguntas discriminatorias o irrelevantes mediante reglas y revisión.
 
 ---
 
@@ -893,7 +893,7 @@ Actualizar esta tabla durante el desarrollo.
 | 4 — Document Intelligence | DONE | 2026-11-23 | 2026-11-23 | Commits eae1ca8, db7c737, fe9342b, a85d036, c7ce1a9, 58b8e33; upload PDF/DOCX validado y storage local privado; worker Celery tenant-aware (contexto de organización verificado en tarea); LLMProvider mock/remoto, cv_analyst v1 y evidencia verificada; revisión/corrección humana con auditoría; ADR-010; 191 tests pytest, ruff/mypy OK, npm typecheck/lint/test/build OK, alembic upgrade/downgrade OK en harness SQLite; CI run 45298709917 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45298709917). |
 | 5 — Matching | DONE | 2026-11-23 | 2026-11-24 | Commits d72ab25, a60231f, 315985a, 4684a44, eea6895; Assessment y RequirementEvaluation tenant-scoped; matching_analyst v1 con versión inmutable, evidencia verificada, contradicciones y needs_review; API run/detalle/comparación/revisión humana; UI de evaluación; sin score ni descarte automático; fix de test flaky de firma base64; 228 tests pytest, ruff/mypy OK, npm typecheck/lint/test/build OK, alembic upgrade/downgrade OK en harness SQLite; CI run 45315963988 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45315963988). |
 | 6 — Agent Runtime | DONE | 2026-11-24 | 2026-11-24 | Commits 8206317, 911b892, bee28ab, e4d825d, 19b96f4, aaff1e5; langgraph 1.2.24; `AgentRun`/`AgentEvent`/`Approval`/`AgentCheckpoint` tenant-scoped + migración `0010_agent_runtime.py`; registry de 6 tools con permisos, Pydantic, idempotencia y traza; workflow `matching_review` v1.0.0 con `interrupt()` real, checkpoint y reanudación vía Celery solo con aprobación persistida; API `/api/v1/agents` + UI de timeline; sin autoaprobación, score ni acciones externas; 271 tests pytest, npm typecheck/lint/test 42/build OK, ruff/mypy OK; CI run 45444117810 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45444117810). Pendiente incremental dentro de fase: Job Analyst, CV Analyst como nodo de grafo y Recruitment Orchestrator dedicado. |
-| 7 — Interview Assistant | NOT_STARTED | — | — | — |
+| 7 — Interview Assistant | DONE | 2026-11-24 | 2026-11-24 | Commits 1ace088, 7a3cc89, 2ffcabb, ed78821; `InterviewGuide`/`InterviewGuideRevision`/`InterviewQuestion`/`InterviewFeedback` tenant-scoped + migración `0011`; `interview_assistant` v1 con prompt `interview-v1`, generación idempotente por requisito/brecha y políticas deterministas ES/EN anti-discriminación; CRUD API con publicación bloqueada si hay `review_required`, historial y feedback vinculado a requisito sin score ni decisión; UI de editor y feedback; ADR-011; sin calendario externo (RF-044 P2 fuera de alcance); 318 tests pytest, npm typecheck/lint/test 58/build OK, ruff/mypy OK; CI run 45463076157 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45463076157). Anotación no bloqueante: Node.js 20 deprecated forzado a 24 en actions. |
 | 8 — Automation Engine | NOT_STARTED | — | — | — |
 | 9 — Integrations | NOT_STARTED | — | — | — |
 | 10 — Control Center | NOT_STARTED | — | — | — |
