@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import uuid
 
 from sqlalchemy.exc import IntegrityError
@@ -20,6 +21,8 @@ from app.applications.repositories import (
 )
 from app.audit.service import record_audit
 from app.candidates.repositories import get_candidate as get_candidate_row
+from app.core.logging import log_structured
+from app.identity.repositories import get_membership
 from app.jobs.repositories import get_job as get_job_row
 
 
@@ -162,8 +165,15 @@ def change_stage(
     to_stage: ApplicationStage,
     actor_id: uuid.UUID | None = None,
     note: str | None = None,
+    automation_run_id: uuid.UUID | None = None,
+    dispatch_event: bool = True,
 ) -> StageChange:
-    """Aplica solo transiciones permitidas; `hired` y `rejected` son terminales."""
+    """Aplica solo transiciones permitidas; `hired` y `rejected` son terminales.
+
+    `automation_run_id` solo etiqueta la traza; no altera la transición ni la
+    auditoría. El dispatch es local, posterior al commit y lazy para evitar el
+    ciclo de imports con `app.automation.service`.
+    """
     application = _require_application(db, organization_id, application_id)
     if to_stage not in _ALLOWED_TRANSITIONS.get(application.stage, frozenset()):
         raise InvalidStageTransitionError
@@ -191,7 +201,49 @@ def change_stage(
         resource_id=application.id,
     )
     db.commit()
+    if dispatch_event:
+        _dispatch_stage_changed(
+            db,
+            organization_id=organization_id,
+            actor_id=actor_id,
+            change_id=change.id,
+            automation_run_id=automation_run_id,
+        )
     return change
+
+
+def _dispatch_stage_changed(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    actor_id: uuid.UUID | None,
+    change_id: uuid.UUID,
+    automation_run_id: uuid.UUID | None,
+) -> None:
+    """Dispara reglas activas sin revertir el cambio si el motor falla."""
+    try:
+        if actor_id is None:
+            return
+        membership = get_membership(db, actor_id, organization_id)
+        if membership is None:
+            return
+        from app.automation.service import dispatch_domain_event
+
+        dispatch_domain_event(
+            db,
+            organization_id=organization_id,
+            actor_id=actor_id,
+            actor_role=membership.role,
+            trigger_event_id=change_id,
+            correlation_id=automation_run_id or change_id,
+        )
+    except Exception:
+        log_structured(
+            logging.WARNING,
+            "automation.dispatch_failed",
+            correlation_id=str(automation_run_id or change_id),
+            organization_id=str(organization_id),
+        )
 
 
 def list_stage_changes(

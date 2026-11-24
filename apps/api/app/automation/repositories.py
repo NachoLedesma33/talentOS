@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DBSession
 
 from app.agents.schemas import validate_safe_payload
+from app.applications.models import Application, StageChange
 from app.automation.models import (
     Automation,
     AutomationActionType,
@@ -160,14 +161,21 @@ def create_run(
     return run
 
 
-def _require_run(
+def get_run(
     db: DBSession, organization_id: uuid.UUID, run_id: uuid.UUID
-) -> AutomationRun:
+) -> AutomationRun | None:
+    """Lee una ejecución solo dentro del tenant autenticado."""
     stmt = select(AutomationRun).where(
         AutomationRun.organization_id == organization_id,
         AutomationRun.id == run_id,
     )
-    run = db.execute(stmt).scalar_one_or_none()
+    return db.execute(stmt).scalar_one_or_none()
+
+
+def _require_run(
+    db: DBSession, organization_id: uuid.UUID, run_id: uuid.UUID
+) -> AutomationRun:
+    run = get_run(db, organization_id, run_id)
     if run is None:
         raise AutomationTenantMismatchError("La ejecución no pertenece a la organización")
     return run
@@ -237,6 +245,34 @@ def list_run_events(
         .offset(offset)
     )
     return list(db.execute(stmt).scalars().all())
+
+
+def get_run_event_by_action_id(
+    db: DBSession,
+    organization_id: uuid.UUID,
+    run_id: uuid.UUID,
+    action_id: str,
+) -> AutomationRunEvent | None:
+    """Busca la traza de una acción ya registrada para evitar duplicados."""
+    for event in list_run_events(db, organization_id, run_id, limit=100):
+        if event.payload.get("action_id") == action_id:
+            return event
+    return None
+
+
+def get_stage_change(
+    db: DBSession, organization_id: uuid.UUID, event_id: uuid.UUID
+) -> StageChange | None:
+    """Lee el evento de dominio solo si su postulación pertenece al tenant."""
+    stmt = (
+        select(StageChange)
+        .join(Application, Application.id == StageChange.application_id)
+        .where(
+            Application.organization_id == organization_id,
+            StageChange.id == event_id,
+        )
+    )
+    return db.execute(stmt).scalar_one_or_none()
 
 
 def list_runs(
