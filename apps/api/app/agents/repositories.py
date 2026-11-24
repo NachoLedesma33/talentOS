@@ -184,6 +184,21 @@ def decide_approval(
     return approval
 
 
+def list_approvals_for_run(
+    db: DBSession, organization_id: uuid.UUID, agent_run_id: uuid.UUID
+) -> list[Approval]:
+    """Lista aprobaciones de una ejecución del tenant, ordenadas y sin lógica de dominio."""
+    stmt = (
+        select(Approval)
+        .where(
+            Approval.organization_id == organization_id,
+            Approval.agent_run_id == agent_run_id,
+        )
+        .order_by(Approval.created_at, Approval.id)
+    )
+    return list(db.execute(stmt).scalars().all())
+
+
 def count_tool_invocations(
     db: DBSession,
     organization_id: uuid.UUID,
