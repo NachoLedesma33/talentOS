@@ -631,3 +631,188 @@ export type GuideRevisionList = Paginated<GuideRevision>;
 export interface PolicyErrorEnvelope {
   error: ErrorEnvelope["error"] & { reason_code?: string };
 }
+
+/** DTOs espejo de `/api/v1/automations` (Fase 8). Sin score ni decisión automática. */
+
+export type AutomationStatus = "draft" | "active" | "inactive" | "archived";
+export type AutomationTriggerEventType = "application.stage_changed";
+export type AutomationConditionField = "to_stage" | "from_stage" | "job_status";
+export type AutomationConditionOperator = "eq" | "neq" | "in";
+
+export type AutomationActionType =
+  | "create_task"
+  | "create_message_draft"
+  | "request_approval"
+  | "record_note"
+  | "propose_stage_change"
+  | "run_authorized_analysis";
+
+export type AutomationRunMode = "test" | "live";
+export type AutomationRunStatus =
+  | "pending"
+  | "running"
+  | "waiting_approval"
+  | "completed"
+  | "failed"
+  | "cancelled"
+  | "timed_out";
+
+export type AutomationRunEventType =
+  | "trigger_matched"
+  | "condition_evaluated"
+  | "action_planned"
+  | "action_executed"
+  | "approval_requested"
+  | "approval_resolved"
+  | "retry_scheduled"
+  | "completed"
+  | "failed"
+  | "cancelled"
+  | "dry_run";
+
+export type AutomationApprovalStatus = "pending" | "approved" | "rejected";
+
+export interface AutomationCondition {
+  field: AutomationConditionField;
+  operator: AutomationConditionOperator;
+  value: string | string[];
+}
+
+export interface AutomationActionPayload {
+  template_id: string | null;
+  note: string | null;
+  target_stage: ApplicationStage | null;
+}
+
+export interface AutomationAction {
+  type: AutomationActionType;
+  payload: AutomationActionPayload;
+}
+
+export interface AutomationTrigger {
+  event_type: AutomationTriggerEventType;
+}
+
+export interface AutomationVersionCreate {
+  trigger: AutomationTrigger;
+  conditions: AutomationCondition[];
+  actions: AutomationAction[];
+}
+
+export interface AutomationSnapshot {
+  trigger: Record<string, unknown>;
+  conditions: Array<Record<string, unknown>>;
+  actions: Array<Record<string, unknown>>;
+  created_at: string | null;
+}
+
+export interface AutomationSummary {
+  id: string;
+  name: string;
+  status: AutomationStatus;
+  current_version: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AutomationDetail extends AutomationSummary {
+  active_version: AutomationSnapshot | null;
+}
+
+export interface AutomationVersionResult {
+  id: string;
+  automation_id: string;
+  version: number;
+  created_at: string;
+}
+
+export type AutomationList = Paginated<AutomationSummary>;
+
+export interface AutomationCreateRequest {
+  name: string;
+}
+
+export interface AutomationStatusUpdate {
+  status: AutomationStatus;
+}
+
+export interface AutomationExecutionRequest {
+  application_id: string;
+  idempotency_key: string;
+  correlation_id?: string | null;
+}
+
+export interface AutomationDecisionRequest {
+  decision: Exclude<AutomationApprovalStatus, "pending">;
+  note?: string | null;
+}
+
+export interface AutomationEventCount {
+  event_type: AutomationRunEventType;
+  count: number;
+}
+
+export interface AutomationTestResult {
+  id: string;
+  automation_id: string;
+  status: AutomationRunStatus;
+  mode: AutomationRunMode;
+  correlation_id: string;
+  event_summary: AutomationEventCount[];
+}
+
+export interface AutomationRunSummary {
+  id: string;
+  automation_id: string;
+  version: number;
+  mode: AutomationRunMode;
+  status: AutomationRunStatus;
+  correlation_id: string;
+  trigger_event_type: string;
+  error_code: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AutomationRunDetail extends AutomationRunSummary {
+  started_at: string | null;
+  finished_at: string | null;
+  draft_ids: string[];
+  approval_ids: string[];
+}
+
+export type AutomationRunList = Paginated<AutomationRunSummary>;
+
+export interface AutomationRunEvent {
+  event_type: AutomationRunEventType;
+  created_at: string;
+  correlation_id: string;
+  payload: Record<string, unknown>;
+}
+
+export type AutomationRunEventList = Paginated<AutomationRunEvent>;
+
+export interface AutomationApproval {
+  id: string;
+  action_type: AutomationActionType;
+  status: AutomationApprovalStatus;
+  created_at: string;
+  decided_at: string | null;
+}
+
+export interface AutomationApprovalDecisionResult {
+  id: string;
+  run_id: string;
+  action_type: AutomationActionType;
+  status: AutomationApprovalStatus;
+  decided_by: string | null;
+  decided_at: string | null;
+  run_status: AutomationRunStatus;
+}
+
+export interface AutomationRunQueueResult {
+  id: string;
+  status: AutomationRunStatus;
+  queued: boolean;
+  correlation_id: string;
+}
