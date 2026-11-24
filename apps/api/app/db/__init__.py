@@ -1,1 +1,17 @@
 """Persistencia de TalentOS: metadata base, sesión y dependencia de FastAPI."""
+
+from __future__ import annotations
+
+import sys
+
+# Registro de metadata del runtime. Se evita el import incondicional: cuando
+# `app.agents.models` se importa primero, ya está en sys.modules (parcial) y
+# un re-import aquí provocaría un ciclo con `app.db.base`. Si `app.db` se
+# importa primero, este bloque registra los modelos nuevos en Base.metadata.
+if "app.agents.models" not in sys.modules:
+    from app.agents.models import (  # noqa: E402, F401
+        AgentCheckpoint,
+        AgentEvent,
+        AgentRun,
+        Approval,
+    )
