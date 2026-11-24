@@ -15,3 +15,12 @@ if "app.agents.models" not in sys.modules:
         AgentRun,
         Approval,
     )
+
+# Mismo guard para entidades de entrevistas: el módulo importa `app.db.base`.
+if "app.interviews.models" not in sys.modules:
+    from app.interviews.models import (  # noqa: E402, F401
+        InterviewFeedback,
+        InterviewGuide,
+        InterviewGuideRevision,
+        InterviewQuestion,
+    )
