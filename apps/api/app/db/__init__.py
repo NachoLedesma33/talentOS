@@ -24,3 +24,13 @@ if "app.interviews.models" not in sys.modules:
         InterviewGuideRevision,
         InterviewQuestion,
     )
+
+# Fase 8: registro del motor de automatización con el mismo anti-ciclo.
+if "app.automation.models" not in sys.modules:
+    from app.automation.models import (  # noqa: E402, F401
+        Automation,
+        AutomationApproval,
+        AutomationRun,
+        AutomationRunEvent,
+        AutomationVersion,
+    )
