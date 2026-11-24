@@ -386,57 +386,57 @@ Cada requisito de una vacante tiene un resultado explicable, una referencia veri
 ## Tareas
 
 ### Fundamentos
-- [ ] Definir contrato común de workflow.
-- [ ] Definir estados de ejecución.
-- [ ] Definir schema de eventos.
-- [ ] Integrar LangGraph en el módulo de agentes.
-- [ ] Implementar persistencia/checkpointing.
-- [ ] Ejecutar workflows desde workers.
-- [ ] Implementar cancelación y timeout.
-- [ ] Implementar límites de reintentos.
-- [ ] Propagar correlation ID.
+- [x] Definir contrato común de workflow.
+- [x] Definir estados de ejecución.
+- [x] Definir schema de eventos.
+- [x] Integrar LangGraph en el módulo de agentes.
+- [x] Implementar persistencia/checkpointing.
+- [x] Ejecutar workflows desde workers.
+- [x] Implementar cancelación y timeout.
+- [x] Implementar límites de reintentos.
+- [x] Propagar correlation ID.
 
 ### Herramientas
-- [ ] Crear registry de tools.
-- [ ] Definir permisos por tool.
-- [ ] Implementar tools de lectura de vacantes y candidatos.
-- [ ] Implementar tool de creación de borradores.
-- [ ] Implementar tool de solicitud de aprobación.
-- [ ] Validar inputs con Pydantic.
-- [ ] Registrar invocaciones.
-- [ ] Aplicar idempotencia en tools de escritura.
+- [x] Crear registry de tools.
+- [x] Definir permisos por tool.
+- [x] Implementar tools de lectura de vacantes y candidatos.
+- [x] Implementar tool de creación de borradores.
+- [x] Implementar tool de solicitud de aprobación.
+- [x] Validar inputs con Pydantic.
+- [x] Registrar invocaciones.
+- [x] Aplicar idempotencia en tools de escritura.
 
 ### Agentes
 Implementar de manera incremental, no todos a la vez:
 
 - [ ] Job Analyst.
 - [ ] CV Analyst.
-- [ ] Matching Analyst.
-- [ ] Quality Auditor.
+- [x] Matching Analyst.
+- [x] Quality Auditor.
 - [ ] Recruitment Orchestrator.
 
 Los agentes de entrevistas y automatización pueden utilizarse desde fases específicas posteriores.
 
 ### Human-in-the-loop
-- [ ] Definir puntos de interrupción.
-- [ ] Persistir el estado antes de esperar aprobación.
-- [ ] Exponer aprobación/rechazo mediante API.
-- [ ] Reanudar workflow tras decisión.
-- [ ] Registrar actor, fecha y decisión.
+- [x] Definir puntos de interrupción.
+- [x] Persistir el estado antes de esperar aprobación.
+- [x] Exponer aprobación/rechazo mediante API.
+- [x] Reanudar workflow tras decisión.
+- [x] Registrar actor, fecha y decisión.
 
 ## Pruebas obligatorias
 
-- [ ] Salida válida.
-- [ ] Salida malformada.
-- [ ] Tool no autorizada.
-- [ ] Organización incorrecta.
-- [ ] Timeout.
-- [ ] Reintento.
-- [ ] Ejecución duplicada.
-- [ ] Pausa y reanudación.
-- [ ] Aprobación y rechazo.
-- [ ] Fallo de proveedor.
-- [ ] Prompt injection en documento.
+- [x] Salida válida.
+- [x] Salida malformada.
+- [x] Tool no autorizada.
+- [x] Organización incorrecta.
+- [x] Timeout.
+- [x] Reintento.
+- [x] Ejecución duplicada.
+- [x] Pausa y reanudación.
+- [x] Aprobación y rechazo.
+- [x] Fallo de proveedor.
+- [x] Prompt injection en documento.
 
 ## Criterio de salida
 
@@ -892,7 +892,7 @@ Actualizar esta tabla durante el desarrollo.
 | 3 — Recruitment Core | DONE | 2026-11-23 | 2026-11-23 | Commits 7199f96, efd89a4, e27aed7, 6b957d8, 7b1e740; dominio y API de jobs/candidates/applications; 119 tests pytest (cross-tenant, roles, transiciones, duplicados, auditoría); ruff/mypy OK; npm typecheck/lint/test/build OK; alembic upgrade/downgrade OK en harness SQLite; CI run 45283604138 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45283604138). Sin IA, sin entrevistas. |
 | 4 — Document Intelligence | DONE | 2026-11-23 | 2026-11-23 | Commits eae1ca8, db7c737, fe9342b, a85d036, c7ce1a9, 58b8e33; upload PDF/DOCX validado y storage local privado; worker Celery tenant-aware (contexto de organización verificado en tarea); LLMProvider mock/remoto, cv_analyst v1 y evidencia verificada; revisión/corrección humana con auditoría; ADR-010; 191 tests pytest, ruff/mypy OK, npm typecheck/lint/test/build OK, alembic upgrade/downgrade OK en harness SQLite; CI run 45298709917 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45298709917). |
 | 5 — Matching | DONE | 2026-11-23 | 2026-11-24 | Commits d72ab25, a60231f, 315985a, 4684a44, eea6895; Assessment y RequirementEvaluation tenant-scoped; matching_analyst v1 con versión inmutable, evidencia verificada, contradicciones y needs_review; API run/detalle/comparación/revisión humana; UI de evaluación; sin score ni descarte automático; fix de test flaky de firma base64; 228 tests pytest, ruff/mypy OK, npm typecheck/lint/test/build OK, alembic upgrade/downgrade OK en harness SQLite; CI run 45315963988 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45315963988). |
-| 6 — Agent Runtime | NOT_STARTED | — | — | — |
+| 6 — Agent Runtime | DONE | 2026-11-24 | 2026-11-24 | Commits 8206317, 911b892, bee28ab, e4d825d, 19b96f4, aaff1e5; langgraph 1.2.24; `AgentRun`/`AgentEvent`/`Approval`/`AgentCheckpoint` tenant-scoped + migración `0010_agent_runtime.py`; registry de 6 tools con permisos, Pydantic, idempotencia y traza; workflow `matching_review` v1.0.0 con `interrupt()` real, checkpoint y reanudación vía Celery solo con aprobación persistida; API `/api/v1/agents` + UI de timeline; sin autoaprobación, score ni acciones externas; 271 tests pytest, npm typecheck/lint/test 42/build OK, ruff/mypy OK; CI run 45444117810 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45444117810). Pendiente incremental dentro de fase: Job Analyst, CV Analyst como nodo de grafo y Recruitment Orchestrator dedicado. |
 | 7 — Interview Assistant | NOT_STARTED | — | — | — |
 | 8 — Automation Engine | NOT_STARTED | — | — | — |
 | 9 — Integrations | NOT_STARTED | — | — | — |
