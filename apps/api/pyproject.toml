@@ -23,13 +23,14 @@ dependencies = [
     "pypdf>=5",                   # Extrae texto y páginas de PDF desde bytes privados, sin servicio externo.
     "python-docx>=1",             # Extrae párrafos de DOCX con la misma interfaz determinista.
     "celery>=5.4,<6",             # Cola/worker con Redis para procesar documentos fuera del request HTTP.
+    # Unidad 4 (Fase 4): el adaptador LLM remoto es código de runtime y usa httpx.Client.
+    "httpx>=0.28,<1",             # Cliente HTTP del proveedor remoto; antes solo estaba en dev para TestClient.
 ]
 
 [project.optional-dependencies]
 # `dev` agrupa las herramientas de calidad; README instala `apps/api[dev]`.
 dev = [
     "pytest>=8,<10",              # Ejecución de tests unitarios y de API.
-    "httpx>=0.28,<1",             # TestClient ASGI sin servicios externos.
     "ruff>=0.6,<1",               # Lint y orden de imports de Python.
     "mypy>=1.10,<2",              # Chequeo estático de tipos del backend.
 ]

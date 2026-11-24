@@ -38,7 +38,12 @@ class Settings(BaseSettings):
     )
     REDIS_URL: RedisDsn = RedisDsn("redis://localhost:6379/0")
     LOG_LEVEL: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO"
-    LLM_PROVIDER: Literal["mock"] = "mock"
+    # Demo y tests arrancan sin credenciales: el modo remoto exige URL y clave.
+    LLM_PROVIDER: Literal["mock", "remote"] = "mock"
+    LLM_BASE_URL: str = ""
+    LLM_API_KEY: str = ""
+    LLM_MODEL: str = ""
+    LLM_TIMEOUT_SECONDS: float = 30.0
     SESSION_COOKIE_NAME: str = "talentos_session"
     SESSION_TTL_SECONDS: int = 86400
 

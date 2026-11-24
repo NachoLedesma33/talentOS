@@ -6,9 +6,11 @@ import uuid
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session as DBSession
 
+from app.core.config import get_settings
 from app.core.logging import log_structured
 from app.db.session import SessionLocal
 from app.documents import storage
+from app.documents.analysis import analyze_extraction
 from app.documents.extraction import (
     EXTRACTION_MODEL,
     EXTRACTION_PROMPT_VERSION,
@@ -209,6 +211,10 @@ def extract_document(document_id: str, organization_id: str) -> None:
             correlation_id=correlation_id,
             result="completed",
         )
+        # Solo el mock determinista está habilitado en esta unidad; el remoto queda
+        # configurado pero sin ejecución automática hasta su evaluación (Fase 6).
+        if get_settings().LLM_PROVIDER == "mock":
+            analyze_extraction(db, tenant_uuid, document.id, extraction)
     except SQLAlchemyError:
         db.rollback()
         _log_event(
