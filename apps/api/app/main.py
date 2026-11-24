@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.routes import (
+    agents,
     applications,
     assessment,
     auth,
@@ -129,3 +130,4 @@ app.include_router(candidates.router)
 app.include_router(applications.router)
 app.include_router(documents.router)
 app.include_router(assessment.router)
+app.include_router(agents.router)

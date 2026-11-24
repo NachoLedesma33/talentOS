@@ -126,6 +126,21 @@ class ApprovalDecision(_InputModel):
         return value
 
 
+class StartAgentRunRequest(_InputModel):
+    """Request HTTP de arranque; actor, tenant y workflow los fija el servicio."""
+
+    application_id: uuid.UUID
+    idempotency_key: str = Field(min_length=1, max_length=100)
+    correlation_id: uuid.UUID | None = None
+
+
+class DecideApprovalRequest(_InputModel):
+    """Decisión humana desde HTTP; el actor nunca viaja en el body."""
+
+    decision: str = Field(min_length=1, max_length=20)
+    note: str | None = Field(default=None, max_length=500)
+
+
 class AgentEventCreate(_InputModel):
     """Evento de traza con payload saneado y correlación obligatoria."""
 
