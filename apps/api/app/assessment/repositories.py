@@ -5,7 +5,12 @@ import uuid
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DBSession
 
-from app.assessment.models import Assessment, RequirementEvaluation
+from app.assessment.models import (
+    Assessment,
+    AssessmentStatus,
+    RequirementEvaluation,
+    RequirementEvaluationStatus,
+)
 
 
 def get_assessment(
@@ -90,3 +95,71 @@ def list_evaluations(
     stmt = stmt.order_by(RequirementEvaluation.created_at, RequirementEvaluation.id)
     stmt = stmt.limit(limit).offset(offset)
     return list(db.execute(stmt).scalars().all())
+
+
+def create_assessment(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    application_id: uuid.UUID,
+    job_version_id: uuid.UUID,
+    candidate_id: uuid.UUID,
+    created_by: uuid.UUID,
+    model_version: str,
+    prompt_version: str,
+) -> Assessment:
+    """Inserta la evaluación; autorización, versión e idempotencia son del servicio."""
+    assessment = Assessment(
+        organization_id=organization_id,
+        application_id=application_id,
+        job_version_id=job_version_id,
+        candidate_id=candidate_id,
+        created_by=created_by,
+        model_version=model_version,
+        prompt_version=prompt_version,
+    )
+    db.add(assessment)
+    db.flush()
+    return assessment
+
+
+def save_evaluation(
+    db: DBSession,
+    *,
+    assessment_id: uuid.UUID,
+    requirement_id: uuid.UUID,
+    status: RequirementEvaluationStatus,
+    explanation: str,
+    evidence: list[dict[str, object]],
+    limitations: list[str],
+    review_required: bool,
+) -> RequirementEvaluation:
+    """Persiste un criterio ya validado; sin reglas de negocio ni commit."""
+    evaluation = RequirementEvaluation(
+        assessment_id=assessment_id,
+        requirement_id=requirement_id,
+        status=status,
+        explanation=explanation,
+        evidence=evidence,
+        limitations=limitations,
+        review_required=review_required,
+    )
+    db.add(evaluation)
+    db.flush()
+    return evaluation
+
+
+def update_summary(
+    db: DBSession,
+    assessment: Assessment,
+    *,
+    status: AssessmentStatus,
+    summary: dict[str, object],
+    limitations: list[str],
+) -> Assessment:
+    """Actualiza resumen y estado calculados por el servicio; sin commit."""
+    assessment.status = status
+    assessment.summary = summary
+    assessment.limitations = limitations
+    db.flush()
+    return assessment
