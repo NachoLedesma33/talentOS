@@ -372,7 +372,9 @@ def test_download_url_expires_and_tampered_token_is_forbidden(
     url = _download_url(client, org_id=org_id, document_id=doc.json()["id"])
     assert url.startswith("/api/v1/documents/files/")
 
-    tampered = url[:-1] + ("A" if url[-1] != "A" else "B")
+    prefix, signature = url.rsplit(".", 1)
+    flipped = "A" if signature[0] != "A" else "B"
+    tampered = f"{prefix}.{flipped}{signature[1:]}"
     assert client.get(tampered, headers=_headers(org_id)).status_code == 403
 
     monkeypatch.setattr(
