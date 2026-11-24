@@ -141,6 +141,9 @@ export default function DashboardPage() {
           <li>
             <a href="/documents">Documentos</a>
           </li>
+          <li>
+            <a href="/assessment">Evaluación</a>
+          </li>
         </ul>
       </section>
     </div>

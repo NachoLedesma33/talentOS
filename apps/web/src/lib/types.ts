@@ -309,3 +309,111 @@ export interface ReviewSummary {
   review_required: boolean;
   injection_detected: boolean;
 }
+
+/** DTOs espejo de los schemas Pydantic de Fase 5 (assessment). Sin score. */
+
+export type AssessmentStatus = "pending" | "completed" | "failed" | "needs_review";
+
+export type RequirementEvaluationStatus =
+  | "supported"
+  | "partial"
+  | "not_found"
+  | "needs_review";
+
+export interface AssessmentEvidenceRef {
+  document_id: string;
+  field_name: string;
+  page: number;
+  quote: string;
+  offset: number | null;
+}
+
+export interface AssessmentSummary {
+  strengths: string[];
+  gaps: string[];
+  questions: string[];
+}
+
+export interface RequirementEvaluation {
+  id: string;
+  requirement_id: string;
+  status: RequirementEvaluationStatus;
+  explanation: string;
+  evidence: AssessmentEvidenceRef[];
+  limitations: string[];
+  review_required: boolean;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+}
+
+export interface Assessment {
+  id: string;
+  application_id: string;
+  job_version_id: string;
+  candidate_id: string;
+  status: AssessmentStatus;
+  model_version: string;
+  prompt_version: string;
+  summary: AssessmentSummary;
+  limitations: string[];
+  evaluations: RequirementEvaluation[];
+  review_required: boolean;
+  created_at: string;
+}
+
+export type AssessmentList = Paginated<Assessment>;
+
+export interface RunAssessmentRequest {
+  application_id: string;
+}
+
+export interface ReviewDecision {
+  status: RequirementEvaluationStatus;
+  explanation: string | null;
+}
+
+export interface StatusChange {
+  before: RequirementEvaluationStatus | null;
+  after: RequirementEvaluationStatus | null;
+  changed: boolean;
+}
+
+export interface ExplanationChange {
+  before: string | null;
+  after: string | null;
+  changed: boolean;
+}
+
+export interface EvidenceRefsChange {
+  before: AssessmentEvidenceRef[];
+  after: AssessmentEvidenceRef[];
+  changed: boolean;
+}
+
+export interface ReviewRequiredChange {
+  before: boolean | null;
+  after: boolean | null;
+  changed: boolean;
+}
+
+export interface RequirementComparison {
+  requirement_id: string;
+  status: StatusChange;
+  explanation: ExplanationChange;
+  evidence_refs: EvidenceRefsChange;
+  review_required: ReviewRequiredChange;
+}
+
+export interface ComparisonVersion {
+  assessment_id: string;
+  status: AssessmentStatus;
+  model_version: string;
+  prompt_version: string;
+}
+
+export interface AssessmentComparison {
+  base: ComparisonVersion;
+  target: ComparisonVersion;
+  changes: RequirementComparison[];
+}

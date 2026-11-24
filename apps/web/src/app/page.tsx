@@ -40,6 +40,9 @@ export default function Home() {
           <li>
             <a href="/applications">Pipeline</a>
           </li>
+          <li>
+            <a href="/assessment">Evaluación</a>
+          </li>
         </ul>
       </section>
 
