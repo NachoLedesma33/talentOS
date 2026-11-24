@@ -477,28 +477,28 @@ Un workflow completo puede iniciarse, inspeccionarse, pausarse para aprobación,
 
 ## MVP: motor estructurado
 
-- [ ] Definir schema de automatización.
-- [ ] Implementar triggers por eventos de dominio.
-- [ ] Implementar condiciones deterministas.
-- [ ] Implementar acciones permitidas.
-- [ ] Definir límites y validaciones de cada acción.
-- [ ] Implementar modo dry-run.
-- [ ] Crear ejecución persistida.
-- [ ] Crear historial y detalle de ejecución.
-- [ ] Implementar aprobación humana.
-- [ ] Implementar reintentos e idempotencia.
-- [ ] Prevenir ciclos infinitos.
-- [ ] Implementar activar/desactivar.
-- [ ] Versionar configuraciones.
+- [x] Definir schema de automatización.
+- [x] Implementar triggers por eventos de dominio.
+- [x] Implementar condiciones deterministas.
+- [x] Implementar acciones permitidas.
+- [x] Definir límites y validaciones de cada acción.
+- [x] Implementar modo dry-run.
+- [x] Crear ejecución persistida.
+- [x] Crear historial y detalle de ejecución.
+- [x] Implementar aprobación humana.
+- [x] Implementar reintentos e idempotencia.
+- [x] Prevenir ciclos infinitos.
+- [x] Implementar activar/desactivar.
+- [x] Versionar configuraciones.
 
 ## Acciones iniciales
 
-- [ ] Crear tarea interna.
-- [ ] Crear borrador de correo.
-- [ ] Solicitar aprobación.
-- [ ] Registrar nota.
-- [ ] Proponer cambio de etapa.
-- [ ] Ejecutar análisis autorizado.
+- [x] Crear tarea interna.
+- [x] Crear borrador de correo.
+- [x] Solicitar aprobación.
+- [x] Registrar nota.
+- [x] Proponer cambio de etapa.
+- [x] Ejecutar análisis autorizado.
 
 No habilitar envío de correos ni cambios sensibles sin aprobación en el MVP.
 
@@ -894,7 +894,7 @@ Actualizar esta tabla durante el desarrollo.
 | 5 — Matching | DONE | 2026-11-23 | 2026-11-24 | Commits d72ab25, a60231f, 315985a, 4684a44, eea6895; Assessment y RequirementEvaluation tenant-scoped; matching_analyst v1 con versión inmutable, evidencia verificada, contradicciones y needs_review; API run/detalle/comparación/revisión humana; UI de evaluación; sin score ni descarte automático; fix de test flaky de firma base64; 228 tests pytest, ruff/mypy OK, npm typecheck/lint/test/build OK, alembic upgrade/downgrade OK en harness SQLite; CI run 45315963988 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45315963988). |
 | 6 — Agent Runtime | DONE | 2026-11-24 | 2026-11-24 | Commits 8206317, 911b892, bee28ab, e4d825d, 19b96f4, aaff1e5; langgraph 1.2.24; `AgentRun`/`AgentEvent`/`Approval`/`AgentCheckpoint` tenant-scoped + migración `0010_agent_runtime.py`; registry de 6 tools con permisos, Pydantic, idempotencia y traza; workflow `matching_review` v1.0.0 con `interrupt()` real, checkpoint y reanudación vía Celery solo con aprobación persistida; API `/api/v1/agents` + UI de timeline; sin autoaprobación, score ni acciones externas; 271 tests pytest, npm typecheck/lint/test 42/build OK, ruff/mypy OK; CI run 45444117810 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45444117810). Pendiente incremental dentro de fase: Job Analyst, CV Analyst como nodo de grafo y Recruitment Orchestrator dedicado. |
 | 7 — Interview Assistant | DONE | 2026-11-24 | 2026-11-24 | Commits 1ace088, 7a3cc89, 2ffcabb, ed78821; `InterviewGuide`/`InterviewGuideRevision`/`InterviewQuestion`/`InterviewFeedback` tenant-scoped + migración `0011`; `interview_assistant` v1 con prompt `interview-v1`, generación idempotente por requisito/brecha y políticas deterministas ES/EN anti-discriminación; CRUD API con publicación bloqueada si hay `review_required`, historial y feedback vinculado a requisito sin score ni decisión; UI de editor y feedback; ADR-011; sin calendario externo (RF-044 P2 fuera de alcance); 318 tests pytest, npm typecheck/lint/test 58/build OK, ruff/mypy OK; CI run 45463076157 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45463076157). Anotación no bloqueante: Node.js 20 deprecated forzado a 24 en actions. |
-| 8 — Automation Engine | NOT_STARTED | — | — | — |
+| 8 — Automation Engine | DONE | 2026-11-24 | 2026-11-24 | Commits 8cd672e, cd797a0, c4d7fe4, 4ec542d; ADR-012 + migración `0012`; `Automation`/`AutomationVersion`/`AutomationRun`/`AutomationRunEvent`/`AutomationApproval` tenant-scoped; motor determinista con trigger `application.stage_changed`, condiciones cerradas, seis acciones sin efectos externos, dry-run, idempotencia, reintento único con timeout y anti-ciclos; aprobación humana separada de agentes, sin envío de correos ni cambio de etapa sin decisión; API `/api/v1/automations` + worker Celery y UI de reglas/ejecuciones; RF-054 editor visual P1 fuera de MVP; tarea interna y borrador se registran como evidencia saneada en el run, sin adaptador de correo real (Fase 9); 368 tests pytest, npm typecheck/lint/test 71/build OK, ruff/mypy OK; CI run 45485260077 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45485260077). Known issue: `tests/test_matching_workflow.py` intermitente con SQLite StaticPool + hilos LangGraph/reloj parcheado. |
 | 9 — Integrations | NOT_STARTED | — | — | — |
 | 10 — Control Center | NOT_STARTED | — | — | — |
 | 11 — Simulation Lab | NOT_STARTED | — | — | — |
