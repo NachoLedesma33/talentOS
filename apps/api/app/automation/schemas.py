@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import uuid
+from datetime import datetime
 from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
@@ -13,6 +14,8 @@ from app.automation.models import (
     AutomationApprovalStatus,
     AutomationRunEventType,
     AutomationRunMode,
+    AutomationRunStatus,
+    AutomationStatus,
     AutomationTriggerEventType,
 )
 from app.jobs.models import JobStatus
@@ -201,3 +204,160 @@ class AutomationApprovalDecision(_StrictModel):
         if value is AutomationApprovalStatus.PENDING:
             raise ValueError("La decisión no puede quedar pendiente")
         return value
+
+
+# --- Contratos HTTP -------------------------------------------------------
+# El tenant nunca entra por body. Las respuestas solo exponen IDs, enums y
+# metadatos verificables: sin CV, PII, secretos ni rutas de storage.
+
+
+class AutomationCreateRequest(_StrictModel):
+    """Alta de una regla en `draft`; la configuración se envía por versión."""
+
+    name: str = Field(min_length=1, max_length=200)
+
+
+class AutomationStatusUpdate(_StrictModel):
+    """Transición permitida por el modelo; strings arbitrarios se rechazan."""
+
+    status: AutomationStatus = Field(strict=False)
+
+
+class AutomationExecutionRequest(_StrictModel):
+    """Disparo manual sobre una postulación del tenant autenticado."""
+
+    application_id: uuid.UUID
+    idempotency_key: str = Field(min_length=1, max_length=100, pattern=_KEY_PATTERN)
+    correlation_id: uuid.UUID | None = None
+
+    @field_validator("application_id", "correlation_id", mode="before")
+    @classmethod
+    def _uuid_from_json(cls, value: object, info: ValidationInfo) -> uuid.UUID | None:
+        if value is None and info.field_name == "correlation_id":
+            return None
+        return cls._uuid(value, str(info.field_name))
+
+
+class AutomationDecisionRequest(_StrictModel):
+    """Decisión humana; `note` no se persiste ni se registra en logs."""
+
+    decision: str = Field(min_length=1, max_length=20)
+    note: str | None = Field(default=None, min_length=1, max_length=500)
+
+
+class _ResponseModel(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+
+class AutomationSnapshot(_ResponseModel):
+    trigger: dict[str, object]
+    conditions: list[dict[str, object]]
+    actions: list[dict[str, object]]
+    created_at: datetime | None = None
+
+
+class AutomationSummary(_ResponseModel):
+    id: uuid.UUID
+    name: str
+    status: AutomationStatus
+    current_version: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class AutomationDetail(AutomationSummary):
+    active_version: AutomationSnapshot | None = None
+
+
+class AutomationVersionResult(_ResponseModel):
+    id: uuid.UUID
+    automation_id: uuid.UUID
+    version: int
+    created_at: datetime
+
+
+class AutomationListResponse(_ResponseModel):
+    items: list[AutomationSummary]
+    total: int
+    limit: int
+    offset: int
+
+
+class AutomationEventCount(_ResponseModel):
+    event_type: AutomationRunEventType
+    count: int
+
+
+class AutomationTestResult(_ResponseModel):
+    id: uuid.UUID
+    automation_id: uuid.UUID
+    status: AutomationRunStatus
+    mode: AutomationRunMode
+    correlation_id: uuid.UUID
+    event_summary: list[AutomationEventCount]
+
+
+class RunSummary(_ResponseModel):
+    id: uuid.UUID
+    automation_id: uuid.UUID
+    version: int
+    mode: AutomationRunMode
+    status: AutomationRunStatus
+    correlation_id: uuid.UUID
+    trigger_event_type: str
+    error_code: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class RunDetail(RunSummary):
+    started_at: datetime | None
+    finished_at: datetime | None
+    draft_ids: list[uuid.UUID] = Field(default_factory=list)
+    approval_ids: list[uuid.UUID] = Field(default_factory=list)
+
+
+class RunListResponse(_ResponseModel):
+    items: list[RunSummary]
+    total: int
+    limit: int
+    offset: int
+
+
+class RunEventItem(_ResponseModel):
+    event_type: AutomationRunEventType
+    created_at: datetime
+    correlation_id: uuid.UUID
+    payload: dict[str, object]
+
+
+class RunEventListResponse(_ResponseModel):
+    items: list[RunEventItem]
+    total: int
+    limit: int
+    offset: int
+
+
+class ApprovalItem(_ResponseModel):
+    id: uuid.UUID
+    action_type: AutomationActionType
+    status: AutomationApprovalStatus
+    created_at: datetime
+    decided_at: datetime | None
+
+
+class ApprovalDecisionResult(_ResponseModel):
+    id: uuid.UUID
+    run_id: uuid.UUID
+    action_type: AutomationActionType
+    status: AutomationApprovalStatus
+    decided_by: uuid.UUID | None
+    decided_at: datetime | None
+    run_status: AutomationRunStatus
+
+
+class RunQueueResult(_ResponseModel):
+    id: uuid.UUID
+    status: AutomationRunStatus
+    queued: bool
+    correlation_id: uuid.UUID

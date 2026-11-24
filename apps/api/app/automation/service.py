@@ -38,7 +38,9 @@ from app.automation.models import (
     AutomationVersion,
 )
 from app.automation.repositories import (
-    create_run,
+    create_run as persist_run_row,
+)
+from app.automation.repositories import (
     create_run_event,
     create_version,
     get_approval,
@@ -248,7 +250,7 @@ def _audit_outcome(
         )
 
 
-def _start_for_automation(
+def _persist_run(
     db: DBSession,
     automation: Automation,
     *,
@@ -257,7 +259,7 @@ def _start_for_automation(
     idempotency_key: str,
     context: AutomationEventContext,
 ) -> AutomationRun:
-    """Crea una sola ejecución por clave y la ejecuta con el snapshot exacto."""
+    """Inscribe una ejecución pendiente por clave; sin efectos ni auditoría de arranque."""
     existing = get_run_by_key(
         db, automation.organization_id, automation.id, idempotency_key
     )
@@ -268,7 +270,7 @@ def _start_for_automation(
     )
     if version is None:
         raise AutomationServiceError("version_not_found")
-    run = create_run(
+    run = persist_run_row(
         db,
         organization_id=automation.organization_id,
         automation_id=automation.id,
@@ -287,14 +289,18 @@ def _start_for_automation(
         event_type=AutomationRunEventType.TRIGGER_MATCHED,
         payload=validate_safe_payload(context.model_dump(mode="json")),
     )
-    record_audit(
-        db,
-        organization_id=automation.organization_id,
-        actor_id=actor_id,
-        action="automation.run_started",
-        resource_type=_RESOURCE_RUN,
-        resource_id=run.id,
-    )
+    return run
+
+
+def _execute_with_audit(
+    db: DBSession,
+    automation: Automation,
+    run: AutomationRun,
+    *,
+    actor_id: uuid.UUID,
+    test_mode: bool,
+) -> AutomationRun:
+    """Ejecuta el snapshot exacto y audita aprobaciones y desenlace."""
     before = {
         approval.id
         for approval in list_approvals_for_run(
@@ -311,10 +317,48 @@ def _start_for_automation(
         automation.organization_id,
         actor_id,
         result,
-        test_mode=mode is AutomationRunMode.TEST,
+        test_mode=test_mode,
         new_approval_ids=new_ids,
     )
     return result
+
+
+def _start_for_automation(
+    db: DBSession,
+    automation: Automation,
+    *,
+    actor_id: uuid.UUID,
+    mode: AutomationRunMode,
+    idempotency_key: str,
+    context: AutomationEventContext,
+    execute: bool = True,
+) -> AutomationRun:
+    """Crea una ejecución por clave y, si procede, la ejecuta con el snapshot exacto."""
+    run = _persist_run(
+        db,
+        automation,
+        actor_id=actor_id,
+        mode=mode,
+        idempotency_key=idempotency_key,
+        context=context,
+    )
+    if not execute:
+        return run
+    record_audit(
+        db,
+        organization_id=automation.organization_id,
+        actor_id=actor_id,
+        action="automation.run_started",
+        resource_type=_RESOURCE_RUN,
+        resource_id=run.id,
+    )
+    return _execute_with_audit(
+        db,
+        automation,
+        run,
+        actor_id=actor_id,
+        test_mode=mode is AutomationRunMode.TEST,
+    )
 
 
 def create_automation(
@@ -324,9 +368,9 @@ def create_automation(
     actor_id: uuid.UUID,
     actor_role: MembershipRole | str,
     name: str,
-    version: AutomationVersionCreate,
+    version: AutomationVersionCreate | None = None,
 ) -> Automation:
-    """Alta en `draft` con versión 1 inmutable; el nombre no incluye datos de candidato."""
+    """Alta en `draft`; sin versión queda pendiente del primer `add_version`."""
     _require_actor(db, organization_id, actor_id, actor_role, write=True)
     clean_name = name.strip()
     if not 1 <= len(clean_name) <= 200:
@@ -340,17 +384,18 @@ def create_automation(
     )
     db.add(automation)
     db.flush()
-    snapshot = version.to_snapshot()
-    create_version(
-        db,
-        organization_id=organization_id,
-        automation_id=automation.id,
-        version=1,
-        trigger=snapshot["trigger"],  # type: ignore[arg-type]
-        conditions=snapshot["conditions"],  # type: ignore[arg-type]
-        actions=snapshot["actions"],  # type: ignore[arg-type]
-        created_by=actor_id,
-    )
+    if version is not None:
+        snapshot = version.to_snapshot()
+        create_version(
+            db,
+            organization_id=organization_id,
+            automation_id=automation.id,
+            version=1,
+            trigger=snapshot["trigger"],  # type: ignore[arg-type]
+            conditions=snapshot["conditions"],  # type: ignore[arg-type]
+            actions=snapshot["actions"],  # type: ignore[arg-type]
+            created_by=actor_id,
+        )
     record_audit(
         db,
         organization_id=organization_id,
@@ -359,14 +404,15 @@ def create_automation(
         resource_type=_RESOURCE_AUTOMATION,
         resource_id=automation.id,
     )
-    record_audit(
-        db,
-        organization_id=organization_id,
-        actor_id=actor_id,
-        action="automation.version_created",
-        resource_type=_RESOURCE_AUTOMATION,
-        resource_id=automation.id,
-    )
+    if version is not None:
+        record_audit(
+            db,
+            organization_id=organization_id,
+            actor_id=actor_id,
+            action="automation.version_created",
+            resource_type=_RESOURCE_AUTOMATION,
+            resource_id=automation.id,
+        )
     db.commit()
     return automation
 
@@ -454,6 +500,22 @@ def deactivate_automation(
     return automation
 
 
+def archive_automation(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    actor_id: uuid.UUID,
+    actor_role: MembershipRole | str,
+    automation_id: uuid.UUID,
+) -> Automation:
+    """Transición terminal; se conserva la traza y no se reescribe la versión."""
+    _require_actor(db, organization_id, actor_id, actor_role, write=True)
+    automation = _require_automation(db, organization_id, automation_id)
+    automation.transition_to(AutomationStatus.ARCHIVED)
+    db.commit()
+    return automation
+
+
 def _start_run(
     db: DBSession,
     *,
@@ -468,6 +530,7 @@ def _start_run(
     to_stage: ApplicationStage | str | None,
     trigger_event_id: uuid.UUID | None,
     correlation_id: uuid.UUID | None,
+    persist_only: bool = False,
 ) -> AutomationRun:
     """Valida el evento real y delega la ejecución; clave repetida = misma run."""
     _require_actor(db, organization_id, actor_id, actor_role, write=True)
@@ -522,8 +585,10 @@ def _start_run(
         mode=mode,
         idempotency_key=key,
         context=context,
+        execute=not persist_only,
     )
-    db.commit()
+    if not persist_only:
+        db.commit()
     return result
 
 
@@ -587,6 +652,119 @@ def run_manual(
         trigger_event_id=trigger_event_id,
         correlation_id=correlation_id,
     )
+
+
+def create_run(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    actor_id: uuid.UUID,
+    actor_role: MembershipRole | str,
+    automation_id: uuid.UUID,
+    idempotency_key: str,
+    application_id: uuid.UUID,
+    correlation_id: uuid.UUID | None = None,
+) -> AutomationRun:
+    """Persiste `pending` sin ejecutar; el commit lo hace quien encola la tarea."""
+    return _start_run(
+        db,
+        organization_id=organization_id,
+        actor_id=actor_id,
+        actor_role=actor_role,
+        automation_id=automation_id,
+        mode=AutomationRunMode.LIVE,
+        idempotency_key=idempotency_key,
+        application_id=application_id,
+        from_stage=None,
+        to_stage=None,
+        trigger_event_id=None,
+        correlation_id=correlation_id,
+        persist_only=True,
+    )
+
+
+def execute_pending_run(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    actor_id: uuid.UUID,
+    actor_role: MembershipRole | str,
+    run_id: uuid.UUID,
+    correlation_id: uuid.UUID,
+) -> AutomationRun:
+    """Punto de entrada del worker: valida tenant/correlación antes de ejecutar."""
+    _require_actor(db, organization_id, actor_id, actor_role, write=True)
+    run = _require_run(db, organization_id, run_id)
+    if run.organization_id != organization_id:
+        raise AutomationTenantMismatchError("La ejecución no pertenece a la organización")
+    if run.correlation_id != correlation_id:
+        raise AutomationServiceError("correlation_mismatch")
+    if run.status is not AutomationRunStatus.PENDING:
+        return run
+    automation = _require_automation(db, organization_id, run.automation_id)
+    result = _execute_with_audit(
+        db,
+        automation,
+        run,
+        actor_id=actor_id,
+        test_mode=run.mode is AutomationRunMode.TEST,
+    )
+    db.commit()
+    return result
+
+
+def cancel_run(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    actor_id: uuid.UUID,
+    actor_role: MembershipRole | str,
+    run_id: uuid.UUID,
+) -> AutomationRun:
+    """Cancela una ejecución no terminal; los estados finales no se reescriben."""
+    _require_actor(db, organization_id, actor_id, actor_role, write=True)
+    run = _require_run(db, organization_id, run_id)
+    terminal = frozenset(
+        {
+            AutomationRunStatus.COMPLETED,
+            AutomationRunStatus.FAILED,
+            AutomationRunStatus.CANCELLED,
+            AutomationRunStatus.TIMED_OUT,
+        }
+    )
+    if run.status in terminal:
+        return run
+    finished_at = datetime.now(UTC)
+    update_run_status(
+        db,
+        organization_id,
+        run,
+        AutomationRunStatus.CANCELLED,
+        finished_at=finished_at,
+    )
+    create_run_event(
+        db,
+        organization_id=organization_id,
+        run_id=run.id,
+        event_type=AutomationRunEventType.CANCELLED,
+        payload=validate_safe_payload(
+            {
+                "run_id": str(run.id),
+                "correlation_id": str(run.correlation_id),
+                "status": AutomationRunStatus.CANCELLED.value,
+            }
+        ),
+    )
+    record_audit(
+        db,
+        organization_id=organization_id,
+        actor_id=actor_id,
+        action="automation.run_cancelled",
+        resource_type=_RESOURCE_RUN,
+        resource_id=run.id,
+    )
+    db.commit()
+    return run
 
 
 def dispatch_domain_event(
@@ -895,10 +1073,14 @@ def list_approvals(
 __all__ = [
     "activate_automation",
     "add_version",
+    "archive_automation",
+    "cancel_run",
     "create_automation",
+    "create_run",
     "deactivate_automation",
     "decide_approval",
     "dispatch_domain_event",
+    "execute_pending_run",
     "get_run_detail",
     "list_approvals",
     "list_automations",
