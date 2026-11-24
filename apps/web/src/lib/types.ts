@@ -417,3 +417,91 @@ export interface AssessmentComparison {
   target: ComparisonVersion;
   changes: RequirementComparison[];
 }
+
+/** DTOs espejo de `/api/v1/agents` (Fase 6). Sin puntajes ni decisiones automáticas. */
+
+export type AgentRunStatus =
+  | "pending"
+  | "running"
+  | "waiting_approval"
+  | "completed"
+  | "failed"
+  | "cancelled"
+  | "timed_out";
+
+export type ApprovalStatus = "pending" | "approved" | "rejected";
+
+export type AgentEventType =
+  | "run.created"
+  | "run.started"
+  | "run.waiting_approval"
+  | "run.completed"
+  | "run.failed"
+  | "run.cancelled"
+  | "run.timed_out"
+  | "approval.requested"
+  | "approval.resolved"
+  | "graph.interrupted"
+  | "checkpoint.saved"
+  | "tool.invoked";
+
+export interface AgentRunSummary {
+  id: string;
+  workflow: string;
+  version: string;
+  status: AgentRunStatus;
+  correlation_id: string;
+  created_at: string;
+  updated_at: string;
+  output_ref: string | null;
+}
+
+export interface AgentEventSummary {
+  event_type: AgentEventType;
+  count: number;
+}
+
+/** Detalle devuelto por POST/GET /runs; `review_required` se deriva del estado servidor. */
+export interface AgentRun extends AgentRunSummary {
+  event_summary: AgentEventSummary[];
+  event_count: number;
+}
+
+export type AgentRunDetail = AgentRun;
+export type AgentRunList = Paginated<AgentRunSummary>;
+
+/** Payload saneado por backend: solo metadatos, nunca CV, secretos ni rutas internas. */
+export interface AgentEvent {
+  event_type: AgentEventType;
+  created_at: string;
+  correlation_id: string;
+  payload: Record<string, unknown>;
+}
+
+export type AgentEventList = Paginated<AgentEvent>;
+
+export interface Approval {
+  id: string;
+  action_type: string;
+  status: ApprovalStatus;
+  created_at: string;
+  decided_at: string | null;
+}
+
+export interface AgentRunStart {
+  application_id: string;
+  idempotency_key: string;
+  correlation_id?: string;
+}
+
+export interface AgentApprovalDecision {
+  decision: Exclude<ApprovalStatus, "pending">;
+  note?: string | null;
+}
+
+export interface AgentResumeResponse {
+  agent_run_id: string;
+  status: AgentRunStatus;
+  queued: boolean;
+  correlation_id: string;
+}
