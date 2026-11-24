@@ -272,56 +272,56 @@ Dos organizaciones con usuarios y datos distintos pueden utilizar la aplicación
 ## Tareas
 
 ### Recepción y almacenamiento
-- [ ] Definir formatos permitidos: PDF y DOCX.
-- [ ] Definir límite de tamaño y cantidad de páginas.
-- [ ] Validar extensión, MIME y firma del archivo.
-- [ ] Generar nombre interno no predecible.
-- [ ] Almacenar en bucket privado o storage local de desarrollo.
-- [ ] Calcular checksum.
-- [ ] Crear metadatos y estado del documento.
-- [ ] Implementar acceso mediante autorización y URLs temporales si aplica.
+- [x] Definir formatos permitidos: PDF y DOCX.
+- [x] Definir límite de tamaño y cantidad de páginas.
+- [x] Validar extensión, MIME y firma del archivo.
+- [x] Generar nombre interno no predecible.
+- [x] Almacenar en bucket privado o storage local de desarrollo.
+- [x] Calcular checksum.
+- [x] Crear metadatos y estado del documento.
+- [x] Implementar acceso mediante autorización y URLs temporales si aplica.
 
 ### Extracción de texto
-- [ ] Implementar extractor PDF.
-- [ ] Implementar extractor DOCX.
-- [ ] Detectar documentos vacíos, corruptos o no compatibles.
-- [ ] Preservar páginas y offsets cuando sea posible.
-- [ ] Definir límites de memoria y tiempo.
-- [ ] Ejecutar extracción en background.
+- [x] Implementar extractor PDF.
+- [x] Implementar extractor DOCX.
+- [x] Detectar documentos vacíos, corruptos o no compatibles.
+- [x] Preservar páginas y offsets cuando sea posible.
+- [x] Definir límites de memoria y tiempo.
+- [x] Ejecutar extracción en background.
 
 ### Interpretación con IA
-- [ ] Crear interfaz `LLMProvider`.
-- [ ] Implementar proveedor mock determinista.
-- [ ] Implementar adaptador de proveedor real configurable.
-- [ ] Definir schema Pydantic de extracción.
-- [ ] Crear prompt versionado.
-- [ ] Extraer experiencia, formación, skills, proyectos e idiomas.
-- [ ] Asociar cada dato con evidencia fuente.
-- [ ] Marcar campos faltantes.
-- [ ] Validar respuesta estructurada.
-- [ ] Enviar resultados dudosos a revisión.
+- [x] Crear interfaz `LLMProvider`.
+- [x] Implementar proveedor mock determinista.
+- [x] Implementar adaptador de proveedor real configurable.
+- [x] Definir schema Pydantic de extracción.
+- [x] Crear prompt versionado.
+- [x] Extraer experiencia, formación, skills, proyectos e idiomas.
+- [x] Asociar cada dato con evidencia fuente.
+- [x] Marcar campos faltantes.
+- [x] Validar respuesta estructurada.
+- [x] Enviar resultados dudosos a revisión.
 
 ### Interfaz
-- [ ] Crear componente de carga.
-- [ ] Mostrar progreso del procesamiento.
-- [ ] Mostrar error y opción de reintento.
-- [ ] Mostrar datos extraídos.
-- [ ] Permitir corregir y confirmar.
-- [ ] Registrar quién confirmó los datos.
+- [x] Crear componente de carga.
+- [x] Mostrar progreso del procesamiento.
+- [x] Mostrar error y opción de reintento.
+- [x] Mostrar datos extraídos.
+- [x] Permitir corregir y confirmar.
+- [x] Registrar quién confirmó los datos.
 
 ## Pruebas obligatorias
 
-- [ ] PDF válido.
-- [ ] DOCX válido.
-- [ ] Archivo vacío.
-- [ ] Archivo corrupto.
-- [ ] Extensión falsa.
-- [ ] Archivo excesivo.
-- [ ] Timeout del proveedor.
-- [ ] JSON inválido.
-- [ ] Datos faltantes.
-- [ ] Documento con instrucciones maliciosas.
-- [ ] Acceso a documento de otra organización.
+- [x] PDF válido.
+- [x] DOCX válido.
+- [x] Archivo vacío.
+- [x] Archivo corrupto.
+- [x] Extensión falsa.
+- [x] Archivo excesivo.
+- [x] Timeout del proveedor.
+- [x] JSON inválido.
+- [x] Datos faltantes.
+- [x] Documento con instrucciones maliciosas.
+- [x] Acceso a documento de otra organización.
 
 ## Criterio de salida
 
@@ -890,7 +890,7 @@ Actualizar esta tabla durante el desarrollo.
 | 1 — Fundación | DONE | 2026-11-23 | 2026-11-23 | Commits ce4f218, aacea0c, adf5ebd, 7ded81a; compose OK; postgres healthy y redis PONG; ruff/mypy OK; pytest 12 passed; npm typecheck/lint/test/build OK; alembic upgrade/downgrade OK en harness SQLite; CI run 45260245209 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45260245209). |
 | 2 — Identidad | DONE | 2026-11-23 | 2026-11-23 | Commits 6100629, 173d976, f900157, 4ecc26e; 46 tests pytest (incluye cross-tenant, sesión expirada y matriz de roles); ruff/mypy OK; npm typecheck/lint/test/build OK; CI run 45268242607 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45268242607). Única excepción: contexto org en tareas asíncronas, N/A sin workers y diferido a Fase 4. |
 | 3 — Recruitment Core | DONE | 2026-11-23 | 2026-11-23 | Commits 7199f96, efd89a4, e27aed7, 6b957d8, 7b1e740; dominio y API de jobs/candidates/applications; 119 tests pytest (cross-tenant, roles, transiciones, duplicados, auditoría); ruff/mypy OK; npm typecheck/lint/test/build OK; alembic upgrade/downgrade OK en harness SQLite; CI run 45283604138 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45283604138). Sin IA, sin entrevistas. |
-| 4 — Document Intelligence | NOT_STARTED | — | — | — |
+| 4 — Document Intelligence | DONE | 2026-11-23 | 2026-11-23 | Commits eae1ca8, db7c737, fe9342b, a85d036, c7ce1a9, 58b8e33; upload PDF/DOCX validado y storage local privado; worker Celery tenant-aware (contexto de organización verificado en tarea); LLMProvider mock/remoto, cv_analyst v1 y evidencia verificada; revisión/corrección humana con auditoría; ADR-010; 191 tests pytest, ruff/mypy OK, npm typecheck/lint/test/build OK, alembic upgrade/downgrade OK en harness SQLite; CI run 45298709917 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45298709917). |
 | 5 — Matching | NOT_STARTED | — | — | — |
 | 6 — Agent Runtime | NOT_STARTED | — | — | — |
 | 7 — Interview Assistant | NOT_STARTED | — | — | — |
