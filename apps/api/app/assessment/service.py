@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import cast
 
 from pydantic import ValidationError
@@ -11,22 +13,60 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session as DBSession
 
 from app.agents.matching_analyst import PROMPT_VERSION
+from app.applications.models import Application
+from app.applications.repositories import get_application as get_application_record
 from app.assessment import context as assessment_context
 from app.assessment.matching_schema import AssessmentOutput, MatchingEvidenceRef, MatchingResult
 from app.assessment.models import (
     Assessment,
     AssessmentStatus,
+    RequirementEvaluation,
     RequirementEvaluationStatus,
 )
-from app.assessment.repositories import create_assessment, save_evaluation, update_summary
+from app.assessment.repositories import (
+    count_assessments,
+    create_assessment,
+    get_assessment,
+    get_assessment_evaluation,
+    list_assessment_evaluations,
+    list_assessments,
+    save_evaluation,
+    update_evaluation_review,
+    update_summary,
+)
+from app.assessment.schemas import (
+    AssessmentComparisonResult,
+    AssessmentListResponse,
+    AssessmentResult,
+    ComparisonVersion,
+    EvidenceRef,
+    EvidenceRefsChange,
+    ExplanationChange,
+    RequirementComparison,
+    RequirementEvaluationResult,
+    ReviewDecision,
+    ReviewRequiredChange,
+    StatusChange,
+    assessment_result,
+)
 from app.audit.service import record_audit
+from app.candidates.models import Candidate
+from app.candidates.repositories import get_candidate as get_candidate_record
 from app.core.logging import log_structured
+from app.identity.models import MembershipRole
 from app.identity.repositories import user_belongs_to_organization
+from app.jobs.models import Job, JobVersion
 from app.llm.provider import ProviderError
 from app.llm.registry import get_llm_provider
 
 DETERMINISTIC_MODEL_VERSION = "deterministic-no-confirmed-fields-v1"
 _RESOURCE_TYPE = "assessment"
+_REVIEW_ROLES = frozenset(
+    {MembershipRole.OWNER, MembershipRole.ADMIN, MembershipRole.RECRUITER}
+)
+_RESOLVED_EVALUATIONS = frozenset(
+    {RequirementEvaluationStatus.SUPPORTED, RequirementEvaluationStatus.NOT_FOUND}
+)
 _EvidenceKey = tuple[str, str, int, str]
 
 
@@ -46,6 +86,14 @@ class _NormalizedEvaluation:
     explanation: str
     limitations: list[str]
     review_required: bool
+
+
+@dataclass(frozen=True)
+class AssessmentRunOutcome:
+    """Resultado visible para HTTP: permite 201/200 sin duplicar evaluaciones."""
+
+    result: AssessmentResult
+    created: bool
 
 
 def _log_event(
@@ -87,6 +135,21 @@ def _find_existing(
         Assessment.prompt_version == PROMPT_VERSION,
     )
     return db.execute(stmt).scalar_one_or_none()
+
+
+def _resolve_for_write(
+    db: DBSession,
+    organization_id: uuid.UUID,
+    application_id: uuid.UUID,
+    actor_id: uuid.UUID,
+) -> tuple[Application, Job, Candidate, JobVersion]:
+    """Autoriza al miembro del tenant y resuelve la versión inmutable de la vacante."""
+    if not user_belongs_to_organization(db, actor_id, organization_id):
+        raise AssessmentDomainError("forbidden")
+    resolved = assessment_context.resolve_application(db, organization_id, application_id)
+    if resolved is None:
+        raise AssessmentDomainError("not_found")
+    return resolved
 
 
 def _allowed_evidence(
@@ -311,13 +374,7 @@ def run_assessment(
     verificadas ysin score, ranking ni decisión automática.
     """
     correlation_id = str(uuid.uuid4())
-    if not user_belongs_to_organization(db, actor_id, organization_id):
-        raise AssessmentDomainError("forbidden")
-    resolved = assessment_context.resolve_application(
-        db, organization_id, application_id
-    )
-    if resolved is None:
-        raise AssessmentDomainError("not_found")
+    resolved = _resolve_for_write(db, organization_id, application_id, actor_id)
     application, _, candidate, version = resolved
 
     existing = _find_existing(db, organization_id, application_id, version.id)
@@ -433,3 +490,299 @@ def run_assessment(
         ),
     )
     return assessment
+
+
+def _detail(
+    db: DBSession, organization_id: uuid.UUID, assessment: Assessment
+) -> AssessmentResult:
+    evaluations = list_assessment_evaluations(db, organization_id, assessment.id)
+    return assessment_result(assessment, evaluations)
+
+
+def run_assessment_for_api(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    application_id: uuid.UUID,
+    actor_id: uuid.UUID,
+) -> AssessmentRunOutcome:
+    """Ejecuta o reutiliza la evaluación de la versión vigente; expone si la creó."""
+    resolved = _resolve_for_write(db, organization_id, application_id, actor_id)
+    version = resolved[3]
+    existing = _find_existing(db, organization_id, application_id, version.id)
+    if existing is not None:
+        return AssessmentRunOutcome(result=_detail(db, organization_id, existing), created=False)
+    assessment = run_assessment(
+        db,
+        organization_id=organization_id,
+        application_id=application_id,
+        actor_id=actor_id,
+    )
+    return AssessmentRunOutcome(result=_detail(db, organization_id, assessment), created=True)
+
+
+def list_assessments_for_application(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    application_id: uuid.UUID,
+    limit: int = 50,
+    offset: int = 0,
+) -> tuple[list[Assessment], int]:
+    """Lista las evaluaciones de una postulación del tenant; filtro siempre por org."""
+    if get_application_record(db, organization_id, application_id) is None:
+        raise AssessmentDomainError("not_found")
+    items = list_assessments(
+        db,
+        organization_id,
+        application_id=application_id,
+        limit=limit,
+        offset=offset,
+    )
+    total = count_assessments(db, organization_id, application_id=application_id)
+    return items, total
+
+
+def list_assessments_for_api(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    application_id: uuid.UUID | None,
+    candidate_id: uuid.UUID | None,
+    limit: int,
+    offset: int,
+) -> AssessmentListResponse:
+    """Contrato paginado; los filtros de otro tenant se rechazan sin filtrar datos."""
+    if application_id is not None and get_application_record(
+        db, organization_id, application_id
+    ) is None:
+        raise AssessmentDomainError("not_found")
+    if candidate_id is not None and get_candidate_record(
+        db, organization_id, candidate_id
+    ) is None:
+        raise AssessmentDomainError("not_found")
+    items = list_assessments(
+        db,
+        organization_id,
+        application_id=application_id,
+        candidate_id=candidate_id,
+        limit=limit,
+        offset=offset,
+    )
+    total = count_assessments(
+        db, organization_id, application_id=application_id, candidate_id=candidate_id
+    )
+    return AssessmentListResponse(
+        items=[assessment_result(item) for item in items],
+        total=total,
+        limit=limit,
+        offset=offset,
+    )
+
+
+def get_assessment_detail(
+    db: DBSession, *, organization_id: uuid.UUID, assessment_id: uuid.UUID
+) -> AssessmentResult:
+    """Detalle con criterios y evidencia verificada, sin datos privados del CV."""
+    assessment = get_assessment(db, organization_id, assessment_id)
+    if assessment is None:
+        raise AssessmentDomainError("not_found")
+    return _detail(db, organization_id, assessment)
+
+
+def _require_reviewer(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    actor_id: uuid.UUID,
+    actor_role: MembershipRole,
+) -> None:
+    if actor_role not in _REVIEW_ROLES or not user_belongs_to_organization(
+        db, actor_id, organization_id
+    ):
+        raise AssessmentDomainError("forbidden")
+
+
+def _commit_or_rollback(db: DBSession) -> None:
+    try:
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        raise
+
+
+def review_evaluation(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    assessment_id: uuid.UUID,
+    evaluation_id: uuid.UUID,
+    actor_id: uuid.UUID,
+    actor_role: MembershipRole,
+    decision: ReviewDecision,
+) -> RequirementEvaluationResult:
+    """Registra quién y cuándo corrigió un criterio; sin valores del CV en auditoría."""
+    _require_reviewer(
+        db,
+        organization_id=organization_id,
+        actor_id=actor_id,
+        actor_role=actor_role,
+    )
+    assessment = get_assessment(db, organization_id, assessment_id)
+    evaluation = get_assessment_evaluation(
+        db, organization_id, assessment_id, evaluation_id
+    )
+    if assessment is None or evaluation is None:
+        raise AssessmentDomainError("not_found")
+
+    updated = update_evaluation_review(
+        db,
+        evaluation,
+        status=decision.status,
+        explanation=decision.explanation,
+        reviewed_by=actor_id,
+        reviewed_at=datetime.now(UTC),
+        review_required=decision.status is RequirementEvaluationStatus.NEEDS_REVIEW,
+    )
+    record_audit(
+        db,
+        organization_id=organization_id,
+        actor_id=actor_id,
+        action="assessment.reviewed",
+        resource_type=_RESOURCE_TYPE,
+        resource_id=assessment.id,
+    )
+    _commit_or_rollback(db)
+    return RequirementEvaluationResult.model_validate(updated)
+
+
+def complete_review(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    assessment_id: uuid.UUID,
+    actor_id: uuid.UUID,
+    actor_role: MembershipRole,
+) -> AssessmentResult:
+    """Cierra la revisión solo si no quedan criterios sin revisar y pendientes."""
+    _require_reviewer(
+        db,
+        organization_id=organization_id,
+        actor_id=actor_id,
+        actor_role=actor_role,
+    )
+    assessment = get_assessment(db, organization_id, assessment_id)
+    if assessment is None:
+        raise AssessmentDomainError("not_found")
+    evaluations = list_assessment_evaluations(db, organization_id, assessment_id)
+    pending = [
+        item
+        for item in evaluations
+        if item.reviewed_by is None and item.status not in _RESOLVED_EVALUATIONS
+    ]
+    if pending:
+        raise AssessmentDomainError("review_pending")
+
+    update_summary(
+        db,
+        assessment,
+        status=AssessmentStatus.COMPLETED,
+        summary=assessment.summary,
+        limitations=assessment.limitations,
+    )
+    record_audit(
+        db,
+        organization_id=organization_id,
+        actor_id=actor_id,
+        action="assessment.review_completed",
+        resource_type=_RESOURCE_TYPE,
+        resource_id=assessment.id,
+    )
+    _commit_or_rollback(db)
+    return assessment_result(assessment, evaluations)
+
+
+def _evidence_refs(item: RequirementEvaluation | None) -> list[EvidenceRef]:
+    if item is None:
+        return []
+    return [EvidenceRef.model_validate(ref) for ref in item.evidence]
+
+
+def _version(assessment: Assessment) -> ComparisonVersion:
+    return ComparisonVersion(
+        assessment_id=assessment.id,
+        status=assessment.status,
+        model_version=assessment.model_version,
+        prompt_version=assessment.prompt_version,
+    )
+
+
+def _by_requirement(
+    items: Sequence[RequirementEvaluation],
+) -> dict[uuid.UUID, RequirementEvaluation]:
+    return {item.requirement_id: item for item in items}
+
+
+def compare_assessments(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    base_id: uuid.UUID,
+    other_id: uuid.UUID,
+) -> AssessmentComparisonResult:
+    """Compara dos versiones de la misma postulación del tenant, sin score."""
+    base = get_assessment(db, organization_id, base_id)
+    other = get_assessment(db, organization_id, other_id)
+    if base is None or other is None:
+        raise AssessmentDomainError("not_found")
+    if base.application_id != other.application_id:
+        raise AssessmentDomainError("application_mismatch")
+
+    base_items = _by_requirement(
+        list_assessment_evaluations(db, organization_id, base.id)
+    )
+    other_items = _by_requirement(
+        list_assessment_evaluations(db, organization_id, other.id)
+    )
+    changes: list[RequirementComparison] = []
+    for requirement_id in sorted(set(base_items) | set(other_items), key=str):
+        before = base_items.get(requirement_id)
+        after = other_items.get(requirement_id)
+        before_status = before.status if before is not None else None
+        after_status = after.status if after is not None else None
+        before_explanation = before.explanation if before is not None else None
+        after_explanation = after.explanation if after is not None else None
+        before_evidence = _evidence_refs(before)
+        after_evidence = _evidence_refs(after)
+        before_review = before.review_required if before is not None else None
+        after_review = after.review_required if after is not None else None
+        changes.append(
+            RequirementComparison(
+                requirement_id=requirement_id,
+                status=StatusChange(
+                    before=before_status,
+                    after=after_status,
+                    changed=before_status != after_status,
+                ),
+                explanation=ExplanationChange(
+                    before=before_explanation,
+                    after=after_explanation,
+                    changed=before_explanation != after_explanation,
+                ),
+                evidence_refs=EvidenceRefsChange(
+                    before=before_evidence,
+                    after=after_evidence,
+                    changed=before_evidence != after_evidence,
+                ),
+                review_required=ReviewRequiredChange(
+                    before=before_review,
+                    after=after_review,
+                    changed=before_review != after_review,
+                ),
+            )
+        )
+    return AssessmentComparisonResult(
+        base=_version(base),
+        target=_version(other),
+        changes=changes,
+    )

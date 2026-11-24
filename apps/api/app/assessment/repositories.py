@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DBSession
@@ -72,6 +73,41 @@ def get_evaluation(
         )
     )
     return db.execute(stmt).scalar_one_or_none()
+
+
+def get_assessment_evaluation(
+    db: DBSession,
+    organization_id: uuid.UUID,
+    assessment_id: uuid.UUID,
+    evaluation_id: uuid.UUID,
+) -> RequirementEvaluation | None:
+    """Lee un criterio solo si pertenece a la evaluación y al tenant indicados."""
+    stmt = (
+        select(RequirementEvaluation)
+        .join(Assessment, Assessment.id == RequirementEvaluation.assessment_id)
+        .where(
+            Assessment.organization_id == organization_id,
+            Assessment.id == assessment_id,
+            RequirementEvaluation.id == evaluation_id,
+        )
+    )
+    return db.execute(stmt).scalar_one_or_none()
+
+
+def list_assessment_evaluations(
+    db: DBSession, organization_id: uuid.UUID, assessment_id: uuid.UUID
+) -> list[RequirementEvaluation]:
+    """Todos los criterios de una evaluación del tenant, sin límite arbitrario."""
+    stmt = (
+        select(RequirementEvaluation)
+        .join(Assessment, Assessment.id == RequirementEvaluation.assessment_id)
+        .where(
+            Assessment.organization_id == organization_id,
+            RequirementEvaluation.assessment_id == assessment_id,
+        )
+        .order_by(RequirementEvaluation.requirement_id, RequirementEvaluation.id)
+    )
+    return list(db.execute(stmt).scalars().all())
 
 
 def list_evaluations(
@@ -163,3 +199,24 @@ def update_summary(
     assessment.limitations = limitations
     db.flush()
     return assessment
+
+
+def update_evaluation_review(
+    db: DBSession,
+    evaluation: RequirementEvaluation,
+    *,
+    status: RequirementEvaluationStatus,
+    explanation: str | None,
+    reviewed_by: uuid.UUID,
+    reviewed_at: datetime,
+    review_required: bool,
+) -> RequirementEvaluation:
+    """Persiste la decisión humana; el servicio valida permisos y commit."""
+    evaluation.status = status
+    if explanation is not None:
+        evaluation.explanation = explanation
+    evaluation.reviewed_by = reviewed_by
+    evaluation.reviewed_at = reviewed_at
+    evaluation.review_required = review_required
+    db.flush()
+    return evaluation

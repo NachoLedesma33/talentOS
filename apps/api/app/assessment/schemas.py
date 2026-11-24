@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.assessment.models import AssessmentStatus, RequirementEvaluationStatus
+from app.assessment.models import (
+    Assessment,
+    AssessmentStatus,
+    RequirementEvaluation,
+    RequirementEvaluationStatus,
+)
 
 
 class _InputModel(BaseModel):
@@ -68,6 +74,7 @@ class AssessmentResult(_ResponseModel):
     summary: AssessmentSummary
     limitations: list[str]
     evaluations: list[RequirementEvaluationResult] = Field(default_factory=list)
+    review_required: bool
     created_at: datetime
 
 
@@ -85,3 +92,79 @@ class ReviewDecision(_InputModel):
 
     status: RequirementEvaluationStatus
     explanation: str | None = Field(default=None, max_length=2000)
+
+
+class RunAssessmentRequest(_InputModel):
+    """Solo el ID de la postulación; el tenant se deriva de la sesión."""
+
+    application_id: uuid.UUID
+
+
+class StatusChange(_ResponseModel):
+    before: RequirementEvaluationStatus | None
+    after: RequirementEvaluationStatus | None
+    changed: bool
+
+
+class ExplanationChange(_ResponseModel):
+    before: str | None
+    after: str | None
+    changed: bool
+
+
+class EvidenceRefsChange(_ResponseModel):
+    before: list[EvidenceRef]
+    after: list[EvidenceRef]
+    changed: bool
+
+
+class ReviewRequiredChange(_ResponseModel):
+    before: bool | None
+    after: bool | None
+    changed: bool
+
+
+class RequirementComparison(_ResponseModel):
+    """Cambios por requisito entre dos evaluaciones de la misma postulación."""
+
+    requirement_id: uuid.UUID
+    status: StatusChange
+    explanation: ExplanationChange
+    evidence_refs: EvidenceRefsChange
+    review_required: ReviewRequiredChange
+
+
+class ComparisonVersion(_ResponseModel):
+    assessment_id: uuid.UUID
+    status: AssessmentStatus
+    model_version: str
+    prompt_version: str
+
+
+class AssessmentComparisonResult(_ResponseModel):
+    """Comparación sin score: versiones y cambios trazables por requisito."""
+
+    base: ComparisonVersion
+    target: ComparisonVersion
+    changes: list[RequirementComparison]
+
+
+def assessment_result(
+    assessment: Assessment,
+    evaluations: Sequence[RequirementEvaluation] = (),
+) -> AssessmentResult:
+    """Construye el contrato público; nunca incluye CV, tenant ni rutas storage."""
+    return AssessmentResult(
+        id=assessment.id,
+        application_id=assessment.application_id,
+        job_version_id=assessment.job_version_id,
+        candidate_id=assessment.candidate_id,
+        status=assessment.status,
+        model_version=assessment.model_version,
+        prompt_version=assessment.prompt_version,
+        summary=AssessmentSummary.model_validate(assessment.summary),
+        limitations=list(assessment.limitations),
+        evaluations=[RequirementEvaluationResult.model_validate(item) for item in evaluations],
+        review_required=assessment.status is AssessmentStatus.NEEDS_REVIEW,
+        created_at=assessment.created_at,
+    )
