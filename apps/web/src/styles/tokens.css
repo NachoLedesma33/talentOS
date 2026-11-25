@@ -7,6 +7,10 @@
   --color-text-muted: #4b5563;
   --color-border: #c7d0d9;
   --color-accent: #0b5cad;
+  --color-focus: #0b5cad;
+
+  --focus-ring-width: 3px;
+  --focus-ring-offset: 2px;
 
   --space-1: 4px;
   --space-2: 8px;
