@@ -74,6 +74,7 @@ function makeEvents(): AgentEventList {
         payload: {
           node: "matching_review_node",
           duration_ms: 41,
+          attempts: 3,
           error_type: "timeout_error",
           correlation_id: CORRELATION_ID,
         },
@@ -177,6 +178,7 @@ describe("AgentRunPanel", () => {
     expect(screen.getByText("41")).toBeTruthy();
     expect(screen.getByText("timeout_error")).toBeTruthy();
     const text = document.body.textContent ?? "";
+    expect(text).toContain("attempts: 3");
     expect(text).toContain('"decision":"approved"');
     expect(text).toContain('"tool":"create_assessment_draft"');
     expect(text).toContain('"statuses_summary":"[{\\"status\\":\\"supported\\",\\"count\\":1}]"');

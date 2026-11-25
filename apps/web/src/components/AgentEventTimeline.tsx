@@ -6,6 +6,7 @@ import type { AgentEvent } from "../lib/types";
 const PUBLIC_PAYLOAD_KEYS = new Set([
   "action_type",
   "agent_run_id",
+  "attempts",
   "approval_id",
   "correlation_id",
   "decided_by",
@@ -24,7 +25,7 @@ const PUBLIC_PAYLOAD_KEYS = new Set([
   "workflow",
 ]);
 
-const DETAIL_KEYS = ["node", "duration_ms", "error_type"] as const;
+const DETAIL_KEYS = ["node", "duration_ms", "attempts", "error_type"] as const;
 
 function formatUtc(value: string): string {
   const date = new Date(value);
