@@ -227,6 +227,10 @@ describe("AgentRunPanel", () => {
     submitForm("Buscar ejecuciones");
 
     expect(await screen.findByRole("button", { name: RUN_ID })).toBeTruthy();
+    const runsTable = screen.getByRole("table", {
+      name: "Ejecuciones de agentes",
+    });
+    expect(runsTable.parentElement?.className).toContain("overflow-x-auto");
     expect(screen.getByRole("columnheader", { name: "Vacante" })).toBeTruthy();
     expect(screen.getByRole("columnheader", { name: "Candidato" })).toBeTruthy();
     expect(screen.getByRole("cell", { name: JOB_ID })).toBeTruthy();

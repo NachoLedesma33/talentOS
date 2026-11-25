@@ -273,38 +273,41 @@ export function AgentRunPanel() {
       </form>
 
       {runs.length > 0 ? (
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-border">
-              <th scope="col" className="py-2 pr-3 font-semibold">Ejecución</th>
-              <th scope="col" className="py-2 pr-3 font-semibold">Agente</th>
-              <th scope="col" className="py-2 pr-3 font-semibold">Estado</th>
-              <th scope="col" className="py-2 pr-3 font-semibold">Vacante</th>
-              <th scope="col" className="py-2 pr-3 font-semibold">Candidato</th>
-              <th scope="col" className="py-2 font-semibold">Creada</th>
-            </tr>
-          </thead>
-          <tbody>
-            {runs.map((item) => (
-              <tr key={item.id} className="border-b border-border">
-                <td className="py-2 pr-3">
-                  <button
-                    type="button"
-                    onClick={() => void selectRun(item.id)}
-                    className="text-accent underline"
-                  >
-                    {item.id}
-                  </button>
-                </td>
-                <td className="py-2 pr-3">{item.workflow}</td>
-                <td className="py-2 pr-3">{STATUS_LABELS[item.status]}</td>
-                <td className="py-2 pr-3">{item.job_id ?? "—"}</td>
-                <td className="py-2 pr-3">{item.candidate_id ?? "—"}</td>
-                <td className="py-2">{formatUtc(item.created_at)}</td>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <caption className="sr-only">Ejecuciones de agentes</caption>
+            <thead>
+              <tr className="border-b border-border">
+                <th scope="col" className="py-2 pr-3 font-semibold">Ejecución</th>
+                <th scope="col" className="py-2 pr-3 font-semibold">Agente</th>
+                <th scope="col" className="py-2 pr-3 font-semibold">Estado</th>
+                <th scope="col" className="py-2 pr-3 font-semibold">Vacante</th>
+                <th scope="col" className="py-2 pr-3 font-semibold">Candidato</th>
+                <th scope="col" className="py-2 font-semibold">Creada</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {runs.map((item) => (
+                <tr key={item.id} className="border-b border-border">
+                  <td className="py-2 pr-3">
+                    <button
+                      type="button"
+                      onClick={() => void selectRun(item.id)}
+                      className="text-accent underline"
+                    >
+                      {item.id}
+                    </button>
+                  </td>
+                  <td className="py-2 pr-3">{item.workflow}</td>
+                  <td className="py-2 pr-3">{STATUS_LABELS[item.status]}</td>
+                  <td className="py-2 pr-3">{item.job_id ?? "—"}</td>
+                  <td className="py-2 pr-3">{item.candidate_id ?? "—"}</td>
+                  <td className="py-2">{formatUtc(item.created_at)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       ) : null}
 
       <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
