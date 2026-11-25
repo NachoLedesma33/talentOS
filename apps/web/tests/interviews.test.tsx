@@ -621,7 +621,8 @@ describe("FeedbackForm", () => {
     expect(text).toContain(REQUIREMENT_ID);
     expect(text).toContain(INTERVIEWER_ID);
     expect(text).toContain(CREATED_AT);
-    expect(screen.getByRole("table")).toBeTruthy();
+    const feedbackTable = screen.getByRole("table", { name: "Historial de feedback" });
+    expect(feedbackTable.parentElement?.className).toContain("overflow-x-auto");
     expect(screen.queryByLabelText(/score|puntuación|decisión/i)).toBeNull();
   });
 
