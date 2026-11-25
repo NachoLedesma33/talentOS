@@ -14,6 +14,8 @@ const APPLICATION_ID = "11111111-1111-4111-8111-111111111111";
 const RUN_ID = "22222222-2222-4222-8222-222222222222";
 const APPROVAL_ID = "33333333-3333-4333-8333-333333333333";
 const CORRELATION_ID = "44444444-4444-4444-8444-444444444444";
+const JOB_ID = "55555555-5555-4555-8555-555555555555";
+const CANDIDATE_ID = "66666666-6666-4666-8666-666666666666";
 const CREATED_AT = "2026-01-01T00:00:00Z";
 const IDEMPOTENCY_KEY = "clave-sintetica-unica";
 const CV_MARKER = "CV-SINTETICO-NO-DEBE-APARECER";
@@ -58,6 +60,8 @@ function makeRun(overrides: Partial<AgentRun> = {}): AgentRun {
     created_at: CREATED_AT,
     updated_at: CREATED_AT,
     output_ref: "draft:sintetico",
+    job_id: JOB_ID,
+    candidate_id: CANDIDATE_ID,
     event_summary: [{ event_type: "run.created", count: 1 }],
     event_count: 3,
     ...overrides,

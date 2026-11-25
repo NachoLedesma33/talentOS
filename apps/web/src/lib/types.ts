@@ -454,6 +454,8 @@ export interface AgentRunSummary {
   created_at: string;
   updated_at: string;
   output_ref: string | null;
+  job_id: string | null;
+  candidate_id: string | null;
 }
 
 export interface AgentEventSummary {
@@ -468,8 +470,6 @@ export interface AgentRun extends AgentRunSummary {
   duration_ms?: number;
   configured_provider?: string;
   configured_model?: string | null;
-  job_id?: string | null;
-  candidate_id?: string | null;
 }
 
 export type AgentRunDetail = AgentRun;
