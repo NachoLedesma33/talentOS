@@ -16,6 +16,10 @@ const PUBLIC_PAYLOAD_KEYS = new Set([
   "node",
   "resumed",
   "status",
+  "statuses_summary",
+  "template",
+  "char_count",
+  "tool",
   "version",
   "workflow",
 ]);

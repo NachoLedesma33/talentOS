@@ -87,6 +87,10 @@ function makeEvents(): AgentEventList {
           secret: SECRET_MARKER,
           storage_path: STORAGE_MARKER,
           decision: "approved",
+          tool: "create_assessment_draft",
+          statuses_summary: [{ status: "supported", count: 1 }],
+          template: "initial_contact",
+          char_count: 91,
         },
       },
     ],
@@ -174,6 +178,10 @@ describe("AgentRunPanel", () => {
     expect(screen.getByText("timeout_error")).toBeTruthy();
     const text = document.body.textContent ?? "";
     expect(text).toContain('"decision":"approved"');
+    expect(text).toContain('"tool":"create_assessment_draft"');
+    expect(text).toContain('"statuses_summary":"[{\\"status\\":\\"supported\\",\\"count\\":1}]"');
+    expect(text).toContain('"template":"initial_contact"');
+    expect(text).toContain('"char_count":"91"');
     for (const marker of [CV_MARKER, SECRET_MARKER, STORAGE_MARKER]) {
       expect(text).not.toContain(marker);
     }
