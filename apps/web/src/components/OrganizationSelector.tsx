@@ -46,6 +46,9 @@ export function OrganizationSelector({
     setActiveId(selectedId);
     setStatus("ready");
     setMessage(items.length === 0 ? "Sin organizaciones disponibles." : null);
+    if (selectedId) {
+      onChangeRef.current?.(selectedId);
+    }
   }, []);
 
   const applyLoadError = useCallback((error: unknown) => {
@@ -76,17 +79,12 @@ export function OrganizationSelector({
     };
   }, [applyOrganizations, applyLoadError]);
 
-  useEffect(() => {
-    if (activeId) {
-      onChangeRef.current?.(activeId);
-    }
-  }, [activeId]);
-
   function handleChange(event: ChangeEvent<HTMLSelectElement>) {
     const nextId = event.target.value;
     setActiveId(nextId);
     if (nextId) {
       window.localStorage.setItem(ACTIVE_ORG_STORAGE_KEY, nextId);
+      onChangeRef.current?.(nextId);
     }
   }
 
