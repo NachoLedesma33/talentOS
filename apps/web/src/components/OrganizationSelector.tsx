@@ -9,6 +9,9 @@ import {
 } from "react";
 import { ACTIVE_ORG_STORAGE_KEY, ApiError, apiFetch } from "../lib/api";
 import type { Organization } from "../lib/types";
+import { Button } from "./ui/shadcn/button";
+import { Card } from "./ui/shadcn/card";
+import { Select } from "./ui/shadcn/select";
 
 type LoadStatus = "loading" | "ready" | "error";
 
@@ -101,35 +104,35 @@ export function OrganizationSelector({
       ) : null}
 
       {status === "error" ? (
-        <div className="space-y-2" role="alert">
+        <Card role="alert" className="space-y-2 p-3">
           <p className="text-sm text-text-muted">{message}</p>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => {
               setStatus("loading");
               setMessage(null);
               requestOrganizations().then(applyOrganizations, applyLoadError);
             }}
-            className="rounded-sm border border-border px-3 py-1 text-sm font-semibold"
           >
             Reintentar
-          </button>
-        </div>
+          </Button>
+        </Card>
       ) : null}
 
       {status === "ready" && organizations.length > 0 ? (
-        <select
+        <Select
           aria-label="Organización activa"
           value={activeId}
           onChange={handleChange}
-          className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm"
         >
           {organizations.map((organization) => (
             <option key={organization.id} value={organization.id}>
               {organization.name}
             </option>
           ))}
-        </select>
+        </Select>
       ) : null}
 
       {status === "ready" && organizations.length === 0 ? (

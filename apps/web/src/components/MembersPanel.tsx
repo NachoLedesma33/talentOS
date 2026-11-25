@@ -14,6 +14,11 @@ import type {
   MemberRoleUpdate,
   MembershipRole,
 } from "../lib/types";
+import { Button } from "./ui/shadcn/button";
+import { Card } from "./ui/shadcn/card";
+import { Input } from "./ui/shadcn/input";
+import { Label } from "./ui/shadcn/label";
+import { Select } from "./ui/shadcn/select";
 
 const ROLES: readonly MembershipRole[] = [
   "owner",
@@ -268,38 +273,37 @@ export function MembersPanel({ organizationId }: { organizationId: string | null
       {visibleLoadStatus === "ready" && members.length > 0 ? (
         <ul className="space-y-2">
           {members.map((member) => (
-            <li
-              key={member.user_id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-sm border border-border px-3 py-2"
-            >
-              <div className="space-y-0">
-                <p className="text-sm font-semibold">{member.name}</p>
-                <p className="text-xs text-text-muted">{member.email}</p>
-              </div>
-              <div className="space-y-1">
-                <label
-                  htmlFor={`member-role-${member.user_id}`}
-                  className="block text-xs text-text-muted"
-                >
-                  Rol
-                </label>
-                <select
-                  id={`member-role-${member.user_id}`}
-                  aria-label={`Rol de ${member.name}`}
-                  value={member.role}
-                  disabled={busy}
-                  onChange={(event) => {
-                    void handleRoleChange(member, event);
-                  }}
-                  className="rounded-sm border border-border bg-surface px-2 py-1 text-sm"
-                >
-                  {ROLES.map((role) => (
-                    <option key={role} value={role}>
-                      {role}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <li key={member.user_id}>
+              <Card className="flex flex-wrap items-center justify-between gap-3 p-3">
+                <div className="space-y-0">
+                  <p className="text-sm font-semibold">{member.name}</p>
+                  <p className="text-xs text-text-muted">{member.email}</p>
+                </div>
+                <div className="space-y-1">
+                  <Label
+                    htmlFor={`member-role-${member.user_id}`}
+                    className="block text-xs text-text-muted"
+                  >
+                    Rol
+                  </Label>
+                  <Select
+                    id={`member-role-${member.user_id}`}
+                    aria-label={`Rol de ${member.name}`}
+                    value={member.role}
+                    disabled={busy}
+                    onChange={(event) => {
+                      void handleRoleChange(member, event);
+                    }}
+                    className="h-9 w-auto"
+                  >
+                    {ROLES.map((role) => (
+                      <option key={role} value={role}>
+                        {role}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+              </Card>
             </li>
           ))}
         </ul>
@@ -312,45 +316,39 @@ export function MembersPanel({ organizationId }: { organizationId: string | null
       >
         <h3 className="text-sm font-semibold">Invitar miembro</h3>
         <div className="space-y-1">
-          <label htmlFor="invite-email" className="block text-sm font-semibold">
+          <Label htmlFor="invite-email" className="block">
             Correo electrónico
-          </label>
-          <input
+          </Label>
+          <Input
             id="invite-email"
             name="email"
             type="email"
             required
             disabled={busy}
-            className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm"
           />
         </div>
         <div className="space-y-1">
-          <label htmlFor="invite-role" className="block text-sm font-semibold">
+          <Label htmlFor="invite-role" className="block">
             Rol
-          </label>
-          <select
+          </Label>
+          <Select
             id="invite-role"
             name="role"
             defaultValue="viewer"
             disabled={busy}
-            className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm"
           >
             {ROLES.map((role) => (
               <option key={role} value={role}>
                 {role}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
-        <button
-          type="submit"
-          disabled={busy}
-          className="rounded-sm bg-accent px-4 py-2 text-sm font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-60"
-        >
+        <Button type="submit" disabled={busy}>
           {visibleActionStatus === "loading" && updatingMemberId === null
             ? "Invitando…"
             : "Invitar miembro"}
-        </button>
+        </Button>
         <p
           aria-live="polite"
           role={actionAnnouncementRole}

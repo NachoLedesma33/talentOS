@@ -6,6 +6,8 @@ import { WorkspaceShell } from "../../components/WorkspaceShell";
 import { OrganizationSelector } from "../../components/OrganizationSelector";
 import { ApiError, apiFetch } from "../../lib/api";
 import type { MeResponse } from "../../lib/types";
+import { Button } from "../../components/ui/shadcn/button";
+import { Card } from "../../components/ui/shadcn/card";
 
 type SessionStatus =
   | "loading"
@@ -129,17 +131,17 @@ export default function DashboardPage() {
           No se pudo cargar el panel
         </h1>
         <p className="text-sm text-text-muted">{message}</p>
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={() => {
             setStatus("loading");
             setMessage(null);
             requestSession().then(applySessionSuccess, applySessionError);
           }}
-          className="rounded-sm border border-border px-3 py-2 text-sm font-semibold"
         >
           Reintentar
-        </button>
+        </Button>
       </section>
     );
   }
@@ -147,55 +149,39 @@ export default function DashboardPage() {
   return (
     <WorkspaceShell>
       <div className="space-y-6">
-        <section className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Panel</h1>
-        <p className="text-sm text-text-muted">
-          Sesión activa: {user?.name} ({user?.email})
-        </p>
-      </section>
+        <Card className="space-y-1 p-4">
+          <h1 className="text-2xl font-semibold tracking-tight">Panel</h1>
+          <p className="text-sm text-text-muted">
+            Sesión activa: {user?.name} ({user?.email})
+          </p>
+        </Card>
 
-      <OrganizationSelector onActiveOrganizationChange={setActiveOrganizationId} />
-      <MembersPanel organizationId={activeOrganizationId} />
+        <Card className="p-4">
+          <OrganizationSelector onActiveOrganizationChange={setActiveOrganizationId} />
+        </Card>
+        <Card className="p-4">
+          <MembersPanel organizationId={activeOrganizationId} />
+        </Card>
 
-      <section aria-labelledby="recruitment-heading" className="space-y-2">
-        <h2 id="recruitment-heading" className="text-sm font-semibold text-text-muted">
-          Recruitment Core
-        </h2>
-        <nav aria-labelledby="recruitment-heading">
-          <ul className="flex flex-wrap gap-4 text-sm">
-            <li>
-              <a href="/jobs">Vacantes</a>
-            </li>
-            <li>
-              <a href="/candidates">Candidatos</a>
-            </li>
-            <li>
-              <a href="/applications">Pipeline</a>
-            </li>
-            <li>
-              <a href="/documents">Documentos</a>
-            </li>
-            <li>
-              <a href="/assessment">Evaluación</a>
-            </li>
-            <li>
-              <a href="/agents">Agentes</a>
-            </li>
-            <li>
-              <a href="/automations">Automatizaciones</a>
-            </li>
-            <li>
-              <a href="/integrations">Integraciones</a>
-            </li>
-            <li>
-              <a href="/interviews">Entrevistas</a>
-            </li>
-            <li>
-              <a href="/analytics">Analítica</a>
-            </li>
-          </ul>
-        </nav>
-      </section>
+        <Card className="space-y-2 p-4">
+          <h2 id="recruitment-heading" className="text-sm font-semibold text-text-muted">
+            Recruitment Core
+          </h2>
+          <nav aria-labelledby="recruitment-heading">
+            <ul className="flex flex-wrap gap-2">
+              <li><Button asChild variant="outline" size="sm"><a href="/jobs">Vacantes</a></Button></li>
+              <li><Button asChild variant="outline" size="sm"><a href="/candidates">Candidatos</a></Button></li>
+              <li><Button asChild variant="outline" size="sm"><a href="/applications">Pipeline</a></Button></li>
+              <li><Button asChild variant="outline" size="sm"><a href="/documents">Documentos</a></Button></li>
+              <li><Button asChild variant="outline" size="sm"><a href="/assessment">Evaluación</a></Button></li>
+              <li><Button asChild variant="outline" size="sm"><a href="/agents">Agentes</a></Button></li>
+              <li><Button asChild variant="outline" size="sm"><a href="/automations">Automatizaciones</a></Button></li>
+              <li><Button asChild variant="outline" size="sm"><a href="/integrations">Integraciones</a></Button></li>
+              <li><Button asChild variant="outline" size="sm"><a href="/interviews">Entrevistas</a></Button></li>
+              <li><Button asChild variant="outline" size="sm"><a href="/analytics">Analítica</a></Button></li>
+            </ul>
+          </nav>
+        </Card>
       </div>
     </WorkspaceShell>
   );
