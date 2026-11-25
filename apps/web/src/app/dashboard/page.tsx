@@ -151,6 +151,9 @@ export default function DashboardPage() {
             <a href="/automations">Automatizaciones</a>
           </li>
           <li>
+            <a href="/integrations">Integraciones</a>
+          </li>
+          <li>
             <a href="/interviews">Entrevistas</a>
           </li>
         </ul>

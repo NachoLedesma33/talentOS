@@ -816,3 +816,82 @@ export interface AutomationRunQueueResult {
   queued: boolean;
   correlation_id: string;
 }
+
+/** DTOs espejo de `/api/v1/integrations` (Fase 9): sin config, token ni secreto. */
+
+export type IntegrationProvider = "email_sandbox" | "webhook_outbound" | "webhook_inbound";
+export type IntegrationStatus = "active" | "disabled";
+
+export type WebhookEventType =
+  | "candidate.created"
+  | "document.uploaded"
+  | "document.extraction.completed"
+  | "application.stage_changed"
+  | "assessment.completed"
+  | "approval.requested"
+  | "approval.resolved";
+
+export type WebhookDeliveryStatus =
+  | "pending"
+  | "sending"
+  | "delivered"
+  | "failed"
+  | "dead_letter";
+
+export type EmailTemplate = "initial_contact" | "interview_invite" | "follow_up";
+export type EmailLanguage = "es" | "en";
+export type EmailApprovalStatus = "pending" | "approved" | "rejected";
+export type EmailDeliveryStatus = "not_sent" | "sent" | "failed";
+
+export interface IntegrationSummary {
+  id: string;
+  provider: IntegrationProvider;
+  status: IntegrationStatus;
+  config_version: number;
+  key_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export type IntegrationList = Paginated<IntegrationSummary>;
+
+export interface WebhookDelivery {
+  id: string;
+  event_id: string;
+  event_type: WebhookEventType;
+  status: WebhookDeliveryStatus;
+  attempts: number;
+  last_error_code: string | null;
+  last_status_code: number | null;
+  created_at: string;
+  delivered_at: string | null;
+}
+
+export type WebhookDeliveryList = Paginated<WebhookDelivery>;
+
+export interface EmailDraft {
+  id: string;
+  candidate_id: string;
+  template: EmailTemplate;
+  approval_status: EmailApprovalStatus;
+  delivery_status: EmailDeliveryStatus;
+  attempts: number;
+  created_at: string;
+}
+
+export interface EmailDraftDetail extends EmailDraft {
+  integration_id: string;
+  topic: string;
+  language: EmailLanguage;
+  call_to_action: string;
+  subject: string;
+  body_hash: string;
+  requested_by: string | null;
+  decided_by: string | null;
+  decided_at: string | null;
+  last_error_code: string | null;
+  sent_at: string | null;
+  updated_at: string;
+}
+
+export type EmailDraftList = Paginated<EmailDraft>;
