@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
 import type { AuthResponse, LoginRequest } from "../lib/types";
+import { Button } from "./ui/Button";
 
 type SubmitStatus = "idle" | "loading" | "success" | "error";
 
@@ -68,13 +69,9 @@ export function LoginForm() {
         />
       </div>
 
-      <button
-        type="submit"
-        disabled={status === "loading"}
-        className="rounded-sm bg-accent px-4 py-2 text-sm font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-60"
-      >
+      <Button type="submit" disabled={status === "loading"}>
         {status === "loading" ? "Iniciando sesión…" : "Iniciar sesión"}
-      </button>
+      </Button>
 
       <p
         aria-live={status === "error" ? "assertive" : "polite"}

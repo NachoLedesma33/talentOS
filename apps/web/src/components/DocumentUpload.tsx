@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
 import type { Candidate, Document as DocumentDto } from "../lib/types";
+import { Button } from "./ui/Button";
 
 type Phase = "idle" | "uploading" | "extracting" | "done" | "error";
 
@@ -119,17 +120,13 @@ export function DocumentUpload({
           className="w-full text-sm"
         />
       </div>
-      <button
-        type="submit"
-        disabled={busy}
-        className="rounded-sm bg-accent px-4 py-2 text-sm font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-60"
-      >
+      <Button type="submit" disabled={busy}>
         {phase === "uploading"
           ? "Subiendo…"
           : phase === "extracting"
             ? "Extrayendo…"
             : "Subir y extraer"}
-      </button>
+      </Button>
       <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
         {phase === "done" ? "Documento cargado; extracción solicitada." : null}
         {error ? (
@@ -139,13 +136,9 @@ export function DocumentUpload({
         ) : null}
       </p>
       {phase === "error" && pending ? (
-        <button
-          type="button"
-          onClick={handleRetry}
-          className="rounded-sm border border-border px-3 py-2 text-sm font-semibold"
-        >
+        <Button type="button" variant="secondary" onClick={handleRetry}>
           Reintentar
-        </button>
+        </Button>
       ) : null}
     </form>
   );
