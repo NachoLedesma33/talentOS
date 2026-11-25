@@ -180,8 +180,12 @@ describe("AssessmentPanel", () => {
     expect(screen.getByText("matching-v1.0.0")).toBeTruthy();
     expect(screen.getByText("matching-v1")).toBeTruthy();
     expect(screen.getAllByText(/Requiere revisión humana/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Estado: Respaldado/)).toBeTruthy();
-    expect(screen.getByText(/Estado: No encontrado/)).toBeTruthy();
+    expect(document.querySelector('[data-status="supported"]')?.textContent).toContain(
+      "Respaldado",
+    );
+    expect(document.querySelector('[data-status="not_found"]')?.textContent).toContain(
+      "No encontrado",
+    );
     expect(screen.getByText(/Skills: Python/)).toBeTruthy();
     expect(screen.getByText(new RegExp(DOCUMENT_ID))).toBeTruthy();
     expect(screen.queryByText(/score|puntuación total|ranking/i)).toBeNull();
