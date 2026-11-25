@@ -227,6 +227,10 @@ describe("AgentRunPanel", () => {
     submitForm("Buscar ejecuciones");
 
     expect(await screen.findByRole("button", { name: RUN_ID })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Vacante" })).toBeTruthy();
+    expect(screen.getByRole("columnheader", { name: "Candidato" })).toBeTruthy();
+    expect(screen.getByRole("cell", { name: JOB_ID })).toBeTruthy();
+    expect(screen.getByRole("cell", { name: CANDIDATE_ID })).toBeTruthy();
     const params = new URLSearchParams(queries[0]);
     expect(params.get("status")).toBe("waiting_approval");
     expect(params.get("agent")).toBe("matching_review");

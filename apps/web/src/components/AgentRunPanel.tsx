@@ -279,6 +279,8 @@ export function AgentRunPanel() {
               <th scope="col" className="py-2 pr-3 font-semibold">Ejecución</th>
               <th scope="col" className="py-2 pr-3 font-semibold">Agente</th>
               <th scope="col" className="py-2 pr-3 font-semibold">Estado</th>
+              <th scope="col" className="py-2 pr-3 font-semibold">Vacante</th>
+              <th scope="col" className="py-2 pr-3 font-semibold">Candidato</th>
               <th scope="col" className="py-2 font-semibold">Creada</th>
             </tr>
           </thead>
@@ -296,6 +298,8 @@ export function AgentRunPanel() {
                 </td>
                 <td className="py-2 pr-3">{item.workflow}</td>
                 <td className="py-2 pr-3">{STATUS_LABELS[item.status]}</td>
+                <td className="py-2 pr-3">{item.job_id ?? "—"}</td>
+                <td className="py-2 pr-3">{item.candidate_id ?? "—"}</td>
                 <td className="py-2">{formatUtc(item.created_at)}</td>
               </tr>
             ))}
