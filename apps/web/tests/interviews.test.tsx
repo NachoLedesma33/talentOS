@@ -667,7 +667,7 @@ describe("GuideHistory", () => {
     render(<GuideHistory guideId={GUIDE_ID} />);
     expect(await screen.findByText("v1")).toBeTruthy();
     const historyTable = screen.getByRole("table", { name: "Revisiones de la guía" });
-    expect(historyTable.parentElement?.className).toContain("overflow-x-auto");
+    expect(historyTable.parentElement?.className).toMatch(/overflow-(x-)?auto/);
     expect(screen.getByText(INTERVIEWER_ID)).toBeTruthy();
     expect(screen.getByText(CREATED_AT)).toBeTruthy();
     expect(screen.getByText(/1 preguntas · 0 rechazadas · 0 limitaciones/)).toBeTruthy();

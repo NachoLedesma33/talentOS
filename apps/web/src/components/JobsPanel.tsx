@@ -3,6 +3,16 @@
 import { useEffect, useState } from "react";
 import { ApiError, apiFetch } from "../lib/api";
 import type { Job, JobList, JobStatus } from "../lib/types";
+import { Button } from "./ui/shadcn/button";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "./ui/shadcn/table";
 import { JobForm } from "./JobForm";
 import { RequirementsEditor } from "./RequirementsEditor";
 
@@ -145,82 +155,83 @@ export function JobsPanel() {
         </div>
 
         {visibleLoadStatus === "ready" && visibleJobs.length > 0 ? (
-          <div className="overflow-x-auto rounded-sm border border-border">
-            <table className="w-full text-left text-sm">
-              <caption className="sr-only">Vacantes de la organización activa</caption>
-              <thead className="bg-surface-muted">
-                <tr>
-                  <th scope="col" className="px-3 py-2 font-semibold">
-                    Título
-                  </th>
-                  <th scope="col" className="px-3 py-2 font-semibold">
-                    Estado
-                  </th>
-                  <th scope="col" className="px-3 py-2 font-semibold">
-                    Modalidad
-                  </th>
-                  <th scope="col" className="px-3 py-2 font-semibold">
-                    Ubicación
-                  </th>
-                  <th scope="col" className="px-3 py-2 font-semibold">
-                    Responsable
-                  </th>
-                  <th scope="col" className="px-3 py-2 font-semibold">
-                    Acción
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {visibleJobs.map((job) => (
-                  <tr key={job.id} className="border-t border-border">
-                    <td className="px-3 py-2 font-semibold">{job.title}</td>
-                    <td className="px-3 py-2">{job.status}</td>
-                    <td className="px-3 py-2">{job.modality ?? "—"}</td>
-                    <td className="px-3 py-2">{job.location ?? "—"}</td>
-                    <td className="px-3 py-2" title={job.owner_id}>
-                      {job.owner_id.slice(0, 8)}
-                    </td>
-                    <td className="px-3 py-2">
-                      <button
-                        type="button"
-                        aria-label={`Seleccionar vacante ${job.title}`}
-                        aria-pressed={job.id === selectedJobId}
-                        onClick={() => {
-                          setSelectedJobId(job.id);
-                        }}
-                        className="rounded-sm border border-border px-2 py-1 text-sm font-semibold"
-                      >
-                        Seleccionar
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table className="rounded-sm border border-border text-left">
+            <TableCaption className="sr-only">
+              Vacantes de la organización activa
+            </TableCaption>
+            <TableHeader className="bg-surface-muted">
+              <TableRow>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">
+                  Título
+                </TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">
+                  Estado
+                </TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">
+                  Modalidad
+                </TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">
+                  Ubicación
+                </TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">
+                  Responsable
+                </TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">
+                  Acción
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {visibleJobs.map((job) => (
+                <TableRow key={job.id} className="border-t border-border">
+                  <TableCell className="px-3 py-2 font-semibold">{job.title}</TableCell>
+                  <TableCell className="px-3 py-2">{job.status}</TableCell>
+                  <TableCell className="px-3 py-2">{job.modality ?? "—"}</TableCell>
+                  <TableCell className="px-3 py-2">{job.location ?? "—"}</TableCell>
+                  <TableCell className="px-3 py-2" title={job.owner_id}>
+                    {job.owner_id.slice(0, 8)}
+                  </TableCell>
+                  <TableCell className="px-3 py-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      aria-label={`Seleccionar vacante ${job.title}`}
+                      aria-pressed={job.id === selectedJobId}
+                      onClick={() => {
+                        setSelectedJobId(job.id);
+                      }}
+                    >
+                      Seleccionar
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         ) : null}
 
         <div className="flex items-center gap-3">
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={() => {
               setOffset((current) => Math.max(0, current - PAGE_SIZE));
             }}
             disabled={offset === 0}
-            className="rounded-sm border border-border px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
           >
             Anterior
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="outline"
             onClick={() => {
               setOffset((current) => current + PAGE_SIZE);
             }}
             disabled={visibleLoadStatus !== "ready" || offset + PAGE_SIZE >= visibleTotal}
-            className="rounded-sm border border-border px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
           >
             Siguiente
-          </button>
+          </Button>
           <span className="text-sm text-text-muted">
             {visibleLoadStatus === "ready"
               ? `${offset + 1}–${Math.min(offset + PAGE_SIZE, visibleTotal)}`

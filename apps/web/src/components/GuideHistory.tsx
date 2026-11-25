@@ -3,6 +3,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, apiFetch } from "../lib/api";
 import type { GuideRevision, GuideRevisionList } from "../lib/types";
+import { Button } from "./ui/shadcn/button";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "./ui/shadcn/table";
 
 function describeError(cause: unknown): string {
   if (cause instanceof ApiError) {
@@ -75,14 +85,15 @@ export function GuideHistory({ guideId }: { guideId: string }) {
         <h3 id={`guide-history-heading-${guideId}`} className="text-base font-semibold">
           Historial de cambios
         </h3>
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           disabled={refreshing}
           onClick={() => void load()}
-          className="rounded-sm border border-border px-3 py-1 text-sm font-semibold disabled:opacity-60"
         >
           {refreshing ? "Actualizando…" : "Actualizar historial"}
-        </button>
+        </Button>
       </div>
       <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
         {loading ? "Cargando historial de la guía…" : null}
@@ -98,37 +109,35 @@ export function GuideHistory({ guideId }: { guideId: string }) {
           Todavía no hay revisiones registradas para esta guía.
         </p>
       ) : revisions.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-left text-xs">
-            <caption className="sr-only">Revisiones de la guía</caption>
-            <thead>
-              <tr className="border-b border-border">
-                <th scope="col" className="py-1 pr-3 font-semibold">
-                  Versión
-                </th>
-                <th scope="col" className="py-1 pr-3 font-semibold">
-                  Creado por
-                </th>
-                <th scope="col" className="py-1 pr-3 font-semibold">
-                  Fecha
-                </th>
-                <th scope="col" className="py-1 font-semibold">
-                  Resumen del snapshot saneado
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {revisions.map((item) => (
-                <tr key={item.id} className="border-b border-border align-top">
-                  <td className="py-1 pr-3">v{item.version}</td>
-                  <td className="py-1 pr-3">{item.created_by}</td>
-                  <td className="py-1 pr-3">{item.created_at}</td>
-                  <td className="py-1">{summarizeSnapshot(item.snapshot)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table className="text-left text-xs">
+          <TableCaption className="sr-only">Revisiones de la guía</TableCaption>
+          <TableHeader>
+            <TableRow className="border-b border-border">
+              <TableHead scope="col" className="py-1 pr-3 font-semibold">
+                Versión
+              </TableHead>
+              <TableHead scope="col" className="py-1 pr-3 font-semibold">
+                Creado por
+              </TableHead>
+              <TableHead scope="col" className="py-1 pr-3 font-semibold">
+                Fecha
+              </TableHead>
+              <TableHead scope="col" className="py-1 font-semibold">
+                Resumen del snapshot saneado
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {revisions.map((item) => (
+              <TableRow key={item.id} className="border-b border-border align-top">
+                <TableCell className="py-1 pr-3">v{item.version}</TableCell>
+                <TableCell className="py-1 pr-3">{item.created_by}</TableCell>
+                <TableCell className="py-1 pr-3">{item.created_at}</TableCell>
+                <TableCell className="py-1">{summarizeSnapshot(item.snapshot)}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       ) : null}
     </section>
   );
