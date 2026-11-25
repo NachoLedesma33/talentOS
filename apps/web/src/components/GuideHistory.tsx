@@ -100,6 +100,7 @@ export function GuideHistory({ guideId }: { guideId: string }) {
       ) : revisions.length > 0 ? (
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left text-xs">
+            <caption className="sr-only">Revisiones de la guía</caption>
             <thead>
               <tr className="border-b border-border">
                 <th scope="col" className="py-1 pr-3 font-semibold">
