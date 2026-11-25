@@ -8,6 +8,19 @@ import type {
   AssessmentStatus,
   RequirementEvaluationStatus,
 } from "../lib/types";
+import { Button } from "./ui/shadcn/button";
+import { Card } from "./ui/shadcn/card";
+import { Input } from "./ui/shadcn/input";
+import { Label } from "./ui/shadcn/label";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "./ui/shadcn/table";
 
 const STATUS_LABELS: Record<RequirementEvaluationStatus, string> = {
   supported: "Respaldado",
@@ -92,38 +105,32 @@ export function AssessmentComparison() {
 
       <form onSubmit={(event) => void compare(event)} className="flex flex-wrap items-end gap-3">
         <div className="min-w-56 flex-1 space-y-1">
-          <label htmlFor="comparison-base-id" className="block text-sm font-semibold">
+          <Label htmlFor="comparison-base-id" className="block">
             Evaluación base
-          </label>
-          <input
+          </Label>
+          <Input
             id="comparison-base-id"
             value={baseId}
             onChange={(event) => setBaseId(event.target.value)}
             required
             placeholder="00000000-0000-4000-8000-000000000000"
-            className="w-full rounded-sm border border-border bg-surface px-2 py-2 text-sm"
           />
         </div>
         <div className="min-w-56 flex-1 space-y-1">
-          <label htmlFor="comparison-other-id" className="block text-sm font-semibold">
+          <Label htmlFor="comparison-other-id" className="block">
             Otra evaluación
-          </label>
-          <input
+          </Label>
+          <Input
             id="comparison-other-id"
             value={otherId}
             onChange={(event) => setOtherId(event.target.value)}
             required
             placeholder="00000000-0000-4000-8000-000000000000"
-            className="w-full rounded-sm border border-border bg-surface px-2 py-2 text-sm"
           />
         </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-on-accent disabled:opacity-60"
-        >
+        <Button type="submit" disabled={loading}>
           {loading ? "Comparando…" : "Comparar evaluaciones"}
-        </button>
+        </Button>
       </form>
 
       <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
@@ -143,83 +150,81 @@ export function AssessmentComparison() {
       {comparison ? (
         <div className="space-y-3">
           <dl className="grid gap-2 text-xs text-text-muted md:grid-cols-2">
-            <div className="rounded-sm border border-border p-2">
+            <Card className="p-2">
               <dt className="font-semibold text-text">Evaluación base</dt>
               <dd>
                 {comparison.base.assessment_id} · {ASSESSMENT_STATUS_LABELS[comparison.base.status]}
               </dd>
               <dd>Modelo: {comparison.base.model_version}</dd>
               <dd>Prompt: {comparison.base.prompt_version}</dd>
-            </div>
-            <div className="rounded-sm border border-border p-2">
+            </Card>
+            <Card className="p-2">
               <dt className="font-semibold text-text">Evaluación comparada</dt>
               <dd>
                 {comparison.target.assessment_id} · {ASSESSMENT_STATUS_LABELS[comparison.target.status]}
               </dd>
               <dd>Modelo: {comparison.target.model_version}</dd>
               <dd>Prompt: {comparison.target.prompt_version}</dd>
-            </div>
+            </Card>
           </dl>
 
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-left text-sm">
-              <caption className="pb-2 text-left text-xs text-text-muted">
-                Cambios trazables por requisito, sin puntuación agregada.
-              </caption>
-              <thead>
-                <tr className="border-y border-border text-xs uppercase text-text-muted">
-                  <th scope="col" className="px-2 py-2">Requisito</th>
-                  <th scope="col" className="px-2 py-2">Estado</th>
-                  <th scope="col" className="px-2 py-2">Explicación</th>
-                  <th scope="col" className="px-2 py-2">Evidencia</th>
-                  <th scope="col" className="px-2 py-2">Revisión</th>
-                </tr>
-              </thead>
-              <tbody>
-                {comparison.changes.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-2 py-3 text-sm text-text-muted">
-                      No hay cambios registrados entre estas versiones.
-                    </td>
-                  </tr>
-                ) : (
-                  comparison.changes.map((change) => (
-                    <tr key={change.requirement_id} className="border-b border-border align-top">
-                      <th scope="row" className="px-2 py-2 text-xs font-semibold">
-                        {change.requirement_id}
-                      </th>
-                      <td className="px-2 py-2">
-                        <p>Antes: {statusLabel(change.status.before)}</p>
-                        <p>Después: {statusLabel(change.status.after)}</p>
-                        <p className="text-xs text-text-muted">
-                          {change.status.changed ? "Estado modificado" : "Sin cambios"}
-                        </p>
-                      </td>
-                      <td className="px-2 py-2">
-                        <p>Antes: {optionalText(change.explanation.before)}</p>
-                        <p>Después: {optionalText(change.explanation.after)}</p>
-                        <p className="text-xs text-text-muted">
-                          {change.explanation.changed ? "Explicación modificada" : "Sin cambios"}
-                        </p>
-                      </td>
-                      <td className="px-2 py-2">
-                        <p>Antes: {evidenceText(change.evidence_refs.before)}</p>
-                        <p>Después: {evidenceText(change.evidence_refs.after)}</p>
-                        <p className="text-xs text-text-muted">
-                          {change.evidence_refs.changed ? "Evidencia modificada" : "Sin cambios"}
-                        </p>
-                      </td>
-                      <td className="px-2 py-2 text-xs">
-                        Antes: {change.review_required.before ? "Sí" : "No"}
-                        <br />
-                        Después: {change.review_required.after ? "Sí" : "No"}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <Table>
+            <TableCaption className="pb-2 text-left text-xs text-text-muted">
+              Cambios trazables por requisito, sin puntuación agregada.
+            </TableCaption>
+            <TableHeader>
+              <TableRow className="border-y border-border text-xs uppercase text-text-muted">
+                <TableHead scope="col" className="px-2 py-2">Requisito</TableHead>
+                <TableHead scope="col" className="px-2 py-2">Estado</TableHead>
+                <TableHead scope="col" className="px-2 py-2">Explicación</TableHead>
+                <TableHead scope="col" className="px-2 py-2">Evidencia</TableHead>
+                <TableHead scope="col" className="px-2 py-2">Revisión</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {comparison.changes.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="px-2 py-3 text-sm text-text-muted">
+                    No hay cambios registrados entre estas versiones.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                comparison.changes.map((change) => (
+                  <TableRow key={change.requirement_id} className="border-b border-border align-top">
+                    <TableHead scope="row" className="px-2 py-2 text-xs font-semibold">
+                      {change.requirement_id}
+                    </TableHead>
+                    <TableCell className="px-2 py-2">
+                      <p>Antes: {statusLabel(change.status.before)}</p>
+                      <p>Después: {statusLabel(change.status.after)}</p>
+                      <p className="text-xs text-text-muted">
+                        {change.status.changed ? "Estado modificado" : "Sin cambios"}
+                      </p>
+                    </TableCell>
+                    <TableCell className="px-2 py-2">
+                      <p>Antes: {optionalText(change.explanation.before)}</p>
+                      <p>Después: {optionalText(change.explanation.after)}</p>
+                      <p className="text-xs text-text-muted">
+                        {change.explanation.changed ? "Explicación modificada" : "Sin cambios"}
+                      </p>
+                    </TableCell>
+                    <TableCell className="px-2 py-2">
+                      <p>Antes: {evidenceText(change.evidence_refs.before)}</p>
+                      <p>Después: {evidenceText(change.evidence_refs.after)}</p>
+                      <p className="text-xs text-text-muted">
+                        {change.evidence_refs.changed ? "Evidencia modificada" : "Sin cambios"}
+                      </p>
+                    </TableCell>
+                    <TableCell className="px-2 py-2 text-xs">
+                      Antes: {change.review_required.before ? "Sí" : "No"}
+                      <br />
+                      Después: {change.review_required.after ? "Sí" : "No"}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
         </div>
       ) : null}
     </section>

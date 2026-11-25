@@ -1,6 +1,15 @@
 "use client";
 
 import type { AgentEvent } from "../lib/types";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "./ui/shadcn/table";
 
 /** Espejo de la lista pública del backend; el filtro local es defensa en profundidad. */
 const PUBLIC_PAYLOAD_KEYS = new Set([
@@ -76,52 +85,57 @@ export function AgentEventTimeline({
           Todavía no hay eventos para esta ejecución.
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-sm border border-border">
-          <table className="w-full border-collapse text-left text-sm">
-            <caption className="sr-only">Eventos de la ejecución con metadatos saneados</caption>
-            <thead className="bg-surface-muted text-xs uppercase tracking-wide text-text-muted">
-              <tr>
-                <th scope="col" className="px-3 py-2 font-semibold">Tipo</th>
-                <th scope="col" className="px-3 py-2 font-semibold">Fecha UTC</th>
-                <th scope="col" className="px-3 py-2 font-semibold">Correlación</th>
-                <th scope="col" className="px-3 py-2 font-semibold">Detalle saneado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {events.map((event, index) => {
-                const payload = safePayload(event.payload ?? {});
-                const extra = Object.entries(payload).filter(
-                  ([key]) => !DETAIL_KEYS.includes(key as (typeof DETAIL_KEYS)[number]),
-                );
-                return (
-                  <tr key={`${event.event_type}-${event.created_at}-${index}`} className="border-t border-border align-top">
-                    <td className="px-3 py-2 font-medium">{event.event_type}</td>
-                    <td className="whitespace-nowrap px-3 py-2 text-text-muted">{formatUtc(event.created_at)}</td>
-                    <td className="px-3 py-2 text-text-muted">{event.correlation_id}</td>
-                    <td className="px-3 py-2">
-                      <dl className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                        {DETAIL_KEYS.filter((key) => payload[key] !== undefined).map((key) => (
-                          <div key={key}>
-                            <dt className="inline font-semibold">{key}: </dt>
-                            <dd className="inline">{payload[key]}</dd>
-                          </div>
-                        ))}
-                      </dl>
-                      {extra.length > 0 ? (
-                        <code className="mt-1 block break-all text-xs text-text-muted">
-                          {JSON.stringify(Object.fromEntries(extra))}
-                        </code>
-                      ) : null}
-                      {extra.length === 0 && DETAIL_KEYS.every((key) => payload[key] === undefined) ? (
-                        <span className="text-xs text-text-muted">Sin metadatos adicionales.</span>
-                      ) : null}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <Table className="rounded-sm border border-border">
+          <TableCaption className="sr-only">
+            Eventos de la ejecución con metadatos saneados
+          </TableCaption>
+          <TableHeader className="bg-surface-muted text-xs uppercase tracking-wide text-text-muted">
+            <TableRow>
+              <TableHead scope="col" className="px-3 py-2 font-semibold">Tipo</TableHead>
+              <TableHead scope="col" className="px-3 py-2 font-semibold">Fecha UTC</TableHead>
+              <TableHead scope="col" className="px-3 py-2 font-semibold">Correlación</TableHead>
+              <TableHead scope="col" className="px-3 py-2 font-semibold">Detalle saneado</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {events.map((event, index) => {
+              const payload = safePayload(event.payload ?? {});
+              const extra = Object.entries(payload).filter(
+                ([key]) => !DETAIL_KEYS.includes(key as (typeof DETAIL_KEYS)[number]),
+              );
+              return (
+                <TableRow
+                  key={`${event.event_type}-${event.created_at}-${index}`}
+                  className="border-t border-border align-top"
+                >
+                  <TableCell className="px-3 py-2 font-medium">{event.event_type}</TableCell>
+                  <TableCell className="whitespace-nowrap px-3 py-2 text-text-muted">
+                    {formatUtc(event.created_at)}
+                  </TableCell>
+                  <TableCell className="px-3 py-2 text-text-muted">{event.correlation_id}</TableCell>
+                  <TableCell className="px-3 py-2">
+                    <dl className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                      {DETAIL_KEYS.filter((key) => payload[key] !== undefined).map((key) => (
+                        <div key={key}>
+                          <dt className="inline font-semibold">{key}: </dt>
+                          <dd className="inline">{payload[key]}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                    {extra.length > 0 ? (
+                      <code className="mt-1 block break-all text-xs text-text-muted">
+                        {JSON.stringify(Object.fromEntries(extra))}
+                      </code>
+                    ) : null}
+                    {extra.length === 0 && DETAIL_KEYS.every((key) => payload[key] === undefined) ? (
+                      <span className="text-xs text-text-muted">Sin metadatos adicionales.</span>
+                    ) : null}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
       )}
     </section>
   );
