@@ -190,6 +190,26 @@ export function AgentRunPanel() {
                 <dt className="text-xs font-semibold text-text-muted">Correlation ID: </dt>
                 <dd className="inline">{run.correlation_id}</dd>
               </div>
+              <div>
+                <dt className="text-xs font-semibold text-text-muted">Duración: </dt>
+                <dd className="inline">{run.duration_ms ?? 0} ms</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold text-text-muted">Proveedor: </dt>
+                <dd className="inline">{run.configured_provider ?? "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold text-text-muted">Modelo: </dt>
+                <dd className="inline">{run.configured_model ?? "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold text-text-muted">Vacante: </dt>
+                <dd className="inline">{run.job_id ?? "—"}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-semibold text-text-muted">Candidato: </dt>
+                <dd className="inline">{run.candidate_id ?? "—"}</dd>
+              </div>
               {run.output_ref ? (
                 <div>
                   <dt className="text-xs font-semibold text-text-muted">Output ref: </dt>

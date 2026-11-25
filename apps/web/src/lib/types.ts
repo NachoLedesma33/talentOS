@@ -465,6 +465,11 @@ export interface AgentEventSummary {
 export interface AgentRun extends AgentRunSummary {
   event_summary: AgentEventSummary[];
   event_count: number;
+  duration_ms?: number;
+  configured_provider?: string;
+  configured_model?: string | null;
+  job_id?: string | null;
+  candidate_id?: string | null;
 }
 
 export type AgentRunDetail = AgentRun;
