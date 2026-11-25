@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import uuid
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
@@ -414,14 +414,40 @@ def list_runs(
     db: DbDependency,
     status_filter: Annotated[AgentRunStatus | None, Query(alias="status")] = None,
     workflow: Annotated[str | None, Query(max_length=100)] = None,
+    agent: Annotated[str | None, Query(max_length=100)] = None,
+    date_from: Annotated[datetime | None, Query(alias="date_from")] = None,
+    date_to: Annotated[datetime | None, Query(alias="date_to")] = None,
+    job_id: Annotated[uuid.UUID | None, Query()] = None,
+    candidate_id: Annotated[uuid.UUID | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> AgentRunListResponse:
+    if date_from and date_from.tzinfo is None:
+        date_from = date_from.replace(tzinfo=UTC)
+    if date_to and date_to.tzinfo is None:
+        date_to = date_to.replace(tzinfo=UTC)
+    if date_from and date_to and date_from > date_to:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Rango de fechas inválido.")
+
     filters = [AgentRun.organization_id == active_organization.id]
     if status_filter is not None:
         filters.append(AgentRun.status == status_filter)
     if workflow:
         filters.append(AgentRun.workflow == workflow)
+    if agent:
+        filters.append(AgentRun.workflow == agent)
+    if date_from:
+        filters.append(AgentRun.created_at >= date_from)
+    if date_to:
+        filters.append(AgentRun.created_at <= date_to)
+    if job_id or candidate_id:
+        application_filters = [Application.organization_id == active_organization.id]
+        if job_id:
+            application_filters.append(Application.job_id == job_id)
+        if candidate_id:
+            application_filters.append(Application.candidate_id == candidate_id)
+        matching_ids = db.scalars(select(Application.id).where(*application_filters)).all()
+        filters.append(AgentRun.input_ref.in_([str(item) for item in matching_ids]))
     total = (
         db.scalar(select(func.count()).select_from(AgentRun).where(*filters)) or 0
     )

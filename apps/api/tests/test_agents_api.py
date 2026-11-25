@@ -850,6 +850,61 @@ def test_list_is_paginated_filtered_and_tenant_scoped(
     assert other_tenant.json()["total"] == 0
 
 
+def test_list_filters_by_dates_job_candidate_and_agent(
+    client: TestClient, db: DBSession, seeded: _Seed, runtime: _Provider
+) -> None:
+    del runtime
+    run = _start_run(client, seeded, key="filters")
+    model = db.get(AgentRun, uuid.UUID(str(run["id"])))
+    application = db.get(Application, uuid.UUID(seeded.application_id))
+    assert model is not None
+    assert application is not None
+
+    created = model.created_at.isoformat()
+    by_dates = client.get(
+        f"{_URL}/runs",
+        params={"date_from": created, "date_to": created},
+        headers=_headers(seeded),
+    )
+    assert by_dates.status_code == 200
+    assert by_dates.json()["total"] == 1
+
+    by_job = client.get(
+        f"{_URL}/runs",
+        params={"job_id": str(application.job_id)},
+        headers=_headers(seeded),
+    )
+    assert by_job.json()["total"] == 1
+
+    by_candidate = client.get(
+        f"{_URL}/runs",
+        params={"candidate_id": str(application.candidate_id)},
+        headers=_headers(seeded),
+    )
+    assert by_candidate.json()["total"] == 1
+
+    by_agent = client.get(
+        f"{_URL}/runs",
+        params={"agent": MATCHING_REVIEW_WORKFLOW.workflow},
+        headers=_headers(seeded),
+    )
+    assert by_agent.json()["total"] == 1
+
+    other_job = client.get(
+        f"{_URL}/runs",
+        params={"job_id": str(uuid.uuid4())},
+        headers=_headers(seeded),
+    )
+    assert other_job.json()["total"] == 0
+
+    invalid_range = client.get(
+        f"{_URL}/runs",
+        params={"date_from": created, "date_to": "2020-01-01T00:00:00Z"},
+        headers=_headers(seeded),
+    )
+    assert invalid_range.status_code == 400
+
+
 def test_invalid_decision_returns_400(
     client: TestClient, seeded: _Seed, runtime: _Provider
 ) -> None:
