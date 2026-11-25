@@ -641,7 +641,9 @@ describe("FeedbackForm", () => {
     });
     render(<FeedbackForm questionId={QUESTION_ID} requirementId={REQUIREMENT_ID} />);
     fireEvent.submit(screen.getByRole("button", { name: "Registrar feedback" }).closest("form")!);
-    expect((await screen.findByRole("alert")).textContent).toContain("403: Rol insuficiente.");
+    expect((await screen.findByRole("alert")).textContent).toContain(
+      "Error: 403: Rol insuficiente.",
+    );
   });
 });
 

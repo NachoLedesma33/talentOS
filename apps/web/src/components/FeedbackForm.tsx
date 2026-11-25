@@ -154,7 +154,7 @@ export function FeedbackForm({ questionId, requirementId }: FeedbackFormProps) {
         <p className="text-xs text-text-muted">Requisito vinculado: {requirementId}</p>
       </div>
 
-      <form onSubmit={(event) => void submit(event)} className="space-y-2">
+      <form onSubmit={(event) => void submit(event)} aria-busy={submitting} className="space-y-2">
         <div className="space-y-1">
           <label
             htmlFor={`feedback-evidence-${questionId}`}
@@ -219,7 +219,7 @@ export function FeedbackForm({ questionId, requirementId }: FeedbackFormProps) {
       </p>
       {error ? (
         <section role="alert" className="rounded-sm border border-border p-2 text-sm">
-          {error}
+          Error: {error}
         </section>
       ) : null}
 
