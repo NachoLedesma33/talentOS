@@ -133,4 +133,33 @@ describe("formularios de identidad", () => {
       password: "password123",
     });
   });
+
+  it("prefija el error de registro y lo anuncia como alerta", async () => {
+    mockFetch(
+      {
+        error: {
+          code: "conflict",
+          message: "Correo ya registrado.",
+          request_id: "req-reg-1",
+        },
+      },
+      409,
+    );
+
+    render(<RegisterForm />);
+    fireEvent.change(screen.getByLabelText("Nombre"), {
+      target: { value: authenticatedUser.name },
+    });
+    fireEvent.change(screen.getByLabelText("Correo electrónico"), {
+      target: { value: authenticatedUser.email },
+    });
+    fireEvent.change(screen.getByLabelText("Contraseña"), {
+      target: { value: "password123" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Crear cuenta" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toBe("Error: Correo ya registrado.");
+    expect(alert.getAttribute("aria-live")).toBe("assertive");
+  });
 });

@@ -89,11 +89,11 @@ export function RegisterForm() {
       </button>
 
       <p
-        aria-live="polite"
+        aria-live={status === "error" ? "assertive" : "polite"}
         role={status === "error" ? "alert" : undefined}
         className="min-h-5 text-sm text-text-muted"
       >
-        {message}
+        {status === "error" ? `Error: ${message}` : message}
       </p>
 
       {status === "success" ? (
