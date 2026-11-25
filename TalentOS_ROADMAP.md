@@ -567,8 +567,8 @@ Una automatización completa puede probarse sin efectos externos, aprobarse y ej
 - [ ] Mostrar proveedor y modelo configurado.
 - [ ] Mostrar tokens/costo solo si hay datos confiables.
 - [ ] Añadir filtros.
-- [ ] Añadir correlación con vacante, candidato y organización.
-- [ ] Añadir política de retención de logs.
+- [x] Añadir correlación con vacante, candidato y organización.
+- [x] Añadir política de retención de logs.
 
 No exponer razonamiento interno privado del modelo. Mostrar pasos de workflow, decisiones operativas, entradas/salidas permitidas, herramientas y resultados.
 
@@ -896,7 +896,7 @@ Actualizar esta tabla durante el desarrollo.
 | 7 — Interview Assistant | DONE | 2026-11-24 | 2026-11-24 | Commits 1ace088, 7a3cc89, 2ffcabb, ed78821; `InterviewGuide`/`InterviewGuideRevision`/`InterviewQuestion`/`InterviewFeedback` tenant-scoped + migración `0011`; `interview_assistant` v1 con prompt `interview-v1`, generación idempotente por requisito/brecha y políticas deterministas ES/EN anti-discriminación; CRUD API con publicación bloqueada si hay `review_required`, historial y feedback vinculado a requisito sin score ni decisión; UI de editor y feedback; ADR-011; sin calendario externo (RF-044 P2 fuera de alcance); 318 tests pytest, npm typecheck/lint/test 58/build OK, ruff/mypy OK; CI run 45463076157 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45463076157). Anotación no bloqueante: Node.js 20 deprecated forzado a 24 en actions. |
 | 8 — Automation Engine | DONE | 2026-11-24 | 2026-11-24 | Commits 8cd672e, cd797a0, c4d7fe4, 4ec542d, d01fba7; ADR-012 + migración `0012`; `Automation`/`AutomationVersion`/`AutomationRun`/`AutomationRunEvent`/`AutomationApproval` tenant-scoped; motor determinista con trigger `application.stage_changed`, condiciones cerradas, seis acciones sin efectos externos, dry-run, idempotencia, reintento único con timeout y anti-ciclos; aprobación humana separada de agentes, sin envío de correos ni cambio de etapa sin decisión; API `/api/v1/automations` + worker Celery y UI de reglas/ejecuciones; RF-054 editor visual implementado en `baf478b` con toggle de nodos y mismo payload; tarea interna y borrador se registran como evidencia saneada en el run, sin adaptador de correo real (Fase 9); 397 tests pytest, npm typecheck/lint/test 78/build OK, ruff/mypy OK; CI run 45485260077 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45485260077), CI cierre run 45504960133 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45504960133). Known issue: `tests/test_matching_workflow.py` intermitente con SQLite StaticPool + hilos LangGraph/reloj parcheado; no reapareció en el cierre. |
 | 9 — Integrations | DONE | 2026-11-24 | 2026-11-24 | Commits `a67d40f`, `045f0b2`, `c187d00`, `aec6a05`, `f205ac0`, `6301e7e`; ADR-013 y migraciones `0013`-`0016`; `Integration` tenant-scoped con Fernet, webhooks entrantes HMAC/anti-replay/dedupe, outbox saliente firmado con reintentos, correo sandbox con aprobación separada y envío explícito, UI `/integrations`; ruff/mypy OK, pytest 467 passed / 1 failed flaky conocido de LangGraph/SQLite (aislado 4/5 passed), npm typecheck/lint/test 86/build OK, alembic harness upgrade/check/downgrade OK; CI run 45531304759 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45531304759). |
-| 10 — Control Center | NOT_STARTED | — | — | — |
+| 10 — Control Center | IN_PROGRESS | 2026-11-25 | — | Commits locales tras `7146839`: `633da9b` `3294e2d` `0b03201` `83b2a6d` `c96a89e`; correlación API/UI y retención automática de 30 días con beat; ruff/mypy OK; pytest 472 passed; CI pendiente de push. |
 | 11 — Simulation Lab | NOT_STARTED | — | — | — |
 | 12 — Analytics | NOT_STARTED | — | — | — |
 | 13 — UX & Accessibility | NOT_STARTED | — | — | — |

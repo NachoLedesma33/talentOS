@@ -6,7 +6,7 @@ from collections.abc import Iterator, Mapping
 from concurrent.futures import Future
 from contextlib import contextmanager
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import email_validator
@@ -24,11 +24,19 @@ import app.candidates.models  # noqa: F401
 import app.documents.models  # noqa: F401
 import app.identity.models  # noqa: F401
 import app.jobs.models  # noqa: F401
+from app.agents import repositories as agents_repositories
 from app.agents import service as agents_service
 from app.agents import tasks as agents_tasks
 from app.agents.contracts import MATCHING_REVIEW_WORKFLOW
 from app.agents.matching_analyst import PROMPT_VERSION
-from app.agents.models import AgentEvent, AgentEventType, AgentRun, Approval, ApprovalStatus
+from app.agents.models import (
+    AgentEvent,
+    AgentEventType,
+    AgentRun,
+    AgentRunStatus,
+    Approval,
+    ApprovalStatus,
+)
 from app.api.routes import agents as agents_routes
 from app.applications.models import Application, ApplicationStage
 from app.assessment.models import RequirementEvaluationStatus
@@ -957,4 +965,56 @@ def test_worker_rejects_foreign_tenant_before_resume(
     )
     detail = client.get(f"{_URL}/runs/{run_id}", headers=_headers(seeded))
     assert detail.json()["status"] == "waiting_approval"
+
+
+def test_purge_old_events_keeps_active_and_recent(
+    monkeypatch: pytest.MonkeyPatch, engine: Engine, db: DBSession, seeded: _Seed
+) -> None:
+    old = datetime.now(UTC) - timedelta(days=31)
+    recent = datetime.now(UTC) - timedelta(days=1)
+    org_a = uuid.UUID(seeded.org_a)
+    org_b = uuid.UUID(seeded.org_b)
+    owner_a = uuid.UUID(seeded.owner_a_id)
+    owner_b = uuid.UUID(seeded.owner_b_id)
+    cases = (
+        (org_a, owner_a, "old-terminal", AgentRunStatus.COMPLETED, old),
+        (org_a, owner_a, "old-active", AgentRunStatus.RUNNING, old),
+        (org_b, owner_b, "old-foreign", AgentRunStatus.FAILED, old),
+        (org_a, owner_a, "recent-terminal", AgentRunStatus.COMPLETED, recent),
+    )
+    kept: list[uuid.UUID] = []
+    for organization_id, actor_id, key, status, created_at in cases:
+        run = agents_repositories.get_or_create_agent_run(
+            db,
+            organization_id=organization_id,
+            workflow=MATCHING_REVIEW_WORKFLOW.workflow,
+            version=MATCHING_REVIEW_WORKFLOW.version,
+            idempotency_key=f"retention-{key}",
+            correlation_id=uuid.uuid4(),
+            actor_id=actor_id,
+        )
+        run.status = status
+        event = agents_repositories.create_agent_event(
+            db,
+            organization_id=organization_id,
+            agent_run_id=run.id,
+            event_type=AgentEventType.RUN_COMPLETED,
+            payload={"result": key},
+            correlation_id=uuid.uuid4(),
+        )
+        event.created_at = created_at
+        if key in {"old-active", "recent-terminal"}:
+            kept.append(event.id)
+    db.commit()
+
+    monkeypatch.setattr(
+        agents_tasks,
+        "SessionLocal",
+        lambda: DBSession(engine, expire_on_commit=False),
+    )
+    agents_tasks.purge_old_agent_events()
+
+    remaining = set(db.execute(select(AgentEvent.id)).scalars().all())
+    assert remaining == set(kept)
+    assert db.execute(select(func.count()).select_from(AgentEvent)).scalar_one() == 2
 
