@@ -2,15 +2,18 @@ from __future__ import annotations
 
 import logging
 import uuid
+from datetime import UTC, datetime, timedelta
 
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session as DBSession
 
 from app.agents import service as agents_service
-from app.agents.repositories import get_agent_run
+from app.agents.repositories import get_agent_run, purge_agent_events
+from app.core.config import get_settings
 from app.core.logging import log_structured
 from app.db.session import SessionLocal
-from app.identity.models import MembershipRole
+from app.identity.models import MembershipRole, Organization
 from app.workers.celery_app import celery_app
 
 
@@ -139,6 +142,43 @@ def resume_agent_workflow(
             correlation_id=correlation,
             result="failed",
             error_code="internal_error",
+        )
+    finally:
+        db.close()
+
+
+@celery_app.task(name="agents.purge_old_events")  # type: ignore[untyped-decorator]
+def purge_old_agent_events() -> None:
+    """Purga diaria de traza antigua: una sesión por tenant y sin datos personales en logs."""
+    settings = get_settings()
+    cutoff = datetime.now(UTC) - timedelta(days=settings.AGENT_EVENT_RETENTION_DAYS)
+    correlation = uuid.uuid4()
+    db: DBSession = SessionLocal()
+    try:
+        organization_ids = list(db.execute(select(Organization.id)).scalars().all())
+        purged = sum(
+            purge_agent_events(db, organization_id=organization_id, cutoff=cutoff)
+            for organization_id in organization_ids
+        )
+        db.commit()
+        log_structured(
+            logging.INFO,
+            f"agent.events_purged count={purged}",
+            correlation_id=str(correlation),
+        )
+    except SQLAlchemyError:
+        db.rollback()
+        log_structured(
+            logging.ERROR,
+            "agent.events_purge_failed",
+            correlation_id=str(correlation),
+        )
+    except Exception:
+        db.rollback()
+        log_structured(
+            logging.ERROR,
+            "agent.events_purge_failed",
+            correlation_id=str(correlation),
         )
     finally:
         db.close()

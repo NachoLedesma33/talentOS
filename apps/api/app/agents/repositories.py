@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session as DBSession
 
 from app.agents.models import (
@@ -136,6 +136,35 @@ def list_agent_events(
         .offset(offset)
     )
     return list(db.execute(stmt).scalars().all())
+
+
+def purge_agent_events(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    cutoff: datetime,
+) -> int:
+    """Borra traza antigua de runs terminales del tenant; sin commit."""
+    run_ids = select(AgentRun.id).where(
+        AgentRun.organization_id == organization_id,
+        AgentRun.status.in_(
+            (
+                AgentRunStatus.COMPLETED,
+                AgentRunStatus.FAILED,
+                AgentRunStatus.CANCELLED,
+                AgentRunStatus.TIMED_OUT,
+            )
+        ),
+    )
+    filters = (
+        AgentEvent.agent_run_id.in_(run_ids),
+        AgentEvent.created_at < cutoff,
+    )
+    count_stmt = select(func.count()).select_from(AgentEvent).where(*filters)
+    total = int(db.execute(count_stmt).scalar_one())
+    db.execute(delete(AgentEvent).where(*filters))
+    db.flush()
+    return total
 
 
 def create_approval(
