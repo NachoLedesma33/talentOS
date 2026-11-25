@@ -595,30 +595,30 @@ Un usuario autorizado puede explicar qué ocurrió en una ejecución, dónde fal
 
 ## Evaluaciones
 
-- [ ] Medir exactitud de extracción por campo.
-- [ ] Medir fidelidad de evidencias.
-- [ ] Medir validez de esquemas.
-- [ ] Medir consistencia de matching.
-- [ ] Medir robustez ante entradas adversariales.
-- [ ] Medir latencia.
-- [ ] Medir consumo/costo cuando sea posible.
-- [ ] Comparar versiones de prompts y modelos.
-- [ ] Generar reporte de regresión.
+- [x] Medir exactitud de extracción por campo.
+- [x] Medir fidelidad de evidencias.
+- [x] Medir validez de esquemas.
+- [x] Medir consistencia de matching.
+- [x] Medir robustez ante entradas adversariales.
+- [x] Medir latencia.
+- [x] Medir consumo/costo cuando sea posible.
+- [x] Comparar versiones de prompts y modelos.
+- [x] Generar reporte de regresión.
 
 ## Simulación operativa
 
-- [ ] Crear escenario de contratación.
-- [ ] Ejecutar varios candidatos sintéticos.
-- [ ] Simular proveedor lento.
-- [ ] Simular proveedor caído.
-- [ ] Simular tool fallida.
-- [ ] Simular aprobación rechazada.
-- [ ] Simular reintento.
-- [ ] Separar por completo entorno y datos demo.
+- [x] Crear escenario de contratación.
+- [x] Ejecutar varios candidatos sintéticos.
+- [x] Simular proveedor lento.
+- [x] Simular proveedor caído.
+- [x] Simular tool fallida.
+- [x] Simular aprobación rechazada.
+- [x] Simular reintento.
+- [x] Separar por completo entorno y datos demo.
 
 ## Criterio de salida
 
-Se puede ejecutar el mismo experimento nuevamente y comparar resultados con métricas y versiones identificables.
+Se puede ejecutar el mismo experimento nuevamente y comparar resultados con métricas y versiones identificables. Coste monetario no se reporta: `estimate_usage` es heurístico y no dato confiable del proveedor (RF-065).
 
 ---
 
@@ -897,7 +897,7 @@ Actualizar esta tabla durante el desarrollo.
 | 8 — Automation Engine | DONE | 2026-11-24 | 2026-11-24 | Commits 8cd672e, cd797a0, c4d7fe4, 4ec542d, d01fba7; ADR-012 + migración `0012`; `Automation`/`AutomationVersion`/`AutomationRun`/`AutomationRunEvent`/`AutomationApproval` tenant-scoped; motor determinista con trigger `application.stage_changed`, condiciones cerradas, seis acciones sin efectos externos, dry-run, idempotencia, reintento único con timeout y anti-ciclos; aprobación humana separada de agentes, sin envío de correos ni cambio de etapa sin decisión; API `/api/v1/automations` + worker Celery y UI de reglas/ejecuciones; RF-054 editor visual implementado en `baf478b` con toggle de nodos y mismo payload; tarea interna y borrador se registran como evidencia saneada en el run, sin adaptador de correo real (Fase 9); 397 tests pytest, npm typecheck/lint/test 78/build OK, ruff/mypy OK; CI run 45485260077 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45485260077), CI cierre run 45504960133 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45504960133). Known issue: `tests/test_matching_workflow.py` intermitente con SQLite StaticPool + hilos LangGraph/reloj parcheado; no reapareció en el cierre. |
 | 9 — Integrations | DONE | 2026-11-24 | 2026-11-24 | Commits `a67d40f`, `045f0b2`, `c187d00`, `aec6a05`, `f205ac0`, `6301e7e`; ADR-013 y migraciones `0013`-`0016`; `Integration` tenant-scoped con Fernet, webhooks entrantes HMAC/anti-replay/dedupe, outbox saliente firmado con reintentos, correo sandbox con aprobación separada y envío explícito, UI `/integrations`; ruff/mypy OK, pytest 467 passed / 1 failed flaky conocido de LangGraph/SQLite (aislado 4/5 passed), npm typecheck/lint/test 86/build OK, alembic harness upgrade/check/downgrade OK; CI run 45531304759 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45531304759). |
 | 10 — Control Center | DONE | 2026-11-25 | 2026-11-25 | Commits `f3cd3d2` `520e795` `ef1c7b1` `1071b3f` `ae44f93` `7146839` `633da9b` `3294e2d` `0b03201` `83b2a6d` `c96a89e` `0e58183`; traza con `attempts`, listado filtrable, correlación vacante/candidato y retención automática de 30 días con purga tenant-scoped; ruff/mypy OK; pytest 472 passed; npm typecheck/lint/test 87/build OK; CI run `45652701849` success (https://github.com/NachoLedesma33/talentOS/actions/runs/45652701849). |
-| 11 — Simulation Lab | NOT_STARTED | — | — | — |
+| 11 — Simulation Lab | DONE | 2026-11-25 | 2026-11-25 | Commits `977c7b0` `3f83d92` `b25f050` `e7f4558` `8fbb268` `46d07c9` `781d5b1`; dataset sintético v1.0.0 con PDF/DOCX y etiquetas verificadas; evaluadores de extracción y matching sobre proveedor mock; métricas de esquema, evidencia, injector/revisión, latencia y tokens; comparación de regresiones por prompt/proveedor; simulación de proveedor lento/caído, tool fallida, aprobación rechazada y reintento; sin coste monetario por `estimate_usage` heurístico (RF-065); ruff/mypy OK; pytest 492 passed. |
 | 12 — Analytics | NOT_STARTED | — | — | — |
 | 13 — UX & Accessibility | NOT_STARTED | — | — | — |
 | 14 — Security & Privacy | NOT_STARTED | — | — | — |
