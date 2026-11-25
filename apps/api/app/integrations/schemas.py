@@ -11,6 +11,10 @@ from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator, mod
 from app.agents.models import UnsafeAgentPayloadError
 from app.agents.schemas import validate_safe_payload
 from app.integrations.models import (
+    EmailApprovalStatus,
+    EmailDeliveryStatus,
+    EmailLanguage,
+    EmailTemplate,
     Integration,
     IntegrationProvider,
     IntegrationStatus,
@@ -292,7 +296,75 @@ class WebhookDeliveryListResponse(_ResponseModel):
     offset: int
 
 
+_EMAIL_TEXT_MARKERS = re.compile(
+    r"(?i)("
+    r"\b(?:cv|curriculum|resume|correo|email|e_mail|phone|telefono|tel[eé]fono"
+    r"|secret|secreto|token|password|clave|api[_-]?key|name|nombre"
+    r"|recipient|destinatario)\b"
+    r"|https?://|www\.|sk-[a-z0-9]{8,}|\d{7,}|@"
+    r")"
+)
+
+
+class EmailDraftCreateRequest(_StrictModel):
+    """Campos cerrados: sin email, nombre, CV, cuerpo, token ni destinatario."""
+
+    candidate_id: uuid.UUID = Field(strict=False)
+    template: EmailTemplate = Field(strict=False)
+    topic: str = Field(min_length=1, max_length=120)
+    language: EmailLanguage = Field(strict=False)
+    call_to_action: str = Field(min_length=1, max_length=120)
+
+    @field_validator("topic", "call_to_action")
+    @classmethod
+    def _reject_direct_pii(cls, value: str) -> str:
+        _reject_outbound_markers(value)
+        if _EMAIL_TEXT_MARKERS.search(value):
+            raise ValueError("texto con dato personal o secreto")
+        return value
+
+
+class EmailDraftSummary(_ResponseModel):
+    """Resumen del borrador; nunca incluye asunto, cuerpo ni hash."""
+
+    id: uuid.UUID
+    candidate_id: uuid.UUID
+    template: EmailTemplate
+    approval_status: EmailApprovalStatus
+    delivery_status: EmailDeliveryStatus
+    attempts: int
+    created_at: datetime
+
+
+class EmailDraftDetail(EmailDraftSummary):
+    """Detalle saneado: asunto y hash generados por servidor, sin cuerpo."""
+
+    integration_id: uuid.UUID
+    topic: str
+    language: EmailLanguage
+    call_to_action: str
+    subject: str
+    body_hash: str
+    requested_by: uuid.UUID | None
+    decided_by: uuid.UUID | None
+    decided_at: datetime | None
+    last_error_code: str | None
+    sent_at: datetime | None
+    updated_at: datetime
+
+
+class EmailDraftListResponse(_ResponseModel):
+    items: list[EmailDraftSummary]
+    total: int
+    limit: int
+    offset: int
+
+
 __all__ = [
+    "EmailDraftCreateRequest",
+    "EmailDraftDetail",
+    "EmailDraftListResponse",
+    "EmailDraftSummary",
     "EmailSandboxConfig",
     "IntegrationConfig",
     "IntegrationCreateRequest",

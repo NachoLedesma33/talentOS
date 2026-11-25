@@ -350,3 +350,184 @@ class WebhookDelivery(Base):
             "next_attempt_at",
         ),
     )
+
+
+class EmailTemplate(StrEnum):
+    """Plantillas cerradas; el servidor controla todo el texto renderizado."""
+
+    INITIAL_CONTACT = "initial_contact"
+    INTERVIEW_INVITE = "interview_invite"
+    FOLLOW_UP = "follow_up"
+
+
+class EmailLanguage(StrEnum):
+    ES = "es"
+    EN = "en"
+
+
+class EmailApprovalStatus(StrEnum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+
+class EmailDeliveryStatus(StrEnum):
+    NOT_SENT = "not_sent"
+    SENT = "sent"
+    FAILED = "failed"
+
+
+EMAIL_APPROVAL_TRANSITIONS: dict[
+    EmailApprovalStatus, frozenset[EmailApprovalStatus]
+] = {
+    EmailApprovalStatus.PENDING: frozenset(
+        {EmailApprovalStatus.APPROVED, EmailApprovalStatus.REJECTED}
+    ),
+    EmailApprovalStatus.APPROVED: frozenset(),
+    EmailApprovalStatus.REJECTED: frozenset(),
+}
+
+
+class InvalidEmailApprovalTransitionError(IntegrationDomainError):
+    """El borrador no permite la transición de aprobación pedida."""
+
+    code = "email_invalid_state"
+
+
+class EmailDraftNotFoundError(IntegrationDomainError):
+    """El borrador no existe o no pertenece al tenant autenticado."""
+
+    code = "email_not_found"
+
+
+class EmailDraftExistsError(IntegrationDomainError):
+    """Ya existe el borrador para esa clave natural del tenant."""
+
+    code = "email_draft_exists"
+
+
+def ensure_email_approval_transition(
+    current: EmailApprovalStatus, target: EmailApprovalStatus
+) -> None:
+    """Única fuente de transiciones permitidas de aprobación de correo."""
+    if target not in EMAIL_APPROVAL_TRANSITIONS.get(current, frozenset()):
+        raise InvalidEmailApprovalTransitionError()
+
+
+class EmailDraft(Base):
+    """Borrador de correo sandbox: metadatos y hash, nunca destinatario ni cuerpo."""
+
+    __tablename__ = "email_drafts"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    integration_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("integrations.id", ondelete="CASCADE"), nullable=False
+    )
+    # Referencia opaca al candidato: sin FK y sin nombre, correo ni CV.
+    candidate_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    template: Mapped[EmailTemplate] = mapped_column(
+        SAEnum(
+            EmailTemplate,
+            name="email_template",
+            native_enum=False,
+            values_callable=_enum_values,
+            validate_strings=True,
+        ),
+        nullable=False,
+    )
+    topic: Mapped[str] = mapped_column(String(120), nullable=False)
+    language: Mapped[EmailLanguage] = mapped_column(
+        SAEnum(
+            EmailLanguage,
+            name="email_language",
+            native_enum=False,
+            values_callable=_enum_values,
+            validate_strings=True,
+        ),
+        nullable=False,
+    )
+    call_to_action: Mapped[str] = mapped_column(String(120), nullable=False)
+    subject: Mapped[str] = mapped_column(String(200), nullable=False)
+    body_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    approval_status: Mapped[EmailApprovalStatus] = mapped_column(
+        SAEnum(
+            EmailApprovalStatus,
+            name="email_approval_status",
+            native_enum=False,
+            values_callable=_enum_values,
+            validate_strings=True,
+        ),
+        nullable=False,
+        default=EmailApprovalStatus.PENDING,
+    )
+    # UUID opacos de actores: decidido por el servicio, nunca por el cliente.
+    requested_by: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    decided_by: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    decided_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    delivery_status: Mapped[EmailDeliveryStatus] = mapped_column(
+        SAEnum(
+            EmailDeliveryStatus,
+            name="email_delivery_status",
+            native_enum=False,
+            values_callable=_enum_values,
+            validate_strings=True,
+        ),
+        nullable=False,
+        default=EmailDeliveryStatus.NOT_SENT,
+    )
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    sent_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id",
+            "integration_id",
+            "candidate_id",
+            "template",
+            "topic",
+            "language",
+            "call_to_action",
+            name="uq_email_drafts_natural_key",
+        ),
+        CheckConstraint("length(topic) BETWEEN 1 AND 120", name="ck_email_drafts_topic_length"),
+        CheckConstraint(
+            "length(call_to_action) BETWEEN 1 AND 120",
+            name="ck_email_drafts_call_to_action_length",
+        ),
+        CheckConstraint("length(subject) BETWEEN 1 AND 200", name="ck_email_drafts_subject_length"),
+        CheckConstraint("length(body_hash) = 64", name="ck_email_drafts_body_hash_length"),
+        CheckConstraint("attempts >= 0", name="ck_email_drafts_attempts_nonnegative"),
+        Index(
+            "ix_email_drafts_organization_id_approval_status_delivery_status",
+            "organization_id",
+            "approval_status",
+            "delivery_status",
+        ),
+    )
+
+    def decide(
+        self,
+        target: EmailApprovalStatus,
+        decided_by: uuid.UUID,
+        decided_at: datetime,
+    ) -> EmailDraft:
+        """Aplica una transición válida; la separación de duties la valida el servicio."""
+        ensure_email_approval_transition(self.approval_status, target)
+        self.approval_status = target
+        self.decided_by = decided_by
+        self.decided_at = decided_at
+        return self

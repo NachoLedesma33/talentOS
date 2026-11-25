@@ -8,6 +8,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DBSession
 
 from app.integrations.models import (
+    EmailApprovalStatus,
+    EmailDeliveryStatus,
+    EmailDraft,
+    EmailDraftExistsError,
+    EmailLanguage,
+    EmailTemplate,
     Integration,
     IntegrationDomainError,
     IntegrationProvider,
@@ -280,17 +286,139 @@ def count_webhook_deliveries(
     return int(db.scalar(stmt) or 0)
 
 
+def get_email_draft(
+    db: DBSession,
+    organization_id: uuid.UUID,
+    integration_id: uuid.UUID,
+    draft_id: uuid.UUID,
+) -> EmailDraft | None:
+    """Borrador del tenant y la integración; cross-tenant devuelve None."""
+    stmt = select(EmailDraft).where(
+        EmailDraft.organization_id == organization_id,
+        EmailDraft.integration_id == integration_id,
+        EmailDraft.id == draft_id,
+    )
+    return db.execute(stmt).scalar_one_or_none()
+
+
+def find_email_draft(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    integration_id: uuid.UUID,
+    candidate_id: uuid.UUID,
+    template: EmailTemplate,
+    topic: str,
+    language: EmailLanguage,
+    call_to_action: str,
+) -> EmailDraft | None:
+    """Clave natural de idempotencia; la misma petición no crea segunda fila."""
+    stmt = select(EmailDraft).where(
+        EmailDraft.organization_id == organization_id,
+        EmailDraft.integration_id == integration_id,
+        EmailDraft.candidate_id == candidate_id,
+        EmailDraft.template == template,
+        EmailDraft.topic == topic,
+        EmailDraft.language == language,
+        EmailDraft.call_to_action == call_to_action,
+    )
+    return db.execute(stmt).scalar_one_or_none()
+
+
+def create_email_draft(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    integration_id: uuid.UUID,
+    candidate_id: uuid.UUID,
+    template: EmailTemplate,
+    topic: str,
+    language: EmailLanguage,
+    call_to_action: str,
+    subject: str,
+    body_hash: str,
+    requested_by: uuid.UUID,
+) -> EmailDraft:
+    """Persiste solo metadatos y hash; la UNIQUE evita el doble borrador."""
+    draft = EmailDraft(
+        organization_id=organization_id,
+        integration_id=integration_id,
+        candidate_id=candidate_id,
+        template=template,
+        topic=topic,
+        language=language,
+        call_to_action=call_to_action,
+        subject=subject,
+        body_hash=body_hash,
+        requested_by=requested_by,
+    )
+    db.add(draft)
+    try:
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        raise EmailDraftExistsError() from None
+    return draft
+
+
+def list_email_drafts(
+    db: DBSession,
+    organization_id: uuid.UUID,
+    integration_id: uuid.UUID,
+    approval_status: EmailApprovalStatus | None = None,
+    delivery_status: EmailDeliveryStatus | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> list[EmailDraft]:
+    """Listado tenant-scoped, paginado y filtrable por estados observables."""
+    stmt = select(EmailDraft).where(
+        EmailDraft.organization_id == organization_id,
+        EmailDraft.integration_id == integration_id,
+    )
+    if approval_status is not None:
+        stmt = stmt.where(EmailDraft.approval_status == approval_status)
+    if delivery_status is not None:
+        stmt = stmt.where(EmailDraft.delivery_status == delivery_status)
+    stmt = stmt.order_by(EmailDraft.created_at, EmailDraft.id).limit(limit).offset(offset)
+    return list(db.execute(stmt).scalars().all())
+
+
+def count_email_drafts(
+    db: DBSession,
+    organization_id: uuid.UUID,
+    integration_id: uuid.UUID,
+    approval_status: EmailApprovalStatus | None = None,
+    delivery_status: EmailDeliveryStatus | None = None,
+) -> int:
+    """Total del mismo filtro que el listado, para paginación coherente."""
+    filters = [
+        EmailDraft.organization_id == organization_id,
+        EmailDraft.integration_id == integration_id,
+    ]
+    if approval_status is not None:
+        filters.append(EmailDraft.approval_status == approval_status)
+    if delivery_status is not None:
+        filters.append(EmailDraft.delivery_status == delivery_status)
+    stmt = select(func.count()).select_from(EmailDraft).where(*filters)
+    return int(db.scalar(stmt) or 0)
+
+
 __all__ = [
+    "count_email_drafts",
+    "create_email_draft",
     "count_webhook_deliveries",
     "create_integration",
     "create_webhook_delivery",
     "create_webhook_event",
+    "find_email_draft",
     "find_webhook_delivery",
     "find_webhook_event",
+    "get_email_draft",
     "get_integration",
     "get_webhook_delivery",
     "get_webhook_delivery_by_event",
     "get_webhook_event",
+    "list_email_drafts",
     "list_integrations",
     "list_webhook_deliveries",
     "update_integration",

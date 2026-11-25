@@ -10,7 +10,7 @@ import logging
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DBSession
 
@@ -25,12 +25,17 @@ from app.identity.dependencies import (
 from app.identity.models import Membership, MembershipRole, Organization, User
 from app.integrations import service as integrations_service
 from app.integrations.models import (
+    EmailApprovalStatus,
+    EmailDeliveryStatus,
     Integration,
     IntegrationDomainError,
     IntegrationStatus,
     WebhookDeliveryStatus,
 )
 from app.integrations.schemas import (
+    EmailDraftCreateRequest,
+    EmailDraftDetail,
+    EmailDraftListResponse,
     IntegrationCreateRequest,
     IntegrationListResponse,
     IntegrationResponse,
@@ -58,6 +63,7 @@ WriteMember = Annotated[
 _NOT_FOUND = "Recurso de integración no encontrado."
 _UNAVAILABLE = "Configuración de integración no disponible."
 _BAD_REQUEST = "Solicitud inválida."
+_EMAIL_CONFLICT = "Conflicto de estado del borrador."
 
 
 def _request_id(request: Request) -> str:
@@ -73,7 +79,11 @@ def _correlation_id(request: Request) -> str:
 def _http_error(exc: IntegrationDomainError) -> HTTPException:
     """Traduce códigos de dominio a HTTP sin exponer mensajes internos."""
     code = exc.code
-    if code in {"integration_not_found", "webhook_delivery_not_found"}:
+    if code in {
+        "integration_not_found",
+        "webhook_delivery_not_found",
+        "email_not_found",
+    }:
         return HTTPException(status.HTTP_404_NOT_FOUND, detail=_NOT_FOUND)
     if code in {
         "integration_exists",
@@ -84,7 +94,13 @@ def _http_error(exc: IntegrationDomainError) -> HTTPException:
         "duplicate_event",
     }:
         return HTTPException(status.HTTP_409_CONFLICT, detail="Conflicto de integración.")
-    if code == "permission_denied":
+    if code in {
+        "email_invalid_state",
+        "email_not_approved",
+        "email_already_sent",
+    }:
+        return HTTPException(status.HTTP_409_CONFLICT, detail=_EMAIL_CONFLICT)
+    if code in {"permission_denied", "email_self_approval"}:
         return HTTPException(status.HTTP_403_FORBIDDEN, detail="Rol insuficiente.")
     if code in {
         "integration_key_missing",
@@ -105,10 +121,13 @@ def _log(
     organization_id: uuid.UUID,
     integration_id: uuid.UUID | None,
     result: str,
+    draft_id: uuid.UUID | None = None,
     error_code: str | None = None,
 ) -> None:
     """Registra IDs, resultado y código estable; nunca config, token ni secreto."""
     message = f"{event} integration_id={integration_id} result={result}"
+    if draft_id is not None:
+        message += f" draft_id={draft_id}"
     if error_code is not None:
         message += f" error_code={error_code}"
     log_structured(
@@ -388,6 +407,254 @@ def retry_webhook_delivery(
         result="queued",
     )
     return integrations_service.outbound_summary(delivery)
+
+
+@router.post("/{integration_id}/email-drafts", response_model=EmailDraftDetail)
+def create_email_draft(
+    request: Request,
+    response: Response,
+    _origin: OriginChecked,
+    integration_id: uuid.UUID,
+    payload: EmailDraftCreateRequest,
+    actor: CurrentUser,
+    active_organization: CurrentOrganization,
+    _member: WriteMember,
+    db: DbDependency,
+) -> EmailDraftDetail:
+    """Crea un borrador pendiente; repetir la petición devuelve 200 y la misma fila."""
+    try:
+        creation = integrations_service.create_email_draft(
+            db,
+            organization_id=active_organization.id,
+            actor_id=actor.id,
+            actor_role=_member.role,
+            integration_id=integration_id,
+            payload=payload,
+        )
+    except IntegrationDomainError as exc:
+        _log(
+            "email.create",
+            request=request,
+            organization_id=active_organization.id,
+            integration_id=integration_id,
+            result="error",
+            error_code=exc.code,
+        )
+        raise _http_error(exc) from None
+    response.status_code = (
+        status.HTTP_201_CREATED if creation.created else status.HTTP_200_OK
+    )
+    _log(
+        "email.create",
+        request=request,
+        organization_id=active_organization.id,
+        integration_id=integration_id,
+        draft_id=creation.draft.id,
+        result="created" if creation.created else "duplicate",
+    )
+    return integrations_service.email_detail(creation.draft)
+
+
+@router.get("/{integration_id}/email-drafts", response_model=EmailDraftListResponse)
+def list_email_drafts(
+    _origin: OriginChecked,
+    integration_id: uuid.UUID,
+    actor: CurrentUser,
+    active_organization: CurrentOrganization,
+    _member: ReadMember,
+    db: DbDependency,
+    approval_status: Annotated[
+        EmailApprovalStatus | None, Query(alias="approval_status")
+    ] = None,
+    delivery_status: Annotated[
+        EmailDeliveryStatus | None, Query(alias="delivery_status")
+    ] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> EmailDraftListResponse:
+    """Listado paginado y tenant-scoped; viewer puede leer, nunca escribir."""
+    try:
+        return integrations_service.list_email_drafts(
+            db,
+            organization_id=active_organization.id,
+            actor_id=actor.id,
+            actor_role=_member.role,
+            integration_id=integration_id,
+            approval_status=approval_status,
+            delivery_status=delivery_status,
+            limit=limit,
+            offset=offset,
+        )
+    except IntegrationDomainError as exc:
+        raise _http_error(exc) from None
+
+
+@router.get(
+    "/{integration_id}/email-drafts/{draft_id}", response_model=EmailDraftDetail
+)
+def get_email_draft(
+    _origin: OriginChecked,
+    integration_id: uuid.UUID,
+    draft_id: uuid.UUID,
+    actor: CurrentUser,
+    active_organization: CurrentOrganization,
+    _member: ReadMember,
+    db: DbDependency,
+) -> EmailDraftDetail:
+    """Detalle saneado; cross-tenant y ausente se responden igual."""
+    try:
+        draft = integrations_service.get_email_draft(
+            db,
+            organization_id=active_organization.id,
+            actor_id=actor.id,
+            actor_role=_member.role,
+            integration_id=integration_id,
+            draft_id=draft_id,
+        )
+    except IntegrationDomainError as exc:
+        raise _http_error(exc) from None
+    return integrations_service.email_detail(draft)
+
+
+@router.post(
+    "/{integration_id}/email-drafts/{draft_id}/approve",
+    response_model=EmailDraftDetail,
+)
+def approve_email_draft(
+    request: Request,
+    _origin: OriginChecked,
+    integration_id: uuid.UUID,
+    draft_id: uuid.UUID,
+    actor: CurrentUser,
+    active_organization: CurrentOrganization,
+    _member: WriteMember,
+    db: DbDependency,
+) -> EmailDraftDetail:
+    """Aprueba sin enviar; quien creó el borrador no puede aprobarlo."""
+    try:
+        draft = integrations_service.decide_email_draft(
+            db,
+            organization_id=active_organization.id,
+            actor_id=actor.id,
+            actor_role=_member.role,
+            integration_id=integration_id,
+            draft_id=draft_id,
+            decision=EmailApprovalStatus.APPROVED,
+        )
+    except IntegrationDomainError as exc:
+        _log(
+            "email.approve",
+            request=request,
+            organization_id=active_organization.id,
+            integration_id=integration_id,
+            draft_id=draft_id,
+            result="error",
+            error_code=exc.code,
+        )
+        raise _http_error(exc) from None
+    _log(
+        "email.approve",
+        request=request,
+        organization_id=active_organization.id,
+        integration_id=integration_id,
+        draft_id=draft_id,
+        result="approved",
+    )
+    return integrations_service.email_detail(draft)
+
+
+@router.post(
+    "/{integration_id}/email-drafts/{draft_id}/reject",
+    response_model=EmailDraftDetail,
+)
+def reject_email_draft(
+    request: Request,
+    _origin: OriginChecked,
+    integration_id: uuid.UUID,
+    draft_id: uuid.UUID,
+    actor: CurrentUser,
+    active_organization: CurrentOrganization,
+    _member: WriteMember,
+    db: DbDependency,
+) -> EmailDraftDetail:
+    """Rechaza sin envío; el borrador queda en estado terminal."""
+    try:
+        draft = integrations_service.decide_email_draft(
+            db,
+            organization_id=active_organization.id,
+            actor_id=actor.id,
+            actor_role=_member.role,
+            integration_id=integration_id,
+            draft_id=draft_id,
+            decision=EmailApprovalStatus.REJECTED,
+        )
+    except IntegrationDomainError as exc:
+        _log(
+            "email.reject",
+            request=request,
+            organization_id=active_organization.id,
+            integration_id=integration_id,
+            draft_id=draft_id,
+            result="error",
+            error_code=exc.code,
+        )
+        raise _http_error(exc) from None
+    _log(
+        "email.reject",
+        request=request,
+        organization_id=active_organization.id,
+        integration_id=integration_id,
+        draft_id=draft_id,
+        result="rejected",
+    )
+    return integrations_service.email_detail(draft)
+
+
+@router.post(
+    "/{integration_id}/email-drafts/{draft_id}/send",
+    response_model=EmailDraftDetail,
+)
+def send_email_draft(
+    request: Request,
+    _origin: OriginChecked,
+    integration_id: uuid.UUID,
+    draft_id: uuid.UUID,
+    actor: CurrentUser,
+    active_organization: CurrentOrganization,
+    _member: WriteMember,
+    db: DbDependency,
+) -> EmailDraftDetail:
+    """Envía solo si hay aprobación ajena; el estado final es observable."""
+    try:
+        draft = integrations_service.send_email_draft(
+            db,
+            organization_id=active_organization.id,
+            actor_id=actor.id,
+            actor_role=_member.role,
+            integration_id=integration_id,
+            draft_id=draft_id,
+        )
+    except IntegrationDomainError as exc:
+        _log(
+            "email.send",
+            request=request,
+            organization_id=active_organization.id,
+            integration_id=integration_id,
+            draft_id=draft_id,
+            result="error",
+            error_code=exc.code,
+        )
+        raise _http_error(exc) from None
+    _log(
+        "email.send",
+        request=request,
+        organization_id=active_organization.id,
+        integration_id=integration_id,
+        draft_id=draft_id,
+        result=draft.delivery_status.value,
+        error_code=draft.last_error_code,
+    )
+    return integrations_service.email_detail(draft)
 
 
 __all__ = ["router"]
