@@ -156,6 +156,9 @@ export default function DashboardPage() {
           <li>
             <a href="/interviews">Entrevistas</a>
           </li>
+          <li>
+            <a href="/analytics">Analítica</a>
+          </li>
         </ul>
       </section>
     </div>
