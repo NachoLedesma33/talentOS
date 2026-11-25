@@ -5,6 +5,8 @@ import { useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
 import type { AuthResponse, LoginRequest } from "../lib/types";
 import { Button } from "./ui/shadcn/button";
+import { Input } from "./ui/shadcn/input";
+import { Label } from "./ui/shadcn/label";
 
 type SubmitStatus = "idle" | "loading" | "success" | "error";
 
@@ -42,30 +44,28 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit} aria-busy={status === "loading"} className="space-y-4">
       <div className="space-y-1">
-        <label htmlFor="login-email" className="block text-sm font-semibold">
+        <Label htmlFor="login-email" className="block">
           Correo electrónico
-        </label>
-        <input
+        </Label>
+        <Input
           id="login-email"
           name="email"
           type="email"
           autoComplete="email"
           required
-          className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm"
         />
       </div>
 
       <div className="space-y-1">
-        <label htmlFor="login-password" className="block text-sm font-semibold">
+        <Label htmlFor="login-password" className="block">
           Contraseña
-        </label>
-        <input
+        </Label>
+        <Input
           id="login-password"
           name="password"
           type="password"
           autoComplete="current-password"
           required
-          className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm"
         />
       </div>
 

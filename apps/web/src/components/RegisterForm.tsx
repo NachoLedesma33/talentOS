@@ -3,6 +3,9 @@
 import { useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
 import type { AuthResponse, RegisterRequest } from "../lib/types";
+import { Button } from "./ui/shadcn/button";
+import { Input } from "./ui/shadcn/input";
+import { Label } from "./ui/shadcn/label";
 
 type SubmitStatus = "idle" | "loading" | "success" | "error";
 
@@ -37,56 +40,49 @@ export function RegisterForm() {
   return (
     <form onSubmit={handleSubmit} aria-busy={status === "loading"} className="space-y-4">
       <div className="space-y-1">
-        <label htmlFor="register-name" className="block text-sm font-semibold">
+        <Label htmlFor="register-name" className="block">
           Nombre
-        </label>
-        <input
+        </Label>
+        <Input
           id="register-name"
           name="name"
           type="text"
           autoComplete="name"
           required
-          className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm"
         />
       </div>
 
       <div className="space-y-1">
-        <label htmlFor="register-email" className="block text-sm font-semibold">
+        <Label htmlFor="register-email" className="block">
           Correo electrónico
-        </label>
-        <input
+        </Label>
+        <Input
           id="register-email"
           name="email"
           type="email"
           autoComplete="email"
           required
-          className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm"
         />
       </div>
 
       <div className="space-y-1">
-        <label htmlFor="register-password" className="block text-sm font-semibold">
+        <Label htmlFor="register-password" className="block">
           Contraseña
-        </label>
-        <input
+        </Label>
+        <Input
           id="register-password"
           name="password"
           type="password"
           autoComplete="new-password"
           minLength={8}
           required
-          className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm"
         />
         <p className="text-xs text-text-muted">Mínimo 8 caracteres.</p>
       </div>
 
-      <button
-        type="submit"
-        disabled={status === "loading"}
-        className="rounded-sm bg-accent px-4 py-2 text-sm font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-60"
-      >
+      <Button type="submit" disabled={status === "loading"}>
         {status === "loading" ? "Creando cuenta…" : "Crear cuenta"}
-      </button>
+      </Button>
 
       <p
         aria-live={status === "error" ? "assertive" : "polite"}
