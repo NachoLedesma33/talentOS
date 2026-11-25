@@ -30,6 +30,7 @@ from app.integrations.schemas import (
     IntegrationListResponse,
     IntegrationResponse,
     IntegrationUpdateRequest,
+    WebhookEventSummary,
 )
 
 router = APIRouter(prefix="/api/v1/integrations", tags=["integrations"])
@@ -67,11 +68,20 @@ def _http_error(exc: IntegrationDomainError) -> HTTPException:
     code = exc.code
     if code == "integration_not_found":
         return HTTPException(status.HTTP_404_NOT_FOUND, detail=_NOT_FOUND)
-    if code in {"integration_exists", "integration_version_conflict"}:
+    if code in {
+        "integration_exists",
+        "integration_version_conflict",
+        "webhook_invalid_state",
+        "duplicate_event",
+    }:
         return HTTPException(status.HTTP_409_CONFLICT, detail="Conflicto de integración.")
     if code == "permission_denied":
         return HTTPException(status.HTTP_403_FORBIDDEN, detail="Rol insuficiente.")
-    if code in {"integration_key_missing", "integration_config_unreadable"}:
+    if code in {
+        "integration_key_missing",
+        "integration_config_unreadable",
+        "broker_unavailable",
+    }:
         return HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=_UNAVAILABLE)
     return HTTPException(status.HTTP_400_BAD_REQUEST, detail=_BAD_REQUEST)
 
@@ -245,6 +255,51 @@ def update_integration(
         result="updated",
     )
     return _summary(integration)
+
+
+@router.post(
+    "/{integration_id}/webhooks/{event_id}/retry",
+    response_model=WebhookEventSummary,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def retry_webhook_event(
+    request: Request,
+    _origin: OriginChecked,
+    integration_id: uuid.UUID,
+    event_id: uuid.UUID,
+    actor: CurrentUser,
+    active_organization: CurrentOrganization,
+    _member: WriteMember,
+    db: DbDependency,
+) -> WebhookEventSummary:
+    """Reencola un evento fallido o en dead-letter; viewer queda fuera."""
+    try:
+        event = integrations_service.retry_webhook_event(
+            db,
+            organization_id=active_organization.id,
+            actor_id=actor.id,
+            actor_role=_member.role,
+            integration_id=integration_id,
+            event_id=event_id,
+        )
+    except IntegrationDomainError as exc:
+        _log(
+            "webhook.retry",
+            request=request,
+            organization_id=active_organization.id,
+            integration_id=integration_id,
+            result="error",
+            error_code=exc.code,
+        )
+        raise _http_error(exc) from None
+    _log(
+        "webhook.retry",
+        request=request,
+        organization_id=active_organization.id,
+        integration_id=integration_id,
+        result="queued",
+    )
+    return integrations_service.webhook_summary(event)
 
 
 __all__ = ["router"]

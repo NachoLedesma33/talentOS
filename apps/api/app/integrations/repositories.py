@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -12,7 +13,11 @@ from app.integrations.models import (
     IntegrationProvider,
     IntegrationStatus,
     IntegrationTenantMismatchError,
+    WebhookEvent,
+    WebhookEventStatus,
+    WebhookEventType,
 )
+from app.integrations.webhooks import DuplicateEventError
 
 
 def get_integration(
@@ -96,9 +101,77 @@ def update_integration(
     return integration
 
 
+def get_webhook_event(
+    db: DBSession,
+    organization_id: uuid.UUID,
+    integration_id: uuid.UUID,
+    event_id: uuid.UUID,
+) -> WebhookEvent | None:
+    """Evento entrante del tenant y la integración; llave de dedupe única."""
+    stmt = select(WebhookEvent).where(
+        WebhookEvent.organization_id == organization_id,
+        WebhookEvent.integration_id == integration_id,
+        WebhookEvent.provider == IntegrationProvider.WEBHOOK_INBOUND,
+        WebhookEvent.event_id == event_id,
+    )
+    return db.execute(stmt).scalar_one_or_none()
+
+
+def find_webhook_event(
+    db: DBSession, integration_id: uuid.UUID, event_id: uuid.UUID
+) -> WebhookEvent | None:
+    """Localiza por integración y event_id; el tenant se compara después."""
+    stmt = select(WebhookEvent).where(
+        WebhookEvent.integration_id == integration_id,
+        WebhookEvent.provider == IntegrationProvider.WEBHOOK_INBOUND,
+        WebhookEvent.event_id == event_id,
+    )
+    return db.execute(stmt).scalar_one_or_none()
+
+
+def create_webhook_event(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    integration_id: uuid.UUID,
+    event_id: uuid.UUID,
+    event_type: WebhookEventType,
+    resource_id: uuid.UUID,
+    correlation_id: uuid.UUID,
+    occurred_at: datetime,
+    payload_hash: str,
+    status: WebhookEventStatus = WebhookEventStatus.QUEUED,
+) -> WebhookEvent:
+    """Persiste evidencia saneada; la UNIQUE evita un segundo efecto."""
+    event = WebhookEvent(
+        organization_id=organization_id,
+        integration_id=integration_id,
+        provider=IntegrationProvider.WEBHOOK_INBOUND,
+        event_id=event_id,
+        event_type=event_type,
+        resource_id=resource_id,
+        correlation_id=correlation_id,
+        payload_version="1",
+        occurred_at=occurred_at,
+        status=status,
+        attempts=0,
+        payload_hash=payload_hash,
+    )
+    db.add(event)
+    try:
+        db.flush()
+    except IntegrityError:
+        db.rollback()
+        raise DuplicateEventError() from None
+    return event
+
+
 __all__ = [
     "create_integration",
+    "create_webhook_event",
+    "find_webhook_event",
     "get_integration",
+    "get_webhook_event",
     "list_integrations",
     "update_integration",
 ]

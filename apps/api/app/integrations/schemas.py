@@ -1,13 +1,21 @@
 from __future__ import annotations
 
+import json
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, model_validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator, model_validator
 
+from app.agents.models import UnsafeAgentPayloadError
 from app.agents.schemas import validate_safe_payload
-from app.integrations.models import Integration, IntegrationProvider, IntegrationStatus
+from app.integrations.models import (
+    Integration,
+    IntegrationProvider,
+    IntegrationStatus,
+    WebhookEventStatus,
+    WebhookEventType,
+)
 
 
 class _StrictModel(BaseModel):
@@ -29,7 +37,7 @@ class WebhookOutboundConfig(_StrictModel):
 
 
 class WebhookInboundConfig(_StrictModel):
-    """Secreto de firma y ventana anti-replay; sin procesar eventos todavía."""
+    """Secreto de firma y ventana anti-replay para recepción entrante."""
 
     secret: str = Field(min_length=16, max_length=256)
     tolerance_seconds: int = Field(ge=60, le=3600)
@@ -127,6 +135,69 @@ def safe_integration_metadata(integration: Integration) -> dict[str, object]:
     )
 
 
+_MAX_WEBHOOK_PAYLOAD_KEYS = 50
+_MAX_WEBHOOK_PAYLOAD_BYTES = 16_384
+
+
+class WebhookEnvelope(_StrictModel):
+    """Envelope versionado y saneado; `organization_id` solo se compara."""
+
+    # JSON entrega IDs y fechas como texto: conversión explícita, extra prohibido.
+    event_id: uuid.UUID = Field(strict=False)
+    event_type: WebhookEventType = Field(strict=False)
+    organization_id: uuid.UUID = Field(strict=False)
+    occurred_at: datetime = Field(strict=False)
+    resource_id: uuid.UUID = Field(strict=False)
+    correlation_id: uuid.UUID = Field(strict=False)
+    payload_version: Literal["1"]
+    payload: dict[str, object]
+
+    @field_validator("occurred_at")
+    @classmethod
+    def _require_utc(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("occurred_at debe ser UTC")
+        return value.astimezone(UTC)
+
+    @field_validator("payload")
+    @classmethod
+    def _sanitize_payload(cls, value: dict[str, object]) -> dict[str, object]:
+        try:
+            safe = validate_safe_payload(value)
+        except UnsafeAgentPayloadError:
+            raise ValueError("payload no apto para webhook") from None
+        if len(safe) > _MAX_WEBHOOK_PAYLOAD_KEYS:
+            raise ValueError("payload con demasiados campos")
+        canonical = json.dumps(
+            safe, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        )
+        if len(canonical.encode("utf-8")) > _MAX_WEBHOOK_PAYLOAD_BYTES:
+            raise ValueError("payload demasiado grande")
+        return safe
+
+
+class WebhookAcceptedResponse(_ResponseModel):
+    """Resultado público de la recepción; sin payload, secreto ni firma."""
+
+    event_id: uuid.UUID
+    correlation_id: uuid.UUID
+    status: WebhookEventStatus
+    duplicate: bool
+
+
+class WebhookEventSummary(_ResponseModel):
+    """Estado diagnóstico de un evento; nunca incluye payload ni cabeceras."""
+
+    id: uuid.UUID
+    event_id: uuid.UUID
+    event_type: WebhookEventType
+    status: WebhookEventStatus
+    attempts: int
+    last_error_code: str | None
+    occurred_at: datetime
+    received_at: datetime
+
+
 __all__ = [
     "EmailSandboxConfig",
     "IntegrationConfig",
@@ -134,6 +205,9 @@ __all__ = [
     "IntegrationListResponse",
     "IntegrationResponse",
     "IntegrationUpdateRequest",
+    "WebhookAcceptedResponse",
+    "WebhookEnvelope",
+    "WebhookEventSummary",
     "WebhookInboundConfig",
     "WebhookOutboundConfig",
     "config_matches_provider",

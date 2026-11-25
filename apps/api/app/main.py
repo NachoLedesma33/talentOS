@@ -23,6 +23,7 @@ from app.api.routes import (
     interviews,
     jobs,
     organizations,
+    webhooks,
 )
 from app.core.config import get_settings
 from app.core.logging import configure_logging, log_structured
@@ -137,3 +138,4 @@ app.include_router(agents.router)
 app.include_router(interviews.router)
 app.include_router(automation.router)
 app.include_router(integrations.router)
+app.include_router(webhooks.router)

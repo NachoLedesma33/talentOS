@@ -59,6 +59,29 @@ class IntegrationStatus(StrEnum):
     DISABLED = "disabled"
 
 
+class WebhookEventType(StrEnum):
+    """Tipos de evento cerrados del envelope (SDD 11.1)."""
+
+    CANDIDATE_CREATED = "candidate.created"
+    DOCUMENT_UPLOADED = "document.uploaded"
+    DOCUMENT_EXTRACTION_COMPLETED = "document.extraction.completed"
+    APPLICATION_STAGE_CHANGED = "application.stage_changed"
+    ASSESSMENT_COMPLETED = "assessment.completed"
+    APPROVAL_REQUESTED = "approval.requested"
+    APPROVAL_RESOLVED = "approval.resolved"
+
+
+class WebhookEventStatus(StrEnum):
+    """Estados observables de un evento entrante; transiciones deterministas."""
+
+    ENQUEUE_FAILED = "enqueue_failed"
+    QUEUED = "queued"
+    PROCESSING = "processing"
+    PROCESSED = "processed"
+    FAILED = "failed"
+    DEAD_LETTER = "dead_letter"
+
+
 def _utcnow() -> datetime:
     """Timestamp UTC aplicado por Python; la BD no define reloj local."""
     return datetime.now(UTC)
@@ -123,5 +146,83 @@ class Integration(Base):
         ),
         Index(
             "ix_integrations_organization_id_status", "organization_id", "status"
+        ),
+    )
+
+
+class WebhookEvent(Base):
+    """Evidencia de un webhook entrante; nunca cuerpo crudo ni payload con texto."""
+
+    __tablename__ = "webhook_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    integration_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("integrations.id", ondelete="CASCADE"), nullable=False
+    )
+    provider: Mapped[IntegrationProvider] = mapped_column(
+        SAEnum(
+            IntegrationProvider,
+            name="integration_provider",
+            native_enum=False,
+            values_callable=_enum_values,
+            validate_strings=True,
+        ),
+        nullable=False,
+    )
+    event_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    event_type: Mapped[WebhookEventType] = mapped_column(
+        SAEnum(
+            WebhookEventType,
+            name="webhook_event_type",
+            native_enum=False,
+            values_callable=_enum_values,
+            validate_strings=True,
+        ),
+        nullable=False,
+    )
+    resource_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    correlation_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    payload_version: Mapped[str] = mapped_column(String(4), nullable=False)
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+    status: Mapped[WebhookEventStatus] = mapped_column(
+        SAEnum(
+            WebhookEventStatus,
+            name="webhook_event_status",
+            native_enum=False,
+            values_callable=_enum_values,
+            validate_strings=True,
+        ),
+        nullable=False,
+        default=WebhookEventStatus.QUEUED,
+    )
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # sha256 del payload saneado canónico; sin texto de CV, secreto ni firma.
+    payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id",
+            "provider",
+            "event_id",
+            name="uq_webhook_events_organization_id_provider_event_id",
+        ),
+        CheckConstraint("attempts >= 0", name="ck_webhook_events_attempts_nonnegative"),
+        CheckConstraint(
+            "length(payload_hash) = 64", name="ck_webhook_events_payload_hash_length"
+        ),
+        Index(
+            "ix_webhook_events_organization_id_status_received_at",
+            "organization_id",
+            "status",
+            "received_at",
         ),
     )
