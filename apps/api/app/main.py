@@ -12,6 +12,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.routes import (
     agents,
+    analytics,
     applications,
     assessment,
     auth,
@@ -135,6 +136,7 @@ app.include_router(applications.router)
 app.include_router(documents.router)
 app.include_router(assessment.router)
 app.include_router(agents.router)
+app.include_router(analytics.router)
 app.include_router(interviews.router)
 app.include_router(automation.router)
 app.include_router(integrations.router)
