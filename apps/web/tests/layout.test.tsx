@@ -22,4 +22,25 @@ describe("RootLayout", () => {
     expect(main?.getAttribute("tabindex")).toBe("-1");
     expect(main?.textContent).toContain("Contenido sintético");
   });
+
+  it("sitúa el salto como primer parada de tabulación", () => {
+    const container = document.createElement("div");
+    container.innerHTML = renderToStaticMarkup(
+      <RootLayout>
+        <button type="button">Acción sintética</button>
+      </RootLayout>,
+    );
+
+    const focusable = Array.from(
+      container.querySelectorAll<HTMLElement>(
+        "a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])",
+      ),
+    );
+
+    expect(focusable[0]?.textContent).toBe("Saltar al contenido principal");
+    expect(focusable.map((element) => element.textContent)).toEqual([
+      "Saltar al contenido principal",
+      "Acción sintética",
+    ]);
+  });
 });
