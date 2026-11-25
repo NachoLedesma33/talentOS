@@ -94,7 +94,7 @@ describe("formularios de identidad", () => {
     fireEvent.click(screen.getByRole("button", { name: "Iniciar sesión" }));
 
     const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toContain("Credenciales inválidas.");
+    expect(alert.textContent).toContain("Error: Credenciales inválidas.");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(pushMock).not.toHaveBeenCalled();
     expect(
