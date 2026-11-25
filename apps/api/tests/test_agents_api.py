@@ -25,7 +25,7 @@ from app.agents import service as agents_service
 from app.agents import tasks as agents_tasks
 from app.agents.contracts import MATCHING_REVIEW_WORKFLOW
 from app.agents.matching_analyst import PROMPT_VERSION
-from app.agents.models import AgentRun, Approval, ApprovalStatus
+from app.agents.models import AgentEvent, AgentEventType, AgentRun, Approval, ApprovalStatus
 from app.api.routes import agents as agents_routes
 from app.applications.models import Application, ApplicationStage
 from app.assessment.models import RequirementEvaluationStatus
@@ -452,6 +452,67 @@ def test_detail_events_and_approvals_expose_no_sensitive_data(
     assert seeded.org_a not in approval_text
     assert approvals.json()[0]["action_type"] == "create_assessment"
     assert approvals.json()[0]["status"] == "pending"
+
+
+def test_events_expose_tool_metadata_without_internal_keys(
+    client: TestClient, db: DBSession, seeded: _Seed, runtime: _Provider
+) -> None:
+    del runtime
+    run = _start_run(client, seeded, key="tool-metadata")
+    run_id = str(run["id"])
+    correlation_id = uuid.UUID(str(run["correlation_id"]))
+    payloads = (
+        {
+            "tool": "create_assessment_draft",
+            "status": "succeeded",
+            "duration_ms": 12,
+            "error_type": "",
+            "draft_id": str(uuid.uuid4()),
+            "statuses_summary": [{"status": "supported", "count": 1}],
+            "organization_id": seeded.org_a,
+            "idempotency_hash": "0" * 64,
+        },
+        {
+            "tool": "create_message_draft",
+            "status": "succeeded",
+            "duration_ms": 7,
+            "error_type": "",
+            "draft_id": str(uuid.uuid4()),
+            "template": "initial_contact",
+            "char_count": 91,
+            "organization_id": seeded.org_a,
+            "idempotency_hash": "1" * 64,
+        },
+    )
+    for payload in payloads:
+        db.add(
+            AgentEvent(
+                agent_run_id=uuid.UUID(run_id),
+                event_type=AgentEventType.TOOL_INVOKED,
+                correlation_id=correlation_id,
+                payload=payload,
+            )
+        )
+    db.commit()
+
+    response = client.get(
+        f"{_URL}/runs/{run_id}/events?limit=100", headers=_headers(seeded)
+    )
+    assert response.status_code == 200
+    public = {
+        item["payload"]["tool"]: item["payload"]
+        for item in response.json()["items"]
+        if "tool" in item["payload"]
+    }
+    assert {"create_assessment_draft", "create_message_draft"} <= set(public)
+    assert public["create_assessment_draft"]["statuses_summary"] == [
+        {"status": "supported", "count": 1}
+    ]
+    assert public["create_message_draft"]["template"] == "initial_contact"
+    assert public["create_message_draft"]["char_count"] == 91
+    for item in public.values():
+        assert "organization_id" not in item
+        assert "idempotency_hash" not in item
 
 
 def test_decision_records_actor_date_and_audit(

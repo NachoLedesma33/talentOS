@@ -88,6 +88,10 @@ _PUBLIC_EVENT_KEYS = frozenset(
         "node",
         "resumed",
         "status",
+        "statuses_summary",
+        "template",
+        "char_count",
+        "tool",
         "version",
         "workflow",
     }
