@@ -3,6 +3,9 @@
 import { useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
 import type { Candidate, CandidateCreate } from "../lib/types";
+import { Button } from "./ui/shadcn/button";
+import { Input } from "./ui/shadcn/input";
+import { Label } from "./ui/shadcn/label";
 
 function describeError(error: unknown, fallback: string): string {
   if (error instanceof ApiError) {
@@ -49,51 +52,44 @@ export function CandidateForm({ onCreated }: { onCreated?: (candidate: Candidate
     <form onSubmit={handleSubmit} aria-busy={submitting} className="space-y-3">
       <h3 className="text-sm font-semibold">Nuevo candidato</h3>
       <div className="space-y-1">
-        <label htmlFor="candidate-name" className="block text-sm font-semibold">
+        <Label htmlFor="candidate-name" className="block">
           Nombre
-        </label>
-        <input
+        </Label>
+        <Input
           id="candidate-name"
           name="name"
           type="text"
           required
           maxLength={200}
           disabled={submitting}
-          className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm"
         />
       </div>
       <div className="space-y-1">
-        <label htmlFor="candidate-email" className="block text-sm font-semibold">
+        <Label htmlFor="candidate-email" className="block">
           Correo electrónico
-        </label>
-        <input
+        </Label>
+        <Input
           id="candidate-email"
           name="email"
           type="email"
           required
           disabled={submitting}
-          className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm"
         />
       </div>
       <div className="space-y-1">
-        <label htmlFor="candidate-location" className="block text-sm font-semibold">
+        <Label htmlFor="candidate-location" className="block">
           Ubicación
-        </label>
-        <input
+        </Label>
+        <Input
           id="candidate-location"
           name="location"
           type="text"
           disabled={submitting}
-          className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm"
         />
       </div>
-      <button
-        type="submit"
-        disabled={submitting}
-        className="rounded-sm bg-accent px-4 py-2 text-sm font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-60"
-      >
+      <Button type="submit" disabled={submitting}>
         {submitting ? "Creando candidato…" : "Crear candidato"}
-      </button>
+      </Button>
       <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
         {error ? (
           <span role="alert" className="text-text">

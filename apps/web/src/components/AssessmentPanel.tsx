@@ -8,6 +8,10 @@ import type {
   RequirementEvaluation,
   RunAssessmentRequest,
 } from "../lib/types";
+import { Button } from "./ui/shadcn/button";
+import { Card } from "./ui/shadcn/card";
+import { Input } from "./ui/shadcn/input";
+import { Label } from "./ui/shadcn/label";
 import { RequirementEvaluationCard } from "./RequirementEvaluationCard";
 
 const STATUS_LABELS: Record<AssessmentStatus, string> = {
@@ -105,25 +109,20 @@ export function AssessmentPanel() {
 
       <form onSubmit={(event) => void run(event)} className="flex flex-wrap items-end gap-3">
         <div className="min-w-64 flex-1 space-y-1">
-          <label htmlFor="assessment-application-id" className="block text-sm font-semibold">
+          <Label htmlFor="assessment-application-id" className="block">
             ID de postulación
-          </label>
-          <input
+          </Label>
+          <Input
             id="assessment-application-id"
             value={applicationId}
             onChange={(event) => setApplicationId(event.target.value)}
             required
             placeholder="00000000-0000-4000-8000-000000000000"
-            className="w-full rounded-sm border border-border bg-surface px-2 py-2 text-sm"
           />
         </div>
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-on-accent disabled:opacity-60"
-        >
+        <Button type="submit" disabled={loading}>
           {loading ? "Evaluando…" : "Evaluar postulación"}
-        </button>
+        </Button>
       </form>
 
       <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
@@ -132,16 +131,17 @@ export function AssessmentPanel() {
       {error ? (
         <section role="alert" className="space-y-2 rounded-sm border border-border p-3">
           <p className="text-sm">{error}</p>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => {
               setError(null);
               setNotice(null);
             }}
-            className="rounded-sm border border-border px-3 py-1 text-sm font-semibold"
           >
             Reintentar con otra postulación
-          </button>
+          </Button>
         </section>
       ) : null}
       {!assessment && !error && !loading ? (
@@ -171,12 +171,12 @@ export function AssessmentPanel() {
               </div>
             </dl>
             {assessment.review_required ? (
-              <p role="status" className="rounded-sm border border-border px-3 py-2 text-sm">
+              <Card role="status" className="px-3 py-2 text-sm">
                 Esta evaluación requiere revisión humana antes de considerarse cerrada.
-              </p>
+              </Card>
             ) : null}
             <div className="grid gap-3 md:grid-cols-2">
-              <div className="space-y-3 rounded-md border border-border p-3">
+              <Card className="space-y-3 p-3">
                 <List
                   title="Fortalezas"
                   items={assessment.summary.strengths}
@@ -187,8 +187,8 @@ export function AssessmentPanel() {
                   items={assessment.summary.gaps}
                   empty="Sin brechas registradas."
                 />
-              </div>
-              <div className="space-y-3 rounded-md border border-border p-3">
+              </Card>
+              <Card className="space-y-3 p-3">
                 <List
                   title="Preguntas sugeridas"
                   items={assessment.summary.questions}
@@ -199,7 +199,7 @@ export function AssessmentPanel() {
                   items={assessment.limitations}
                   empty="Sin limitaciones registradas."
                 />
-              </div>
+              </Card>
             </div>
           </section>
 
