@@ -4,9 +4,11 @@ import base64
 import json
 import uuid
 from collections.abc import Iterator, Mapping
+from concurrent.futures import Future
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import cast
+from typing import Any, cast
 
 import pytest
 from fastapi.testclient import TestClient
@@ -142,6 +144,31 @@ def _matching_output(seed: Seed) -> dict[str, object]:
         "model_version": "test-model",
         "prompt_version": MATCHING_PROMPT_VERSION,
     }
+
+
+class _SyncExecutor:
+    def submit(self, fn: Any, *args: Any, **kwargs: Any) -> Future[Any]:
+        future: Future[Any] = Future()
+        try:
+            future.set_result(fn(*args, **kwargs))
+        except BaseException as exc:
+            future.set_exception(exc)
+        return future
+
+    def shutdown(self, wait: bool = True, *, cancel_futures: bool = False) -> None:
+        return None
+
+
+@contextmanager
+def _sync_executor(_config: Any) -> Iterator[_SyncExecutor]:
+    yield _SyncExecutor()
+
+
+@pytest.fixture(autouse=True)
+def _sync_langgraph_executor(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "langgraph.pregel._executor.get_executor_for_config", _sync_executor
+    )
 
 
 @pytest.fixture
