@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { WorkspaceShell } from "../../components/WorkspaceShell";
 import { ApiError, apiFetch } from "../../lib/api";
 
 type ApplicationStage =
@@ -184,6 +185,7 @@ export default function AnalyticsPage() {
   }
 
   return (
+    <WorkspaceShell section="Analítica">
     <section aria-labelledby="analytics-heading" aria-busy={status === "loading"} className="space-y-6">
       <div className="space-y-1">
         <h1 id="analytics-heading" className="text-2xl font-semibold tracking-tight">
@@ -329,5 +331,6 @@ export default function AnalyticsPage() {
         </>
       ) : null}
     </section>
+    </WorkspaceShell>
   );
 }

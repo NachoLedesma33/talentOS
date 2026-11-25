@@ -1,3 +1,5 @@
+import { WorkspaceShell } from "../components/WorkspaceShell";
+
 const apiEndpoints = [
   { url: "http://localhost:8000/health" },
   { url: "http://localhost:8000/ready" },
@@ -5,7 +7,8 @@ const apiEndpoints = [
 
 export default function Home() {
   return (
-    <div className="space-y-5">
+    <WorkspaceShell section="TalentOS">
+      <div className="space-y-5">
       <section className="space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight">TalentOS</h1>
         <p className="text-base text-text-muted">
@@ -29,7 +32,7 @@ export default function Home() {
             <a href="/register">Crear cuenta</a>
           </li>
           <li>
-            <a href="/dashboard">Panel</a>
+            <a href="/dashboard">Ir al panel</a>
           </li>
           <li>
             <a href="/jobs">Vacantes</a>
@@ -64,6 +67,7 @@ export default function Home() {
           Comprueba estos endpoints con la API local en ejecución.
         </p>
       </section>
-    </div>
+      </div>
+    </WorkspaceShell>
   );
 }

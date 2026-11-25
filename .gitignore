@@ -32,3 +32,5 @@ playwright-report/
 coverage/
 junit.xml
 *.log
+
+.serena/

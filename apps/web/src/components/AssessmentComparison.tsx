@@ -120,7 +120,7 @@ export function AssessmentComparison() {
         <button
           type="submit"
           disabled={loading}
-          className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-on-accent disabled:opacity-60"
         >
           {loading ? "Comparando…" : "Comparar evaluaciones"}
         </button>

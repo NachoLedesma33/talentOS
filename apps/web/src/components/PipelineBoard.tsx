@@ -182,7 +182,7 @@ export function PipelineBoard() {
           </div>
           <button
             type="submit"
-            className="rounded-sm bg-accent px-4 py-2 text-sm font-semibold text-white"
+            className="rounded-sm bg-accent px-4 py-2 text-sm font-semibold text-on-accent"
           >
             Aplicar filtros
           </button>
@@ -330,7 +330,7 @@ export function PipelineBoard() {
                         void handleStageChange(application);
                       }}
                       disabled={busyId !== null}
-                      className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                      className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {busyId === application.id ? "Cambiando…" : "Avanzar etapa"}
                     </button>

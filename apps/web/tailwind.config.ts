@@ -10,7 +10,11 @@ const config: Config = {
         text: "var(--color-text)",
         "text-muted": "var(--color-text-muted)",
         border: "var(--color-border)",
+        "border-subtle": "var(--color-border-subtle)",
         accent: "var(--color-accent)",
+        "on-accent": "var(--color-on-accent)",
+        success: "var(--color-success)",
+        warning: "var(--color-warning)",
       },
       fontFamily: {
         sans: "var(--font-sans)",

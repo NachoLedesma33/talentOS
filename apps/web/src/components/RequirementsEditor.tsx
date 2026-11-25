@@ -172,7 +172,7 @@ export function RequirementsEditor({ job }: { job: Job | null }) {
         <button
           type="submit"
           disabled={submitting || !job}
-          className="rounded-sm bg-accent px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-sm bg-accent px-4 py-2 text-sm font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-60"
         >
           {submitting ? "Añadiendo requisito…" : "Añadir requisito"}
         </button>

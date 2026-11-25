@@ -42,7 +42,8 @@ Ejecutar los aplicables al cambio y registrar comandos con su resultado real:
 | Frontend typecheck | `cd apps/web && npx tsc --noEmit` |
 | Frontend lint | `cd apps/web && npm run lint` |
 | Frontend unit | `cd apps/web && npm test -- --run` |
-| E2E | `npx playwright test` |
+| E2E | `cd apps/web && npm run test:e2e` |
+| Playwright browser | `cd apps/web && npx playwright install --with-deps chromium` |
 | Infra local | `docker compose config && docker compose up -d` |
 
 Fallos reales se corrigen; no se omiten con skip, `@pytest.mark.skip`, `@vitest`, `xfail`, cambios de umbral, exclusiones de lint ni desactivación de workflows de CI como mecanismo para pasar. Un skip legítimo debe documentar causa, alcance y plan de eliminación, y nunca ocultar un requisito de la tarea.

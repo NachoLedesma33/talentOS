@@ -24,12 +24,42 @@ const ROLES: readonly MembershipRole[] = [
 ];
 
 const INSUFFICIENT_MESSAGE = "Permisos insuficientes.";
+const UNAUTHORIZED_MESSAGE = "Sesión caducada.";
+const NOT_FOUND_MESSAGE = "No encontrado.";
+const SERVER_ERROR_MESSAGE = "Error del servidor.";
+const ACTION_IN_PROGRESS_MESSAGE = "Acción en curso…";
 
-type LoadStatus = "idle" | "loading" | "ready" | "forbidden" | "error";
+type LoadStatus =
+  | "idle"
+  | "loading"
+  | "ready"
+  | "forbidden"
+  | "unauthorized"
+  | "notFound"
+  | "serverError"
+  | "error";
 type ActionStatus = "idle" | "loading" | "success" | "forbidden" | "error";
 
 function statusFromError(error: unknown): "forbidden" | "error" {
   return error instanceof ApiError && error.status === 403 ? "forbidden" : "error";
+}
+
+function loadStatusFromError(error: unknown): LoadStatus {
+  if (error instanceof ApiError) {
+    if (error.status === 401) {
+      return "unauthorized";
+    }
+    if (error.status === 403) {
+      return "forbidden";
+    }
+    if (error.status === 404) {
+      return "notFound";
+    }
+    if (error.status === 500) {
+      return "serverError";
+    }
+  }
+  return "error";
 }
 
 function messageFromError(error: unknown, fallback: string): string {
@@ -71,7 +101,7 @@ export function MembersPanel({ organizationId }: { organizationId: string | null
     (error: unknown) => {
       setLoadedOrganizationId(organizationId);
       setMembers([]);
-      setLoadStatus(statusFromError(error));
+      setLoadStatus(loadStatusFromError(error));
       setLoadMessage(messageFromError(error, "No se pudieron cargar los miembros."));
     },
     [organizationId],
@@ -186,6 +216,12 @@ export function MembersPanel({ organizationId }: { organizationId: string | null
   const visibleActionMessage =
     actionOrganizationId === organizationId ? actionMessage : null;
   const busy = visibleActionStatus === "loading" || updatingMemberId !== null;
+  const actionAnnouncementRole =
+    visibleActionStatus === "forbidden" || visibleActionStatus === "error"
+      ? "alert"
+      : busy || visibleActionMessage
+        ? "status"
+        : undefined;
 
   return (
     <section aria-labelledby="members-heading" className="space-y-3">
@@ -202,6 +238,21 @@ export function MembersPanel({ organizationId }: { organizationId: string | null
         {visibleLoadStatus === "forbidden" ? (
           <p role="alert" className="text-sm text-text-muted">
             {INSUFFICIENT_MESSAGE}
+          </p>
+        ) : null}
+        {visibleLoadStatus === "unauthorized" ? (
+          <p role="alert" className="text-sm text-text-muted">
+            {UNAUTHORIZED_MESSAGE}
+          </p>
+        ) : null}
+        {visibleLoadStatus === "notFound" ? (
+          <p role="alert" className="text-sm text-text-muted">
+            {NOT_FOUND_MESSAGE}
+          </p>
+        ) : null}
+        {visibleLoadStatus === "serverError" ? (
+          <p role="alert" className="text-sm text-text-muted">
+            {SERVER_ERROR_MESSAGE}
           </p>
         ) : null}
         {visibleLoadStatus === "error" ? (
@@ -294,7 +345,7 @@ export function MembersPanel({ organizationId }: { organizationId: string | null
         <button
           type="submit"
           disabled={busy}
-          className="rounded-sm bg-accent px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+          className="rounded-sm bg-accent px-4 py-2 text-sm font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-60"
         >
           {visibleActionStatus === "loading" && updatingMemberId === null
             ? "Invitando…"
@@ -302,14 +353,10 @@ export function MembersPanel({ organizationId }: { organizationId: string | null
         </button>
         <p
           aria-live="polite"
-          role={
-            visibleActionStatus === "forbidden" || visibleActionStatus === "error"
-              ? "alert"
-              : undefined
-          }
+          role={actionAnnouncementRole}
           className="min-h-5 text-sm text-text-muted"
         >
-          {visibleActionMessage}
+          {visibleActionMessage ?? (busy ? ACTION_IN_PROGRESS_MESSAGE : null)}
         </p>
       </form>
     </section>

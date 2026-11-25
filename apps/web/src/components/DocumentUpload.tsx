@@ -122,7 +122,7 @@ export function DocumentUpload({
       <button
         type="submit"
         disabled={busy}
-        className="rounded-sm bg-accent px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+        className="rounded-sm bg-accent px-4 py-2 text-sm font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-60"
       >
         {phase === "uploading"
           ? "Subiendo…"

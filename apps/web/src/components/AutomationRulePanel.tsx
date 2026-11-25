@@ -427,7 +427,7 @@ export function AutomationRulePanel() {
         <button
           type="submit"
           disabled={working}
-          className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-on-accent disabled:opacity-60"
         >
           {busy === "create" ? "Creando…" : "Crear automatización"}
         </button>
@@ -864,7 +864,7 @@ export function AutomationRulePanel() {
             <button
               type="submit"
               disabled={working}
-              className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-on-accent disabled:opacity-60"
             >
               {busy === "version" ? "Guardando versión…" : "Guardar versión"}
             </button>
@@ -915,7 +915,7 @@ export function AutomationRulePanel() {
                 type="button"
                 disabled={working}
                 onClick={() => void execute("live")}
-                className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-on-accent disabled:opacity-60"
               >
                 {busy === "execution:live" ? "Encolando…" : "Run (live)"}
               </button>

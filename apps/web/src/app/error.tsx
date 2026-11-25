@@ -20,10 +20,13 @@ export default function Error({ error, reset }: ErrorProps) {
       <button
         type="button"
         onClick={reset}
-        className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-white"
+        className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-on-accent"
       >
         Reintentar
       </button>
+      <p className="text-sm">
+        <a href="/dashboard">Volver al panel</a>
+      </p>
     </section>
   );
 }

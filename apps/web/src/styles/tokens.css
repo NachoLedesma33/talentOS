@@ -6,7 +6,11 @@
   --color-text: #1b2430;
   --color-text-muted: #4b5563;
   --color-border: #7a8794;
+  --color-border-subtle: #e4e4e7;
   --color-accent: #0b5cad;
+  --color-on-accent: #ffffff;
+  --color-success: #166534;
+  --color-warning: #92400e;
   --color-focus: #0b5cad;
 
   --focus-ring-width: 3px;

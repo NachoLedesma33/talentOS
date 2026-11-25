@@ -2,11 +2,19 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { MembersPanel } from "../../components/MembersPanel";
+import { WorkspaceShell } from "../../components/WorkspaceShell";
 import { OrganizationSelector } from "../../components/OrganizationSelector";
 import { ApiError, apiFetch } from "../../lib/api";
 import type { MeResponse } from "../../lib/types";
 
-type SessionStatus = "loading" | "ready" | "unauthorized" | "forbidden" | "error";
+type SessionStatus =
+  | "loading"
+  | "ready"
+  | "unauthorized"
+  | "forbidden"
+  | "notFound"
+  | "serverError"
+  | "error";
 
 function requestSession(): Promise<MeResponse> {
   return apiFetch<MeResponse>("/api/v1/auth/me");
@@ -31,6 +39,12 @@ export default function DashboardPage() {
       setMessage(error.message);
     } else if (error instanceof ApiError && error.status === 403) {
       setStatus("forbidden");
+      setMessage(error.message);
+    } else if (error instanceof ApiError && error.status === 404) {
+      setStatus("notFound");
+      setMessage(error.message);
+    } else if (error instanceof ApiError && error.status === 500) {
+      setStatus("serverError");
       setMessage(error.message);
     } else {
       setStatus("error");
@@ -90,6 +104,24 @@ export default function DashboardPage() {
     );
   }
 
+  if (status === "notFound") {
+    return (
+      <section role="alert" className="space-y-3">
+        <h1 className="text-2xl font-semibold tracking-tight">No encontrado.</h1>
+        <p className="text-sm text-text-muted">{message}</p>
+      </section>
+    );
+  }
+
+  if (status === "serverError") {
+    return (
+      <section role="alert" className="space-y-3">
+        <h1 className="text-2xl font-semibold tracking-tight">Error del servidor.</h1>
+        <p className="text-sm text-text-muted">{message}</p>
+      </section>
+    );
+  }
+
   if (status === "error") {
     return (
       <section role="alert" className="space-y-3">
@@ -113,8 +145,9 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <section className="space-y-1">
+    <WorkspaceShell>
+      <div className="space-y-6">
+        <section className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Panel</h1>
         <p className="text-sm text-text-muted">
           Sesión activa: {user?.name} ({user?.email})
@@ -163,6 +196,7 @@ export default function DashboardPage() {
           </ul>
         </nav>
       </section>
-    </div>
+      </div>
+    </WorkspaceShell>
   );
 }

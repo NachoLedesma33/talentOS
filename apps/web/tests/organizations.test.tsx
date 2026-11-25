@@ -108,6 +108,40 @@ describe("identidad y organizaciones", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("muestra no encontrado cuando /me responde 404", async () => {
+    const envelope = {
+      error: {
+        code: "not_found",
+        message: "Recurso no encontrado.",
+        request_id: "req-me-404",
+      },
+    };
+    const fetchMock = mockFetch(envelope, 404);
+
+    render(<DashboardPage />);
+
+    expect(await screen.findByRole("heading", { name: "No encontrado." })).toBeTruthy();
+    expect(screen.getByRole("alert").textContent).toContain("No encontrado.");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("muestra error del servidor cuando /me responde 500", async () => {
+    const envelope = {
+      error: {
+        code: "internal_error",
+        message: "Fallo interno del servidor.",
+        request_id: "req-me-500",
+      },
+    };
+    const fetchMock = mockFetch(envelope, 500);
+
+    render(<DashboardPage />);
+
+    expect(await screen.findByRole("heading", { name: "Error del servidor." })).toBeTruthy();
+    expect(screen.getByRole("alert").textContent).toContain("Error del servidor.");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("carga miembros con la organización activa del localStorage", async () => {
     window.localStorage.setItem(ACTIVE_ORG_STORAGE_KEY, "org-1");
     const fetchMock = mockFetch(members);

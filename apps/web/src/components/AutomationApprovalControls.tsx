@@ -210,7 +210,7 @@ export function AutomationApprovalControls({
                       type="submit"
                       disabled={isBusy || !selections[approval.id]}
                       aria-label={`Registrar decisión para ${approval.action_type}`}
-                      className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                      className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-on-accent disabled:opacity-60"
                     >
                       {busy === `decide:${approval.id}` ? "Registrando…" : "Registrar decisión"}
                     </button>

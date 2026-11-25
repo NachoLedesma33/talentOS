@@ -32,6 +32,8 @@ Servicios locales previstos (SDD 17.3): `web`, `api`, `postgres`, `redis`, `work
 
 La cadena de CI es la del SDD 17.4: dependencias reproducibles → lint → typecheck → unitarios → integración → build frontend → build backend → escaneo de dependencias → validación de migraciones → deploy a staging tras aprobación. Detalle y comandos en `AGENTS.md` y `docs/DEVELOPMENT_WORKFLOW.md`.
 
+En el entorno `test`, la instalación de dependencias incluye Chromium de Playwright con `npx playwright install --with-deps chromium`; el paso E2E ejecuta `cd apps/web && npm run test:e2e` contra `WEB_BASE_URL` (default `http://localhost:3000`). Sin secretos ni URLs externas.
+
 ## Variables de entorno (SDD 17.2)
 
 Bloque a crear textualmente en `.env.example` durante Fase 1. Campos vacíos se dejan vacíos: se completan en el entorno correspondiente, nunca en el repositorio. El valor de `DATABASE_URL` es el ejemplo local documentado en el SDD, no una credencial real.
