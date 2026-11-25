@@ -52,7 +52,7 @@ services:
     build:
       context: .
       dockerfile: infra/docker/worker/Dockerfile
-    command: ["celery", "-A", "app.workers.celery_app:celery_app", "worker", "--loglevel=info"]
+    command: ["celery", "-A", "app.workers.celery_app:celery_app", "worker", "--beat", "--loglevel=info"]
     # Sin secretos en el repo: valores de ejemplo y, si existe, .env local no versionado.
     env_file:
       - .env.example
