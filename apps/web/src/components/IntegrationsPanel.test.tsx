@@ -144,7 +144,10 @@ describe("IntegrationsPanel", () => {
     render(<IntegrationsPanel />);
     expect(screen.getByRole("status").textContent).toContain("Cargando integraciones…");
 
-    expect(await screen.findByRole("table")).toBeTruthy();
+    const table = await screen.findByRole("table", {
+      name: "Integraciones de la organización activa",
+    });
+    expect(table.parentElement?.className).toContain("overflow-x-auto");
     expect(screen.getByText("clave-sintetica-02")).toBeTruthy();
     expect(screen.getByText("webhook_outbound")).toBeTruthy();
     expect(document.body.textContent).not.toContain(SECRET_MARKER);
@@ -199,6 +202,10 @@ describe("IntegrationsPanel", () => {
     await selectProvider("webhook_outbound");
 
     expect(await screen.findByRole("heading", { name: "Entregas salientes" })).toBeTruthy();
+    const deliveriesTable = await screen.findByRole("table", {
+      name: "Entregas salientes registradas",
+    });
+    expect(deliveriesTable.parentElement?.className).toContain("overflow-x-auto");
     const retry = await screen.findByRole("button", { name: `Reintentar entrega ${DELIVERY_ID}` });
     fireEvent.click(retry);
 
@@ -239,6 +246,10 @@ describe("IntegrationsPanel", () => {
     await selectProvider("email_sandbox");
 
     expect(await screen.findByRole("heading", { name: "Borradores de correo" })).toBeTruthy();
+    const draftsTable = await screen.findByRole("table", {
+      name: "Borradores de correo sandbox",
+    });
+    expect(draftsTable.parentElement?.className).toContain("overflow-x-auto");
     expect(
       screen.getByRole("button", { name: `Aprobar borrador ${DRAFT_PENDING_ID}` }),
     ).toBeTruthy();

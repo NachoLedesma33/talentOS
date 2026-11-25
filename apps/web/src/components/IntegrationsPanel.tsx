@@ -314,42 +314,44 @@ export function IntegrationsPanel() {
 
       {list && list.items.length > 0 ? (
         <div className="space-y-2">
-          <table className="w-full border-collapse text-sm">
-            <caption className="sr-only">Integraciones de la organización activa</caption>
-            <thead>
-              <tr className="border-b border-border text-left">
-                <th scope="col" className="px-2 py-2 font-semibold">Proveedor</th>
-                <th scope="col" className="px-2 py-2 font-semibold">Estado</th>
-                <th scope="col" className="px-2 py-2 font-semibold">Versión de config.</th>
-                <th scope="col" className="px-2 py-2 font-semibold">ID de clave</th>
-                <th scope="col" className="px-2 py-2 font-semibold">Creada (UTC)</th>
-                <th scope="col" className="px-2 py-2 font-semibold">Actualizada (UTC)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {list.items.map((item) => (
-                <tr key={item.id} className="border-b border-border">
-                  <td className="px-2 py-2">
-                    <button
-                      type="button"
-                      disabled={working}
-                      onClick={() => void selectIntegration(item)}
-                      aria-current={item.id === selected?.id ? "true" : undefined}
-                      aria-label={`Seleccionar integración ${item.provider}`}
-                      className="rounded-sm border border-border bg-surface px-2 py-1 text-left font-semibold disabled:opacity-60"
-                    >
-                      {PROVIDER_LABELS[item.provider]} · <code>{item.provider}</code>
-                    </button>
-                  </td>
-                  <td className="px-2 py-2">{INTEGRATION_STATUS_LABELS[item.status]}</td>
-                  <td className="px-2 py-2">{item.config_version}</td>
-                  <td className="px-2 py-2"><code>{item.key_id}</code></td>
-                  <td className="px-2 py-2">{item.created_at}</td>
-                  <td className="px-2 py-2">{item.updated_at}</td>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <caption className="sr-only">Integraciones de la organización activa</caption>
+              <thead>
+                <tr className="border-b border-border text-left">
+                  <th scope="col" className="px-2 py-2 font-semibold">Proveedor</th>
+                  <th scope="col" className="px-2 py-2 font-semibold">Estado</th>
+                  <th scope="col" className="px-2 py-2 font-semibold">Versión de config.</th>
+                  <th scope="col" className="px-2 py-2 font-semibold">ID de clave</th>
+                  <th scope="col" className="px-2 py-2 font-semibold">Creada (UTC)</th>
+                  <th scope="col" className="px-2 py-2 font-semibold">Actualizada (UTC)</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {list.items.map((item) => (
+                  <tr key={item.id} className="border-b border-border">
+                    <td className="px-2 py-2">
+                      <button
+                        type="button"
+                        disabled={working}
+                        onClick={() => void selectIntegration(item)}
+                        aria-current={item.id === selected?.id ? "true" : undefined}
+                        aria-label={`Seleccionar integración ${item.provider}`}
+                        className="rounded-sm border border-border bg-surface px-2 py-1 text-left font-semibold disabled:opacity-60"
+                      >
+                        {PROVIDER_LABELS[item.provider]} · <code>{item.provider}</code>
+                      </button>
+                    </td>
+                    <td className="px-2 py-2">{INTEGRATION_STATUS_LABELS[item.status]}</td>
+                    <td className="px-2 py-2">{item.config_version}</td>
+                    <td className="px-2 py-2"><code>{item.key_id}</code></td>
+                    <td className="px-2 py-2">{item.created_at}</td>
+                    <td className="px-2 py-2">{item.updated_at}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
           <div className="flex flex-wrap items-center gap-3 text-sm text-text-muted">
             <span>{`Página ${currentPage} de ${totalPages} · ${list.total} registros`}</span>
             <button
@@ -418,47 +420,49 @@ export function IntegrationsPanel() {
                 </p>
               ) : null}
               {deliveries && deliveries.length > 0 ? (
-                <table className="w-full border-collapse text-sm">
-                  <caption className="sr-only">Entregas salientes registradas</caption>
-                  <thead>
-                    <tr className="border-b border-border text-left">
-                      <th scope="col" className="px-2 py-2 font-semibold">Evento</th>
-                      <th scope="col" className="px-2 py-2 font-semibold">Estado</th>
-                      <th scope="col" className="px-2 py-2 font-semibold">Intentos</th>
-                      <th scope="col" className="px-2 py-2 font-semibold">Error</th>
-                      <th scope="col" className="px-2 py-2 font-semibold">HTTP</th>
-                      <th scope="col" className="px-2 py-2 font-semibold">Creada (UTC)</th>
-                      <th scope="col" className="px-2 py-2 font-semibold">Acción</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {deliveries.map((delivery) => (
-                      <tr key={delivery.id} className="border-b border-border">
-                        <td className="px-2 py-2"><code>{delivery.event_type}</code></td>
-                        <td className="px-2 py-2">{DELIVERY_STATUS_LABELS[delivery.status]}</td>
-                        <td className="px-2 py-2">{delivery.attempts}</td>
-                        <td className="px-2 py-2">{delivery.last_error_code ?? "—"}</td>
-                        <td className="px-2 py-2">{delivery.last_status_code ?? "—"}</td>
-                        <td className="px-2 py-2">{delivery.created_at}</td>
-                        <td className="px-2 py-2">
-                          {delivery.status === "failed" || delivery.status === "dead_letter" ? (
-                            <button
-                              type="button"
-                              disabled={working}
-                              onClick={() => void retryDelivery(delivery)}
-                              aria-label={`Reintentar entrega ${delivery.id}`}
-                              className="rounded-sm border border-border px-2 py-1 text-sm font-semibold disabled:opacity-60"
-                            >
-                              Reintentar
-                            </button>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-sm">
+                    <caption className="sr-only">Entregas salientes registradas</caption>
+                    <thead>
+                      <tr className="border-b border-border text-left">
+                        <th scope="col" className="px-2 py-2 font-semibold">Evento</th>
+                        <th scope="col" className="px-2 py-2 font-semibold">Estado</th>
+                        <th scope="col" className="px-2 py-2 font-semibold">Intentos</th>
+                        <th scope="col" className="px-2 py-2 font-semibold">Error</th>
+                        <th scope="col" className="px-2 py-2 font-semibold">HTTP</th>
+                        <th scope="col" className="px-2 py-2 font-semibold">Creada (UTC)</th>
+                        <th scope="col" className="px-2 py-2 font-semibold">Acción</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {deliveries.map((delivery) => (
+                        <tr key={delivery.id} className="border-b border-border">
+                          <td className="px-2 py-2"><code>{delivery.event_type}</code></td>
+                          <td className="px-2 py-2">{DELIVERY_STATUS_LABELS[delivery.status]}</td>
+                          <td className="px-2 py-2">{delivery.attempts}</td>
+                          <td className="px-2 py-2">{delivery.last_error_code ?? "—"}</td>
+                          <td className="px-2 py-2">{delivery.last_status_code ?? "—"}</td>
+                          <td className="px-2 py-2">{delivery.created_at}</td>
+                          <td className="px-2 py-2">
+                            {delivery.status === "failed" || delivery.status === "dead_letter" ? (
+                              <button
+                                type="button"
+                                disabled={working}
+                                onClick={() => void retryDelivery(delivery)}
+                                aria-label={`Reintentar entrega ${delivery.id}`}
+                                className="rounded-sm border border-border px-2 py-1 text-sm font-semibold disabled:opacity-60"
+                              >
+                                Reintentar
+                              </button>
+                            ) : (
+                              "—"
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : detailLoading ? null : (
                 <p className="rounded-sm border border-border bg-surface-muted p-3 text-sm text-text-muted">
                   No hay entregas salientes registradas.
@@ -478,67 +482,69 @@ export function IntegrationsPanel() {
                 </p>
               ) : null}
               {drafts && drafts.length > 0 ? (
-                <table className="w-full border-collapse text-sm">
-                  <caption className="sr-only">Borradores de correo sandbox</caption>
-                  <thead>
-                    <tr className="border-b border-border text-left">
-                      <th scope="col" className="px-2 py-2 font-semibold">Plantilla</th>
-                      <th scope="col" className="px-2 py-2 font-semibold">Aprobación</th>
-                      <th scope="col" className="px-2 py-2 font-semibold">Entrega</th>
-                      <th scope="col" className="px-2 py-2 font-semibold">Intentos</th>
-                      <th scope="col" className="px-2 py-2 font-semibold">Creado (UTC)</th>
-                      <th scope="col" className="px-2 py-2 font-semibold">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {drafts.map((draft) => (
-                      <tr key={draft.id} className="border-b border-border">
-                        <td className="px-2 py-2">{EMAIL_TEMPLATE_LABELS[draft.template]}</td>
-                        <td className="px-2 py-2">{APPROVAL_LABELS[draft.approval_status]}</td>
-                        <td className="px-2 py-2">{DELIVERY_LABELS[draft.delivery_status]}</td>
-                        <td className="px-2 py-2">{draft.attempts}</td>
-                        <td className="px-2 py-2">{draft.created_at}</td>
-                        <td className="px-2 py-2">
-                          <div className="flex flex-wrap gap-2">
-                            {draft.approval_status === "pending" ? (
-                              <>
-                                <button
-                                  type="button"
-                                  disabled={working}
-                                  onClick={() => void decideDraft(draft, "approve")}
-                                  aria-label={`Aprobar borrador ${draft.id}`}
-                                  className="rounded-sm border border-border px-2 py-1 text-sm font-semibold disabled:opacity-60"
-                                >
-                                  Aprobar
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={working}
-                                  onClick={() => void decideDraft(draft, "reject")}
-                                  aria-label={`Rechazar borrador ${draft.id}`}
-                                  className="rounded-sm border border-border px-2 py-1 text-sm font-semibold disabled:opacity-60"
-                                >
-                                  Rechazar
-                                </button>
-                              </>
-                            ) : null}
-                            {draft.approval_status === "approved" && draft.delivery_status !== "sent" ? (
-                              <button
-                                type="button"
-                                disabled={working}
-                                onClick={() => void decideDraft(draft, "send")}
-                                aria-label={`Enviar borrador ${draft.id}`}
-                                className="rounded-sm bg-accent px-2 py-1 text-sm font-semibold text-white disabled:opacity-60"
-                              >
-                                Enviar
-                              </button>
-                            ) : null}
-                          </div>
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-sm">
+                    <caption className="sr-only">Borradores de correo sandbox</caption>
+                    <thead>
+                      <tr className="border-b border-border text-left">
+                        <th scope="col" className="px-2 py-2 font-semibold">Plantilla</th>
+                        <th scope="col" className="px-2 py-2 font-semibold">Aprobación</th>
+                        <th scope="col" className="px-2 py-2 font-semibold">Entrega</th>
+                        <th scope="col" className="px-2 py-2 font-semibold">Intentos</th>
+                        <th scope="col" className="px-2 py-2 font-semibold">Creado (UTC)</th>
+                        <th scope="col" className="px-2 py-2 font-semibold">Acciones</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {drafts.map((draft) => (
+                        <tr key={draft.id} className="border-b border-border">
+                          <td className="px-2 py-2">{EMAIL_TEMPLATE_LABELS[draft.template]}</td>
+                          <td className="px-2 py-2">{APPROVAL_LABELS[draft.approval_status]}</td>
+                          <td className="px-2 py-2">{DELIVERY_LABELS[draft.delivery_status]}</td>
+                          <td className="px-2 py-2">{draft.attempts}</td>
+                          <td className="px-2 py-2">{draft.created_at}</td>
+                          <td className="px-2 py-2">
+                            <div className="flex flex-wrap gap-2">
+                              {draft.approval_status === "pending" ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    disabled={working}
+                                    onClick={() => void decideDraft(draft, "approve")}
+                                    aria-label={`Aprobar borrador ${draft.id}`}
+                                    className="rounded-sm border border-border px-2 py-1 text-sm font-semibold disabled:opacity-60"
+                                  >
+                                    Aprobar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    disabled={working}
+                                    onClick={() => void decideDraft(draft, "reject")}
+                                    aria-label={`Rechazar borrador ${draft.id}`}
+                                    className="rounded-sm border border-border px-2 py-1 text-sm font-semibold disabled:opacity-60"
+                                  >
+                                    Rechazar
+                                  </button>
+                                </>
+                              ) : null}
+                              {draft.approval_status === "approved" && draft.delivery_status !== "sent" ? (
+                                <button
+                                  type="button"
+                                  disabled={working}
+                                  onClick={() => void decideDraft(draft, "send")}
+                                  aria-label={`Enviar borrador ${draft.id}`}
+                                  className="rounded-sm bg-accent px-2 py-1 text-sm font-semibold text-white disabled:opacity-60"
+                                >
+                                  Enviar
+                                </button>
+                              ) : null}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : detailLoading ? null : (
                 <p className="rounded-sm border border-border bg-surface-muted p-3 text-sm text-text-muted">
                   No hay borradores de correo registrados.
