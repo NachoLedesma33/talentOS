@@ -11,6 +11,10 @@ import type {
   InterviewGuideSummary,
   InterviewQuestion,
 } from "../lib/types";
+import { Button } from "./ui/shadcn/button";
+import { Card } from "./ui/shadcn/card";
+import { Input } from "./ui/shadcn/input";
+import { Label } from "./ui/shadcn/label";
 import { GuideHistory } from "./GuideHistory";
 import { QuestionEditor } from "./QuestionEditor";
 
@@ -144,25 +148,20 @@ export function InterviewGuidePanel() {
 
       <form onSubmit={(event) => void generate(event)} className="flex flex-wrap items-end gap-3">
         <div className="min-w-64 flex-1 space-y-1">
-          <label htmlFor="interview-application-id" className="block text-sm font-semibold">
+          <Label htmlFor="interview-application-id" className="block">
             ID de postulación
-          </label>
-          <input
+          </Label>
+          <Input
             id="interview-application-id"
             value={applicationId}
             onChange={(event) => setApplicationId(event.target.value)}
             required
             placeholder="00000000-0000-4000-8000-000000000000"
-            className="w-full rounded-sm border border-border bg-surface px-2 py-2 text-sm"
           />
         </div>
-        <button
-          type="submit"
-          disabled={busy}
-          className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-on-accent disabled:opacity-60"
-        >
+        <Button type="submit" disabled={busy}>
           {generating ? "Generando…" : "Generar guía"}
-        </button>
+        </Button>
       </form>
 
       <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
@@ -177,16 +176,17 @@ export function InterviewGuidePanel() {
       {error ? (
         <section role="alert" className="space-y-2 rounded-sm border border-border p-3">
           <p className="text-sm">{error}</p>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => {
               setError(null);
               setNotice(null);
             }}
-            className="rounded-sm border border-border px-3 py-1 text-sm font-semibold"
           >
             Revisar y reintentar
-          </button>
+          </Button>
         </section>
       ) : null}
 
@@ -199,14 +199,15 @@ export function InterviewGuidePanel() {
             <ul className="flex flex-wrap gap-2">
               {guides.map((item) => (
                 <li key={item.id}>
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     disabled={busy}
                     onClick={() => void openGuide(item.id)}
-                    className="rounded-sm border border-border bg-surface px-3 py-1 text-sm font-semibold disabled:opacity-60"
                   >
                     {item.title} · v{item.version}
-                  </button>
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -250,22 +251,21 @@ export function InterviewGuidePanel() {
             </dl>
             <p className="text-sm">{`Revisión requerida: ${guide.review_required ? "sí" : "no"}`}</p>
             {guide.needs_review ? (
-              <p role="status" className="rounded-sm border border-border px-3 py-2 text-sm">
+              <Card role="status" className="px-3 py-2 text-sm">
                 La guía conserva observaciones pendientes de revisión humana.
-              </p>
+              </Card>
             ) : null}
-            <button
+            <Button
               type="button"
               disabled={publishing || guide.status !== "draft"}
               onClick={() => void publish()}
-              className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-on-accent disabled:opacity-60"
             >
               {guide.status === "published"
                 ? "Guía ya publicada"
                 : publishing
                   ? "Publicando…"
                   : "Publicar guía"}
-            </button>
+            </Button>
           </section>
 
           <QuestionEditor

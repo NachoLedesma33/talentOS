@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, apiFetch } from "../lib/api";
 import type { Extraction, ExtractionField, ReviewResult, ReviewSummary } from "../lib/types";
+import { Button } from "./ui/shadcn/button";
+import { Card } from "./ui/shadcn/card";
+import { Input } from "./ui/shadcn/input";
+import { Label } from "./ui/shadcn/label";
 
 const FIELD_LABELS: Record<ExtractionField["field_name"], string> = {
   name: "Nombre",
@@ -136,13 +140,9 @@ export function DocumentReview({ documentId }: { documentId: string }) {
     return (
       <section role="alert" className="space-y-2">
         <p>{error ?? "No se pudo cargar la extracción."}</p>
-        <button
-          type="button"
-          onClick={() => void load()}
-          className="rounded-sm border border-border px-3 py-2 text-sm font-semibold"
-        >
+        <Button type="button" variant="outline" onClick={() => void load()}>
           Reintentar
-        </button>
+        </Button>
       </section>
     );
   }
@@ -153,21 +153,21 @@ export function DocumentReview({ documentId }: { documentId: string }) {
         <h2 id="review-heading" className="text-lg font-semibold">
           Revisión de extracción
         </h2>
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={() => void confirmAll()}
           disabled={confirmingAll}
-          className="rounded-sm border border-border px-3 py-2 text-sm font-semibold disabled:opacity-60"
         >
           {confirmingAll ? "Confirmando…" : "Confirmar campos con evidencia"}
-        </button>
+        </Button>
       </div>
 
       {extraction.injection_detected ? (
-        <p role="alert" className="rounded-sm border border-border px-3 py-2 text-sm">
+        <Card role="alert" className="px-3 py-2 text-sm">
           Se detectó una posible inyección de prompt en el documento. Revisa cada campo
           individualmente antes de confirmar.
-        </p>
+        </Card>
       ) : null}
       {extraction.review_required ? (
         <p role="status" className="text-sm text-text-muted">
@@ -179,52 +179,54 @@ export function DocumentReview({ documentId }: { documentId: string }) {
         {extraction.fields.map((field) => {
           const label = FIELD_LABELS[field.field_name];
           return (
-            <li key={field.id} className="space-y-2 rounded-md border border-border p-3">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold">{label}</h3>
-                <span className="text-xs text-text-muted">
-                  {STATUS_LABELS[field.status]}
-                </span>
-              </div>
-              <p className="break-words text-sm">{displayValue(field.value)}</p>
-              {field.evidence.length > 0 ? (
-                <ul className="space-y-1">
-                  {field.evidence.map((evidence, index) => (
-                    <li key={`${evidence.document_id}-${evidence.page}-${index}`}>
-                      <blockquote className="border-l-2 border-border pl-2 text-xs text-text-muted">
-                        Página {evidence.page}: {evidence.quote.slice(0, 120)}
-                      </blockquote>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-xs text-text-muted">Sin evidencia verificable.</p>
-              )}
-              <div className="flex flex-wrap items-center gap-2">
-                <label htmlFor={`correction-${field.id}`} className="sr-only">
-                  Corregir {label}
-                </label>
-                <input
-                  id={`correction-${field.id}`}
-                  value={corrections[field.id] ?? ""}
-                  onChange={(event) =>
-                    setCorrections((current) => ({
-                      ...current,
-                      [field.id]: event.target.value,
-                    }))
-                  }
-                  placeholder="Corrección opcional"
-                  className="min-w-40 flex-1 rounded-sm border border-border bg-surface px-2 py-1 text-sm"
-                />
-                <button
-                  type="button"
-                  onClick={() => void confirmField(field)}
-                  disabled={busyField === field.id}
-                  className="rounded-sm bg-accent px-3 py-1 text-sm font-semibold text-on-accent disabled:opacity-60"
-                >
-                  {busyField === field.id ? "Confirmando…" : "Confirmar"}
-                </button>
-              </div>
+            <li key={field.id}>
+              <Card className="space-y-2 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold">{label}</h3>
+                  <span className="text-xs text-text-muted">
+                    {STATUS_LABELS[field.status]}
+                  </span>
+                </div>
+                <p className="break-words text-sm">{displayValue(field.value)}</p>
+                {field.evidence.length > 0 ? (
+                  <ul className="space-y-1">
+                    {field.evidence.map((evidence, index) => (
+                      <li key={`${evidence.document_id}-${evidence.page}-${index}`}>
+                        <blockquote className="border-l-2 border-border pl-2 text-xs text-text-muted">
+                          Página {evidence.page}: {evidence.quote.slice(0, 120)}
+                        </blockquote>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-text-muted">Sin evidencia verificable.</p>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Label htmlFor={`correction-${field.id}`} className="sr-only">
+                    Corregir {label}
+                  </Label>
+                  <Input
+                    id={`correction-${field.id}`}
+                    value={corrections[field.id] ?? ""}
+                    onChange={(event) =>
+                      setCorrections((current) => ({
+                        ...current,
+                        [field.id]: event.target.value,
+                      }))
+                    }
+                    placeholder="Corrección opcional"
+                    className="min-w-40 flex-1"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => void confirmField(field)}
+                    disabled={busyField === field.id}
+                  >
+                    {busyField === field.id ? "Confirmando…" : "Confirmar"}
+                  </Button>
+                </div>
+              </Card>
             </li>
           );
         })}
