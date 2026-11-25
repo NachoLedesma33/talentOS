@@ -10,12 +10,31 @@ from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy.pool import StaticPool
 
-from app.analytics.service import compute_pipeline_report
+from app.agents.models import AgentRun, AgentRunStatus
+from app.analytics.service import (
+    ESTIMATED_MINUTES_PER_AUTOMATION_RUN,
+    build_analytics_overview,
+    compute_operational_report,
+    compute_pipeline_report,
+)
 from app.applications.models import Application, ApplicationStage, StageChange
+from app.assessment.models import (
+    Assessment,
+    AssessmentStatus,
+    RequirementEvaluation,
+    RequirementEvaluationStatus,
+)
+from app.automation.models import (
+    Automation,
+    AutomationRun,
+    AutomationRunMode,
+    AutomationRunStatus,
+    AutomationStatus,
+)
 from app.candidates.models import Candidate
 from app.db.base import Base
 from app.identity.models import Organization, User
-from app.jobs.models import Job, JobStatus
+from app.jobs.models import Job, JobStatus, JobVersion
 
 _TENANT_A = uuid.uuid5(uuid.NAMESPACE_URL, "analytics-tenant-a")
 _TENANT_B = uuid.uuid5(uuid.NAMESPACE_URL, "analytics-tenant-b")
@@ -173,6 +192,173 @@ def _seed(db: DBSession) -> None:
             ),
         ]
     )
+
+    job_version_id = uuid.uuid5(uuid.NAMESPACE_URL, "analytics-job-version")
+    db.add(
+        JobVersion(id=job_version_id, job_id=job_id, version=1, snapshot={})
+    )
+    db.flush()
+    assessment_review = uuid.uuid5(uuid.NAMESPACE_URL, "analytics-assessment-review")
+    assessment_flagged = uuid.uuid5(uuid.NAMESPACE_URL, "analytics-assessment-flagged")
+    assessment_done = uuid.uuid5(uuid.NAMESPACE_URL, "analytics-assessment-done")
+    assessment_foreign = uuid.uuid5(uuid.NAMESPACE_URL, "analytics-assessment-foreign")
+    db.add_all(
+        [
+            Assessment(
+                id=assessment_review,
+                organization_id=_TENANT_A,
+                application_id=application_a,
+                job_version_id=job_version_id,
+                candidate_id=candidate_a,
+                status=AssessmentStatus.NEEDS_REVIEW,
+                model_version="synthetic-v1",
+                prompt_version="evaluation-v1",
+                created_by=_OWNER,
+            ),
+            Assessment(
+                id=assessment_flagged,
+                organization_id=_TENANT_A,
+                application_id=application_b,
+                job_version_id=job_version_id,
+                candidate_id=candidate_b,
+                status=AssessmentStatus.COMPLETED,
+                model_version="synthetic-v1",
+                prompt_version="evaluation-v1",
+                created_by=_OWNER,
+            ),
+            Assessment(
+                id=assessment_done,
+                organization_id=_TENANT_A,
+                application_id=application_b,
+                job_version_id=job_version_id,
+                candidate_id=candidate_b,
+                status=AssessmentStatus.COMPLETED,
+                model_version="synthetic-v1",
+                prompt_version="evaluation-v2",
+                created_by=_OWNER,
+            ),
+            Assessment(
+                id=assessment_foreign,
+                organization_id=_TENANT_B,
+                application_id=application_foreign,
+                job_version_id=job_version_id,
+                candidate_id=candidate_foreign,
+                status=AssessmentStatus.NEEDS_REVIEW,
+                model_version="synthetic-v1",
+                prompt_version="evaluation-v1",
+                created_by=_OWNER,
+            ),
+        ]
+    )
+    db.flush()
+    db.add(
+        RequirementEvaluation(
+            assessment_id=assessment_flagged,
+            requirement_id=uuid.uuid5(uuid.NAMESPACE_URL, "analytics-requirement"),
+            status=RequirementEvaluationStatus.NEEDS_REVIEW,
+            explanation="synthetic review flag",
+            review_required=True,
+        )
+    )
+
+    automation_id = uuid.uuid5(uuid.NAMESPACE_URL, "analytics-automation")
+    foreign_automation_id = uuid.uuid5(uuid.NAMESPACE_URL, "analytics-automation-foreign")
+    db.add_all(
+        [
+            Automation(
+                id=automation_id,
+                organization_id=_TENANT_A,
+                name="Synthetic automation",
+                status=AutomationStatus.ACTIVE,
+                created_by=_OWNER,
+            ),
+            Automation(
+                id=foreign_automation_id,
+                organization_id=_TENANT_B,
+                name="Foreign automation",
+                status=AutomationStatus.ACTIVE,
+                created_by=_OWNER,
+            ),
+        ]
+    )
+    db.flush()
+    db.add_all(
+        [
+            AgentRun(
+                id=uuid.uuid5(uuid.NAMESPACE_URL, "analytics-run-completed"),
+                organization_id=_TENANT_A,
+                workflow="cv_analysis",
+                version="v1",
+                status=AgentRunStatus.COMPLETED,
+                idempotency_key="analytics-run-completed",
+                correlation_id=uuid.uuid4(),
+                actor_id=_OWNER,
+            ),
+            AgentRun(
+                id=uuid.uuid5(uuid.NAMESPACE_URL, "analytics-run-failed"),
+                organization_id=_TENANT_A,
+                workflow="cv_analysis",
+                version="v1",
+                status=AgentRunStatus.FAILED,
+                idempotency_key="analytics-run-failed",
+                correlation_id=uuid.uuid4(),
+                actor_id=_OWNER,
+            ),
+            AgentRun(
+                id=uuid.uuid5(uuid.NAMESPACE_URL, "analytics-run-foreign"),
+                organization_id=_TENANT_B,
+                workflow="cv_analysis",
+                version="v1",
+                status=AgentRunStatus.COMPLETED,
+                idempotency_key="analytics-run-foreign",
+                correlation_id=uuid.uuid4(),
+                actor_id=_OWNER,
+            ),
+        ]
+    )
+    db.add_all(
+        [
+            AutomationRun(
+                id=uuid.uuid5(uuid.NAMESPACE_URL, "analytics-automation-run-live"),
+                organization_id=_TENANT_A,
+                automation_id=automation_id,
+                version=1,
+                mode=AutomationRunMode.LIVE,
+                status=AutomationRunStatus.COMPLETED,
+                trigger_event_type="application.stage_changed",
+                trigger_event_id=uuid.uuid4(),
+                idempotency_key="analytics-automation-run-live",
+                correlation_id=uuid.uuid4(),
+                actor_id=_OWNER,
+            ),
+            AutomationRun(
+                id=uuid.uuid5(uuid.NAMESPACE_URL, "analytics-automation-run-test"),
+                organization_id=_TENANT_A,
+                automation_id=automation_id,
+                version=1,
+                mode=AutomationRunMode.TEST,
+                status=AutomationRunStatus.COMPLETED,
+                trigger_event_type="application.stage_changed",
+                trigger_event_id=uuid.uuid4(),
+                idempotency_key="analytics-automation-run-test",
+                correlation_id=uuid.uuid4(),
+                actor_id=_OWNER,
+            ),
+            AutomationRun(
+                id=uuid.uuid5(uuid.NAMESPACE_URL, "analytics-automation-run-foreign"),
+                organization_id=_TENANT_B,
+                automation_id=foreign_automation_id,
+                version=1,
+                mode=AutomationRunMode.LIVE,
+                status=AutomationRunStatus.COMPLETED,
+                trigger_event_type="application.stage_changed",
+                trigger_event_id=uuid.uuid4(),
+                idempotency_key="analytics-automation-run-foreign",
+                correlation_id=uuid.uuid4(),
+                actor_id=_OWNER,
+            ),
+        ]
+    )
     db.commit()
 
 
@@ -230,3 +416,47 @@ def test_report_serialization_has_no_candidate_pii(db: DBSession) -> None:
     assert "Synthetic Candidate" not in serialized
     assert "@example.test" not in serialized
     assert "Foreign" not in serialized
+
+
+def test_operational_report_separates_real_counts_from_estimate(db: DBSession) -> None:
+    _seed(db)
+
+    report = compute_operational_report(db, _TENANT_A, now=_NOW)
+
+    assert report.generated_at == _NOW
+    assert report.assessments_pending_review == 2
+    assert report.agent_runs_completed == 1
+    assert report.agent_runs_failed == 1
+    assert report.automation_runs_executed == 1
+    assert report.estimated_minutes_saved == float(ESTIMATED_MINUTES_PER_AUTOMATION_RUN)
+    estimates = {
+        definition.key: definition.is_estimate for definition in report.definitions
+    }
+    assert estimates["estimated_minutes_saved"] is True
+    assert estimates["agent_runs_completed"] is False
+    assert "no medido" in report.estimates_basis
+    assert "coste monetario" in report.estimates_basis
+
+
+def test_overview_shares_instant_and_tenant(db: DBSession) -> None:
+    _seed(db)
+
+    overview = build_analytics_overview(db, _TENANT_A, now=_NOW)
+
+    assert overview.generated_at == _NOW
+    assert overview.pipeline.generated_at == _NOW
+    assert overview.operational.generated_at == _NOW
+    assert overview.pipeline.jobs_open == 1
+    assert overview.operational.automation_runs_executed == 1
+    serialized = json.dumps(overview.model_dump(mode="json"))
+    assert "@example.test" not in serialized
+
+
+def test_operational_report_of_empty_tenant_is_zero(db: DBSession) -> None:
+    report = compute_operational_report(db, uuid.uuid4(), now=_NOW)
+
+    assert report.assessments_pending_review == 0
+    assert report.agent_runs_completed == 0
+    assert report.agent_runs_failed == 0
+    assert report.automation_runs_executed == 0
+    assert report.estimated_minutes_saved == 0.0

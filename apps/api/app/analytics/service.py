@@ -5,10 +5,13 @@ from collections import defaultdict
 from datetime import UTC, datetime
 
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session as DBSession
 
+from app.agents.models import AgentRun, AgentRunStatus
 from app.applications.models import Application, ApplicationStage, StageChange
+from app.assessment.models import Assessment, AssessmentStatus, RequirementEvaluation
+from app.automation.models import AutomationRun, AutomationRunMode, AutomationRunStatus
 from app.jobs.models import Job, JobStatus
 
 _PIPELINE_ORDER: tuple[ApplicationStage, ...] = (
@@ -284,4 +287,174 @@ def compute_pipeline_report(
         conversions=tuple(conversions),
         avg_process_days=avg_process_days,
         definitions=PIPELINE_DEFINITIONS,
+    )
+
+
+ESTIMATED_MINUTES_PER_AUTOMATION_RUN = 5
+
+
+class OperationalReport(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    generated_at: datetime
+    assessments_pending_review: int
+    agent_runs_completed: int
+    agent_runs_failed: int
+    automation_runs_executed: int
+    estimated_minutes_saved: float
+    estimates_basis: str
+    definitions: tuple[MetricDefinition, ...]
+
+
+class AnalyticsOverview(BaseModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    generated_at: datetime
+    pipeline: PipelineReport
+    operational: OperationalReport
+
+
+OPERATIONAL_DEFINITIONS: tuple[MetricDefinition, ...] = (
+    MetricDefinition(
+        key="assessments_pending_review",
+        name="Evaluaciones pendientes de revisión",
+        description=(
+            "Evaluaciones con status 'pending' o 'needs_review', o con algún "
+            "requisito en revisión; dato real del tenant."
+        ),
+        unit="count",
+        is_estimate=False,
+    ),
+    MetricDefinition(
+        key="agent_runs_completed",
+        name="Ejecuciones de agentes exitosas",
+        description="AgentRuns con status 'completed' del tenant; dato real.",
+        unit="count",
+        is_estimate=False,
+    ),
+    MetricDefinition(
+        key="agent_runs_failed",
+        name="Ejecuciones de agentes fallidas",
+        description="AgentRuns con status 'failed' del tenant; dato real.",
+        unit="count",
+        is_estimate=False,
+    ),
+    MetricDefinition(
+        key="automation_runs_executed",
+        name="Automatizaciones ejecutadas",
+        description=(
+            "AutomationRuns en modo 'live' con status 'completed' del tenant; dato real."
+        ),
+        unit="count",
+        is_estimate=False,
+    ),
+    MetricDefinition(
+        key="estimated_minutes_saved",
+        name="Tiempo estimado ahorrado",
+        description=(
+            f"{ESTIMATED_MINUTES_PER_AUTOMATION_RUN} minutos por automatización live completada; "
+            "supuesto declarado, no medición ni coste monetario."
+        ),
+        unit="minutes",
+        is_estimate=True,
+    ),
+)
+
+
+def _count_assessments_pending_review(
+    db: DBSession, organization_id: uuid.UUID
+) -> int:
+    ids: set[uuid.UUID] = set()
+    status_stmt = select(Assessment.id).where(
+        Assessment.organization_id == organization_id,
+        or_(
+            Assessment.status == AssessmentStatus.PENDING,
+            Assessment.status == AssessmentStatus.NEEDS_REVIEW,
+        ),
+    )
+    ids.update(row[0] for row in db.execute(status_stmt))
+    review_stmt = (
+        select(Assessment.id)
+        .join(
+            RequirementEvaluation,
+            RequirementEvaluation.assessment_id == Assessment.id,
+        )
+        .where(
+            Assessment.organization_id == organization_id,
+            RequirementEvaluation.review_required.is_(True),
+        )
+    )
+    ids.update(row[0] for row in db.execute(review_stmt))
+    return len(ids)
+
+
+def _count_agent_runs(
+    db: DBSession, organization_id: uuid.UUID
+) -> tuple[int, int]:
+    completed = 0
+    failed = 0
+    stmt = (
+        select(AgentRun.status, func.count())
+        .where(AgentRun.organization_id == organization_id)
+        .group_by(AgentRun.status)
+    )
+    for status, total in db.execute(stmt):
+        if status == AgentRunStatus.COMPLETED:
+            completed = int(total)
+        elif status == AgentRunStatus.FAILED:
+            failed = int(total)
+    return completed, failed
+
+
+def _count_automation_runs_executed(
+    db: DBSession, organization_id: uuid.UUID
+) -> int:
+    stmt = select(func.count()).select_from(AutomationRun).where(
+        AutomationRun.organization_id == organization_id,
+        AutomationRun.status == AutomationRunStatus.COMPLETED,
+        AutomationRun.mode == AutomationRunMode.LIVE,
+    )
+    return int(db.scalar(stmt) or 0)
+
+
+def compute_operational_report(
+    db: DBSession,
+    organization_id: uuid.UUID,
+    *,
+    now: datetime | None = None,
+) -> OperationalReport:
+    """Métricas operativas del tenant; separa dato real de supuesto declarado."""
+    generated_at = _as_utc(now) if now is not None else datetime.now(UTC)
+    pending = _count_assessments_pending_review(db, organization_id)
+    completed_runs, failed_runs = _count_agent_runs(db, organization_id)
+    executed = _count_automation_runs_executed(db, organization_id)
+    return OperationalReport(
+        generated_at=generated_at,
+        assessments_pending_review=pending,
+        agent_runs_completed=completed_runs,
+        agent_runs_failed=failed_runs,
+        automation_runs_executed=executed,
+        estimated_minutes_saved=_round(
+            executed * ESTIMATED_MINUTES_PER_AUTOMATION_RUN
+        ),
+        estimates_basis=(
+            f"{ESTIMATED_MINUTES_PER_AUTOMATION_RUN} min por ejecución live completada; "
+            "supuesto no medido, sin coste monetario"
+        ),
+        definitions=OPERATIONAL_DEFINITIONS,
+    )
+
+
+def build_analytics_overview(
+    db: DBSession,
+    organization_id: uuid.UUID,
+    *,
+    now: datetime | None = None,
+) -> AnalyticsOverview:
+    """Vista combinada; ambas secciones comparten instante y filtro de tenant."""
+    generated_at = _as_utc(now) if now is not None else datetime.now(UTC)
+    return AnalyticsOverview(
+        generated_at=generated_at,
+        pipeline=compute_pipeline_report(db, organization_id, now=generated_at),
+        operational=compute_operational_report(db, organization_id, now=generated_at),
     )
