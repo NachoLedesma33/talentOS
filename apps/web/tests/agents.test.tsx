@@ -167,7 +167,7 @@ describe("AgentRunPanel", () => {
     ]);
     expect(screen.getByText("matching_review")).toBeTruthy();
     expect(screen.getByText("1.0.0")).toBeTruthy();
-    expect(screen.getByText("Esperando aprobación")).toBeTruthy();
+    expect(screen.getAllByText("Esperando aprobación").length).toBeGreaterThan(0);
     expect(screen.getAllByText(CORRELATION_ID).length).toBeGreaterThan(0);
     expect(screen.getAllByText("draft:sintetico").length).toBeGreaterThan(0);
     expect(screen.getByText(/review_required: revisión humana requerida/)).toBeTruthy();
@@ -190,6 +190,51 @@ describe("AgentRunPanel", () => {
     expect(text).not.toMatch(/score|ranking|puntuación total/i);
   });
 
+  it("lista ejecuciones con filtros y carga la selección", async () => {
+    const queries: string[] = [];
+    mockFetch((url) => {
+      if (url.pathname === "/api/v1/agents/runs") {
+        queries.push(url.search);
+        return jsonResponse({ items: [makeRun()], total: 1, limit: 50, offset: 0 });
+      }
+      if (url.pathname === `/api/v1/agents/runs/${RUN_ID}`) return jsonResponse(makeRun());
+      if (url.pathname === `/api/v1/agents/runs/${RUN_ID}/events`) {
+        return jsonResponse({ items: [], total: 0, limit: 50, offset: 0 });
+      }
+      if (url.pathname === `/api/v1/agents/runs/${RUN_ID}/approvals`) return jsonResponse([]);
+      return errorResponse(404, "no encontrado");
+    });
+
+    render(<AgentRunPanel />);
+    fireEvent.change(screen.getByLabelText("Estado (filtro)"), {
+      target: { value: "waiting_approval" },
+    });
+    fireEvent.change(screen.getByLabelText("Agente (filtro)"), {
+      target: { value: "matching_review" },
+    });
+    fireEvent.change(screen.getByLabelText("Desde"), { target: { value: "2026-01-01" } });
+    fireEvent.change(screen.getByLabelText("Hasta"), { target: { value: "2026-01-02" } });
+    fireEvent.change(screen.getByLabelText("Vacante (ID)"), {
+      target: { value: "55555555-5555-4555-8555-555555555555" },
+    });
+    fireEvent.change(screen.getByLabelText("Candidato (ID)"), {
+      target: { value: "66666666-6666-4666-8666-666666666666" },
+    });
+    submitForm("Buscar ejecuciones");
+
+    expect(await screen.findByRole("button", { name: RUN_ID })).toBeTruthy();
+    const params = new URLSearchParams(queries[0]);
+    expect(params.get("status")).toBe("waiting_approval");
+    expect(params.get("agent")).toBe("matching_review");
+    expect(params.get("date_from")).toBe("2026-01-01");
+    expect(params.get("date_to")).toBe("2026-01-02");
+    expect(params.get("job_id")).toBe("55555555-5555-4555-8555-555555555555");
+    expect(params.get("candidate_id")).toBe("66666666-6666-4666-8666-666666666666");
+
+    fireEvent.click(screen.getByRole("button", { name: RUN_ID }));
+    expect(await screen.findByText("Detalle de la ejecución")).toBeTruthy();
+  });
+
   it("acepta una ejecución repetida con 200 sin marcar revisión", async () => {
     mockFetch((url) => {
       if (url.pathname === "/api/v1/agents/runs") {
@@ -210,7 +255,7 @@ describe("AgentRunPanel", () => {
     submitForm("Iniciar ejecución");
 
     expect(await screen.findByText("Ejecución cargada.")).toBeTruthy();
-    expect(screen.getByText("Completada")).toBeTruthy();
+    expect(screen.getAllByText("Completada").length).toBeGreaterThan(0);
     expect(screen.queryByText(/review_required:/)).toBeNull();
     expect(screen.queryByText("Output ref:")).toBeNull();
     expect(screen.getByText("Todavía no hay eventos para esta ejecución.")).toBeTruthy();

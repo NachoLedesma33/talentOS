@@ -6,6 +6,7 @@ import type {
   AgentEvent,
   AgentEventList,
   AgentRun,
+  AgentRunList,
   AgentRunStart,
   AgentRunStatus,
   Approval,
@@ -30,6 +31,11 @@ function describeError(cause: unknown): string {
   return "No se pudo completar la solicitud.";
 }
 
+function formatUtc(value: string): string {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toISOString();
+}
+
 export function AgentRunPanel() {
   const [applicationId, setApplicationId] = useState("");
   const [idempotencyKey, setIdempotencyKey] = useState("");
@@ -38,6 +44,14 @@ export function AgentRunPanel() {
   const [approvals, setApprovals] = useState<Approval[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
+  const [listing, setListing] = useState(false);
+  const [runs, setRuns] = useState<AgentRunList["items"]>([]);
+  const [listStatus, setListStatus] = useState<AgentRunStatus | "">("");
+  const [listAgent, setListAgent] = useState("");
+  const [listDateFrom, setListDateFrom] = useState("");
+  const [listDateTo, setListDateTo] = useState("");
+  const [listJobId, setListJobId] = useState("");
+  const [listCandidateId, setListCandidateId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -50,6 +64,41 @@ export function AgentRunPanel() {
     setRun(detail);
     setEvents(eventList.items ?? []);
     setApprovals(Array.isArray(approvalList) ? approvalList : []);
+  }
+
+  async function listRuns(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (listing) return;
+    const params = new URLSearchParams();
+    if (listStatus) params.set("status", listStatus);
+    if (listAgent.trim()) params.set("agent", listAgent.trim());
+    if (listDateFrom) params.set("date_from", listDateFrom);
+    if (listDateTo) params.set("date_to", listDateTo);
+    if (listJobId.trim()) params.set("job_id", listJobId.trim());
+    if (listCandidateId.trim()) params.set("candidate_id", listCandidateId.trim());
+    setListing(true);
+    setError(null);
+    try {
+      const list = await apiFetch<AgentRunList>(`/api/v1/agents/runs?${params.toString()}`);
+      setRuns(list.items ?? []);
+    } catch (cause) {
+      setError(describeError(cause));
+    } finally {
+      setListing(false);
+    }
+  }
+
+  async function selectRun(runId: string) {
+    setError(null);
+    setNotice(null);
+    setLoadingDetail(true);
+    try {
+      await loadRun(runId);
+    } catch (cause) {
+      setError(describeError(cause));
+    } finally {
+      setLoadingDetail(false);
+    }
   }
 
   async function start(event: FormEvent<HTMLFormElement>) {
@@ -137,6 +186,122 @@ export function AgentRunPanel() {
           {submitting ? "Iniciando…" : "Iniciar ejecución"}
         </button>
       </form>
+
+      <form onSubmit={(event) => void listRuns(event)} className="grid gap-3 sm:grid-cols-3">
+        <div className="space-y-1">
+          <label htmlFor="agent-list-status" className="block text-sm font-semibold">
+            Estado (filtro)
+          </label>
+          <select
+            id="agent-list-status"
+            value={listStatus}
+            onChange={(event) => setListStatus(event.target.value as AgentRunStatus | "")}
+            className="w-full rounded-sm border border-border bg-surface px-2 py-2 text-sm"
+          >
+            <option value="">Todos</option>
+            {Object.entries(STATUS_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="agent-list-agent" className="block text-sm font-semibold">
+            Agente (filtro)
+          </label>
+          <input
+            id="agent-list-agent"
+            value={listAgent}
+            onChange={(event) => setListAgent(event.target.value)}
+            className="w-full rounded-sm border border-border bg-surface px-2 py-2 text-sm"
+          />
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="agent-list-date-from" className="block text-sm font-semibold">
+            Desde
+          </label>
+          <input
+            id="agent-list-date-from"
+            type="date"
+            value={listDateFrom}
+            onChange={(event) => setListDateFrom(event.target.value)}
+            className="w-full rounded-sm border border-border bg-surface px-2 py-2 text-sm"
+          />
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="agent-list-date-to" className="block text-sm font-semibold">
+            Hasta
+          </label>
+          <input
+            id="agent-list-date-to"
+            type="date"
+            value={listDateTo}
+            onChange={(event) => setListDateTo(event.target.value)}
+            className="w-full rounded-sm border border-border bg-surface px-2 py-2 text-sm"
+          />
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="agent-list-job" className="block text-sm font-semibold">
+            Vacante (ID)
+          </label>
+          <input
+            id="agent-list-job"
+            value={listJobId}
+            onChange={(event) => setListJobId(event.target.value)}
+            className="w-full rounded-sm border border-border bg-surface px-2 py-2 text-sm"
+          />
+        </div>
+        <div className="space-y-1">
+          <label htmlFor="agent-list-candidate" className="block text-sm font-semibold">
+            Candidato (ID)
+          </label>
+          <input
+            id="agent-list-candidate"
+            value={listCandidateId}
+            onChange={(event) => setListCandidateId(event.target.value)}
+            className="w-full rounded-sm border border-border bg-surface px-2 py-2 text-sm"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={listing}
+          className="self-end rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
+        >
+          {listing ? "Buscando…" : "Buscar ejecuciones"}
+        </button>
+      </form>
+
+      {runs.length > 0 ? (
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-border">
+              <th scope="col" className="py-2 pr-3 font-semibold">Ejecución</th>
+              <th scope="col" className="py-2 pr-3 font-semibold">Agente</th>
+              <th scope="col" className="py-2 pr-3 font-semibold">Estado</th>
+              <th scope="col" className="py-2 font-semibold">Creada</th>
+            </tr>
+          </thead>
+          <tbody>
+            {runs.map((item) => (
+              <tr key={item.id} className="border-b border-border">
+                <td className="py-2 pr-3">
+                  <button
+                    type="button"
+                    onClick={() => void selectRun(item.id)}
+                    className="text-accent underline"
+                  >
+                    {item.id}
+                  </button>
+                </td>
+                <td className="py-2 pr-3">{item.workflow}</td>
+                <td className="py-2 pr-3">{STATUS_LABELS[item.status]}</td>
+                <td className="py-2">{formatUtc(item.created_at)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : null}
 
       <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
         {submitting
