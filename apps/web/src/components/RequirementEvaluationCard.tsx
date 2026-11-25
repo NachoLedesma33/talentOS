@@ -16,6 +16,13 @@ const STATUS_LABELS: Record<RequirementEvaluationStatus, string> = {
   needs_review: "Requiere revisión",
 };
 
+const STATUS_MARKS: Record<RequirementEvaluationStatus, string> = {
+  supported: "✓",
+  partial: "◐",
+  not_found: "∅",
+  needs_review: "!",
+};
+
 const STATUS_OPTIONS: RequirementEvaluationStatus[] = [
   "supported",
   "partial",
@@ -107,7 +114,14 @@ export function RequirementEvaluationCard({
     >
       <div className="space-y-1">
         <h4 id={`evaluation-${evaluation.id}`} className="text-sm font-semibold">
-          Estado: {STATUS_LABELS[current.status]}
+          Estado:{" "}
+          <span
+            data-status={current.status}
+            className="inline-flex items-center gap-1 rounded-sm border border-border px-2 py-0.5"
+          >
+            <span aria-hidden="true">{STATUS_MARKS[current.status]}</span>
+            {STATUS_LABELS[current.status]}
+          </span>
         </h4>
         <p className="break-words text-xs text-text-muted">
           Requisito {current.requirement_id}
