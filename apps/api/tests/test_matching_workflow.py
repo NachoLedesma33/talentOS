@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import uuid
 from collections.abc import Iterator, Mapping
+from concurrent.futures import Future
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, cast
@@ -116,6 +118,31 @@ class _Provider:
     ) -> dict[str, int]:
         del prompt_version, context
         return {}
+
+
+class _SyncExecutor:
+    def submit(self, fn: Any, *args: Any, **kwargs: Any) -> Future[Any]:
+        future: Future[Any] = Future()
+        try:
+            future.set_result(fn(*args, **kwargs))
+        except BaseException as exc:
+            future.set_exception(exc)
+        return future
+
+    def shutdown(self, wait: bool = True, *, cancel_futures: bool = False) -> None:
+        return None
+
+
+@contextmanager
+def _sync_executor(_config: Any) -> Iterator[_SyncExecutor]:
+    yield _SyncExecutor()
+
+
+@pytest.fixture(autouse=True)
+def _sync_langgraph_executor(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "langgraph.pregel._executor.get_executor_for_config", _sync_executor
+    )
 
 
 @pytest.fixture
