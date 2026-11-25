@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DBSession
 
@@ -13,6 +13,9 @@ from app.integrations.models import (
     IntegrationProvider,
     IntegrationStatus,
     IntegrationTenantMismatchError,
+    WebhookDelivery,
+    WebhookDeliveryExistsError,
+    WebhookDeliveryStatus,
     WebhookEvent,
     WebhookEventStatus,
     WebhookEventType,
@@ -166,12 +169,129 @@ def create_webhook_event(
     return event
 
 
+def get_webhook_delivery(
+    db: DBSession,
+    organization_id: uuid.UUID,
+    integration_id: uuid.UUID,
+    delivery_id: uuid.UUID,
+) -> WebhookDelivery | None:
+    """Entrega saliente del tenant y la integración; llave de dedupe única."""
+    stmt = select(WebhookDelivery).where(
+        WebhookDelivery.organization_id == organization_id,
+        WebhookDelivery.integration_id == integration_id,
+        WebhookDelivery.id == delivery_id,
+    )
+    return db.execute(stmt).scalar_one_or_none()
+
+
+def find_webhook_delivery(
+    db: DBSession, delivery_id: uuid.UUID
+) -> WebhookDelivery | None:
+    """Localiza por id sin filtro de tenant; el worker compara el contexto."""
+    return db.get(WebhookDelivery, delivery_id)
+
+
+def get_webhook_delivery_by_event(
+    db: DBSession,
+    organization_id: uuid.UUID,
+    integration_id: uuid.UUID,
+    event_id: uuid.UUID,
+) -> WebhookDelivery | None:
+    """Entrega previa por event_id; llave natural de idempotencia del outbox."""
+    stmt = select(WebhookDelivery).where(
+        WebhookDelivery.organization_id == organization_id,
+        WebhookDelivery.integration_id == integration_id,
+        WebhookDelivery.event_id == event_id,
+    )
+    return db.execute(stmt).scalar_one_or_none()
+
+
+def create_webhook_delivery(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    integration_id: uuid.UUID,
+    event_id: uuid.UUID,
+    event_type: WebhookEventType,
+    resource_id: uuid.UUID,
+    correlation_id: uuid.UUID,
+    endpoint_snapshot: str,
+    payload_hash: str,
+) -> WebhookDelivery:
+    """Persiste el outbox en la transacción del llamador; duplicado no la rompe."""
+    delivery = WebhookDelivery(
+        organization_id=organization_id,
+        integration_id=integration_id,
+        event_id=event_id,
+        event_type=event_type,
+        resource_id=resource_id,
+        correlation_id=correlation_id,
+        endpoint_snapshot=endpoint_snapshot,
+        payload_hash=payload_hash,
+        status=WebhookDeliveryStatus.PENDING,
+        attempts=0,
+    )
+    try:
+        # Savepoint: la UNIQUE evita el segundo efecto sin hacer rollback de la
+        # transacción de dominio que dondeó el evento (transactional outbox).
+        with db.begin_nested():
+            db.add(delivery)
+            db.flush()
+    except IntegrityError:
+        if delivery in db:
+            db.expunge(delivery)
+        raise WebhookDeliveryExistsError() from None
+    return delivery
+
+
+def list_webhook_deliveries(
+    db: DBSession,
+    organization_id: uuid.UUID,
+    integration_id: uuid.UUID,
+    status: WebhookDeliveryStatus | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> list[WebhookDelivery]:
+    """Lista entregas del tenant con filtro opcional y paginación acotada."""
+    stmt = select(WebhookDelivery).where(
+        WebhookDelivery.organization_id == organization_id,
+        WebhookDelivery.integration_id == integration_id,
+    )
+    if status is not None:
+        stmt = stmt.where(WebhookDelivery.status == status)
+    stmt = stmt.order_by(WebhookDelivery.created_at, WebhookDelivery.id).limit(limit).offset(offset)
+    return list(db.execute(stmt).scalars().all())
+
+
+def count_webhook_deliveries(
+    db: DBSession,
+    organization_id: uuid.UUID,
+    integration_id: uuid.UUID,
+    status: WebhookDeliveryStatus | None = None,
+) -> int:
+    """Total del mismo filtro que el listado, para paginación coherente."""
+    filters = [
+        WebhookDelivery.organization_id == organization_id,
+        WebhookDelivery.integration_id == integration_id,
+    ]
+    if status is not None:
+        filters.append(WebhookDelivery.status == status)
+    stmt = select(func.count()).select_from(WebhookDelivery).where(*filters)
+    return int(db.scalar(stmt) or 0)
+
+
 __all__ = [
+    "count_webhook_deliveries",
     "create_integration",
+    "create_webhook_delivery",
     "create_webhook_event",
+    "find_webhook_delivery",
     "find_webhook_event",
     "get_integration",
+    "get_webhook_delivery",
+    "get_webhook_delivery_by_event",
     "get_webhook_event",
     "list_integrations",
+    "list_webhook_deliveries",
     "update_integration",
 ]

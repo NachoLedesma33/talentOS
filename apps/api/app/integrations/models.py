@@ -82,6 +82,46 @@ class WebhookEventStatus(StrEnum):
     DEAD_LETTER = "dead_letter"
 
 
+class WebhookDeliveryStatus(StrEnum):
+    """Estados de una entrega saliente; transiciones deterministas."""
+
+    PENDING = "pending"
+    SENDING = "sending"
+    DELIVERED = "delivered"
+    FAILED = "failed"
+    DEAD_LETTER = "dead_letter"
+
+
+class WebhookDeliveryExistsError(IntegrationDomainError):
+    """Ya existe la entrega para esa integración y event_id."""
+
+    code = "webhook_delivery_exists"
+
+
+class WebhookDeliveryNotFoundError(IntegrationDomainError):
+    """La entrega no existe o no pertenece al tenant autenticado."""
+
+    code = "webhook_delivery_not_found"
+
+
+class WebhookDeliveryInvalidStatusError(IntegrationDomainError):
+    """La transición solicitada no es válida para el estado actual."""
+
+    code = "webhook_delivery_invalid_status"
+
+
+class ProviderTimeoutError(IntegrationDomainError):
+    """El proveedor agotó el timeout o falló la red."""
+
+    code = "provider_timeout"
+
+
+class ProviderRejectedError(IntegrationDomainError):
+    """El proveedor rechazó la entrega con un código no transitorio."""
+
+    code = "provider_rejected"
+
+
 def _utcnow() -> datetime:
     """Timestamp UTC aplicado por Python; la BD no define reloj local."""
     return datetime.now(UTC)
@@ -224,5 +264,89 @@ class WebhookEvent(Base):
             "organization_id",
             "status",
             "received_at",
+        ),
+    )
+
+
+class WebhookDelivery(Base):
+    """Outbox de webhooks salientes: metadatos y hash, nunca cuerpo ni payload."""
+
+    __tablename__ = "webhook_deliveries"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False
+    )
+    integration_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("integrations.id", ondelete="CASCADE"), nullable=False
+    )
+    event_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    event_type: Mapped[WebhookEventType] = mapped_column(
+        SAEnum(
+            WebhookEventType,
+            name="webhook_event_type",
+            native_enum=False,
+            values_callable=_enum_values,
+            validate_strings=True,
+        ),
+        nullable=False,
+    )
+    resource_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    correlation_id: Mapped[uuid.UUID] = mapped_column(Uuid, nullable=False)
+    # URL sin userinfo, query ni fragmento: nunca credenciales en la evidencia.
+    endpoint_snapshot: Mapped[str] = mapped_column(String(2048), nullable=False)
+    # sha256 del payload saneado canónico; sin CV, correos ni secretos.
+    payload_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[WebhookDeliveryStatus] = mapped_column(
+        SAEnum(
+            WebhookDeliveryStatus,
+            name="webhook_delivery_status",
+            native_enum=False,
+            values_callable=_enum_values,
+            validate_strings=True,
+        ),
+        nullable=False,
+        default=WebhookDeliveryStatus.PENDING,
+    )
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    next_attempt_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    last_error_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    last_status_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow
+    )
+    delivered_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "organization_id",
+            "integration_id",
+            "event_id",
+            name="uq_webhook_deliveries_organization_id_integration_id_event_id",
+        ),
+        CheckConstraint("attempts >= 0", name="ck_webhook_deliveries_attempts_nonnegative"),
+        CheckConstraint(
+            "length(payload_hash) = 64", name="ck_webhook_deliveries_payload_hash_length"
+        ),
+        CheckConstraint(
+            "length(endpoint_snapshot) > 0",
+            name="ck_webhook_deliveries_endpoint_snapshot_length",
+        ),
+        CheckConstraint(
+            "last_status_code IS NULL OR last_status_code BETWEEN 100 AND 599",
+            name="ck_webhook_deliveries_last_status_code_range",
+        ),
+        Index(
+            "ix_webhook_deliveries_organization_id_status_next_attempt_at",
+            "organization_id",
+            "status",
+            "next_attempt_at",
         ),
     )

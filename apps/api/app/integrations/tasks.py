@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.orm import Session as DBSession
@@ -16,14 +17,27 @@ from sqlalchemy.orm import Session as DBSession
 from app.core.logging import log_structured
 from app.db.session import SessionLocal
 from app.integrations import service as integrations_service
-from app.integrations.models import IntegrationDomainError, WebhookEventStatus
-from app.integrations.repositories import find_webhook_event
+from app.integrations.models import (
+    IntegrationDomainError,
+    WebhookDelivery,
+    WebhookDeliveryStatus,
+    WebhookEventStatus,
+)
+from app.integrations.repositories import find_webhook_delivery, find_webhook_event
 from app.integrations.webhooks import WebhookDomainError, WebhookRetryError
 from app.workers.celery_app import celery_app
 
 _MAX_RETRIES = 3
 _TRANSIENT_CODE = "transient_processing_failure"
 _DEAD_LETTER_CODE = "max_retries_exceeded"
+
+
+def _delivery_countdown(delivery: WebhookDelivery) -> int:
+    """Uses la ventana calculada por el dominio, acotada a 300 s."""
+    if delivery.next_attempt_at is None:
+        return min(300, int(2 ** max(1, delivery.attempts)))
+    remaining = (delivery.next_attempt_at - datetime.now(UTC)).total_seconds()
+    return max(1, min(300, round(remaining)))
 
 
 def _log_event(
@@ -211,4 +225,135 @@ def process_webhook_event(
         db.close()
 
 
-__all__ = ["process_webhook_event"]
+@celery_app.task(  # type: ignore[untyped-decorator]
+    bind=True,
+    name="integrations.deliver_webhook",
+    max_retries=_MAX_RETRIES,
+    acks_late=True,
+    reject_on_worker_lost=True,
+)
+def deliver_webhook(
+    self: Any,
+    delivery_id: str,
+    organization_id: str,
+    correlation_id: str,
+) -> None:
+    """Entrega un webhook saliente; reintenta solo si el dominio lo permite."""
+    try:
+        delivery_uuid = uuid.UUID(delivery_id)
+        org_id = uuid.UUID(organization_id)
+        correlation = uuid.UUID(correlation_id)
+    except (TypeError, ValueError):
+        _log_event(
+            logging.WARNING,
+            "webhook_outbound.task_rejected",
+            event_id=delivery_id,
+            organization_id=organization_id,
+            correlation_id=correlation_id,
+            result="aborted",
+            error_code="invalid_context",
+        )
+        return
+
+    db: DBSession = SessionLocal()
+    outcome: integrations_service.DeliveryOutcome | None = None
+    countdown = 0
+    try:
+        delivery = find_webhook_delivery(db, delivery_uuid)
+        if delivery is None:
+            _log_event(
+                logging.WARNING,
+                "webhook_outbound.task_rejected",
+                event_id=delivery_uuid,
+                organization_id=org_id,
+                correlation_id=correlation,
+                result="aborted",
+                error_code="webhook_delivery_not_found",
+            )
+            return
+        if delivery.organization_id != org_id:
+            _log_event(
+                logging.WARNING,
+                "webhook_outbound.task_rejected",
+                event_id=delivery_uuid,
+                organization_id=org_id,
+                correlation_id=correlation,
+                result="aborted",
+                error_code="organization_mismatch",
+            )
+            return
+        if delivery.correlation_id != correlation:
+            _log_event(
+                logging.WARNING,
+                "webhook_outbound.task_rejected",
+                event_id=delivery_uuid,
+                organization_id=org_id,
+                correlation_id=correlation,
+                result="aborted",
+                error_code="correlation_mismatch",
+            )
+            return
+        if delivery.status is WebhookDeliveryStatus.DEAD_LETTER:
+            _log_event(
+                logging.INFO,
+                "webhook_outbound.task_rejected",
+                event_id=delivery_uuid,
+                organization_id=org_id,
+                correlation_id=correlation,
+                result="aborted",
+                error_code="dead_letter",
+            )
+            return
+
+        outcome = integrations_service.deliver_webhook(
+            db,
+            delivery_uuid,
+            organization_id=org_id,
+            correlation_id=correlation,
+        )
+        countdown = _delivery_countdown(delivery)
+        db.commit()
+        level = (
+            logging.INFO
+            if outcome is integrations_service.DeliveryOutcome.DELIVERED
+            else logging.WARNING
+        )
+        _log_event(
+            level,
+            "webhook_outbound.task_result",
+            event_id=delivery_uuid,
+            organization_id=org_id,
+            correlation_id=correlation,
+            result=outcome.value,
+        )
+    except IntegrationDomainError as exc:
+        db.rollback()
+        _log_event(
+            logging.WARNING,
+            "webhook_outbound.task_rejected",
+            event_id=delivery_uuid,
+            organization_id=org_id,
+            correlation_id=correlation,
+            result="aborted",
+            error_code=exc.code,
+        )
+    except Exception:
+        db.rollback()
+        _log_event(
+            logging.ERROR,
+            "webhook_outbound.task_failed",
+            event_id=delivery_uuid,
+            organization_id=org_id,
+            correlation_id=correlation,
+            result="failed",
+            error_code="internal_error",
+        )
+    finally:
+        db.close()
+
+    # Fuera del try: la excepción de reintento de Celery no debe ser tragada.
+    if outcome is integrations_service.DeliveryOutcome.RETRY_SCHEDULED:
+        self.retry(exc=WebhookRetryError(), countdown=countdown)
+
+
+__all__ = ["deliver_webhook", "process_webhook_event"]

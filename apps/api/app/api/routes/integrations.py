@@ -24,12 +24,19 @@ from app.identity.dependencies import (
 )
 from app.identity.models import Membership, MembershipRole, Organization, User
 from app.integrations import service as integrations_service
-from app.integrations.models import Integration, IntegrationDomainError, IntegrationStatus
+from app.integrations.models import (
+    Integration,
+    IntegrationDomainError,
+    IntegrationStatus,
+    WebhookDeliveryStatus,
+)
 from app.integrations.schemas import (
     IntegrationCreateRequest,
     IntegrationListResponse,
     IntegrationResponse,
     IntegrationUpdateRequest,
+    WebhookDeliveryListResponse,
+    WebhookDeliverySummary,
     WebhookEventSummary,
 )
 
@@ -66,12 +73,14 @@ def _correlation_id(request: Request) -> str:
 def _http_error(exc: IntegrationDomainError) -> HTTPException:
     """Traduce códigos de dominio a HTTP sin exponer mensajes internos."""
     code = exc.code
-    if code == "integration_not_found":
+    if code in {"integration_not_found", "webhook_delivery_not_found"}:
         return HTTPException(status.HTTP_404_NOT_FOUND, detail=_NOT_FOUND)
     if code in {
         "integration_exists",
         "integration_version_conflict",
         "webhook_invalid_state",
+        "webhook_delivery_exists",
+        "webhook_delivery_invalid_status",
         "duplicate_event",
     }:
         return HTTPException(status.HTTP_409_CONFLICT, detail="Conflicto de integración.")
@@ -80,6 +89,9 @@ def _http_error(exc: IntegrationDomainError) -> HTTPException:
     if code in {
         "integration_key_missing",
         "integration_config_unreadable",
+        "integration_inactive",
+        "provider_timeout",
+        "provider_rejected",
         "broker_unavailable",
     }:
         return HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=_UNAVAILABLE)
@@ -300,6 +312,82 @@ def retry_webhook_event(
         result="queued",
     )
     return integrations_service.webhook_summary(event)
+
+
+@router.get(
+    "/{integration_id}/deliveries", response_model=WebhookDeliveryListResponse
+)
+def list_webhook_deliveries(
+    integration_id: uuid.UUID,
+    actor: CurrentUser,
+    active_organization: CurrentOrganization,
+    _member: ReadMember,
+    db: DbDependency,
+    status_filter: Annotated[
+        WebhookDeliveryStatus | None, Query(alias="status")
+    ] = None,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> WebhookDeliveryListResponse:
+    """Estado paginado de entregas salientes; sin payload ni secreto."""
+    try:
+        return integrations_service.list_outbound_deliveries(
+            db,
+            organization_id=active_organization.id,
+            actor_id=actor.id,
+            actor_role=_member.role,
+            integration_id=integration_id,
+            status=status_filter,
+            limit=limit,
+            offset=offset,
+        )
+    except IntegrationDomainError as exc:
+        raise _http_error(exc) from None
+
+
+@router.post(
+    "/{integration_id}/deliveries/{delivery_id}/retry",
+    response_model=WebhookDeliverySummary,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def retry_webhook_delivery(
+    request: Request,
+    _origin: OriginChecked,
+    integration_id: uuid.UUID,
+    delivery_id: uuid.UUID,
+    actor: CurrentUser,
+    active_organization: CurrentOrganization,
+    _member: WriteMember,
+    db: DbDependency,
+) -> WebhookDeliverySummary:
+    """Reencola una entrega fallada conservando intentos y evidencia."""
+    try:
+        delivery = integrations_service.retry_outbound_delivery(
+            db,
+            organization_id=active_organization.id,
+            actor_id=actor.id,
+            actor_role=_member.role,
+            integration_id=integration_id,
+            delivery_id=delivery_id,
+        )
+    except IntegrationDomainError as exc:
+        _log(
+            "webhook_outbound.retry",
+            request=request,
+            organization_id=active_organization.id,
+            integration_id=integration_id,
+            result="error",
+            error_code=exc.code,
+        )
+        raise _http_error(exc) from None
+    _log(
+        "webhook_outbound.retry",
+        request=request,
+        organization_id=active_organization.id,
+        integration_id=integration_id,
+        result="queued",
+    )
+    return integrations_service.outbound_summary(delivery)
 
 
 __all__ = ["router"]

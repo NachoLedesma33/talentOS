@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from datetime import UTC, datetime
 from typing import Literal
@@ -13,6 +14,7 @@ from app.integrations.models import (
     Integration,
     IntegrationProvider,
     IntegrationStatus,
+    WebhookDeliveryStatus,
     WebhookEventStatus,
     WebhookEventType,
 )
@@ -198,6 +200,98 @@ class WebhookEventSummary(_ResponseModel):
     received_at: datetime
 
 
+_OUTBOUND_MARKER_TOKENS = frozenset(
+    {
+        "api_key",
+        "authorization",
+        "correo",
+        "cv",
+        "curriculum",
+        "e_mail",
+        "email",
+        "password",
+        "personal_email",
+        "phone",
+        "resume",
+        "secret",
+        "token",
+    }
+)
+_OUTBOUND_MARKER_VALUE = re.compile(
+    r"(?i)(@|bearer\s+|sk-[a-z0-9]{8,}|api[_-]?key\s*[:=]|password\s*[:=]"
+    r"|\bcv\b|curriculum|resume)"
+)
+
+
+def _reject_outbound_markers(value: object) -> None:
+    """Rechaza marcadores de CV, correo, token o secreto en cualquier profundidad."""
+    if isinstance(value, dict):
+        for key, item in value.items():
+            normalized = re.sub(r"[^a-z0-9]+", "_", str(key).strip().lower()).strip("_")
+            segments = set(normalized.split("_"))
+            if normalized in _OUTBOUND_MARKER_TOKENS or segments & _OUTBOUND_MARKER_TOKENS:
+                raise ValueError("payload con marcador sensible")
+            _reject_outbound_markers(item)
+        return
+    if isinstance(value, str):
+        if _OUTBOUND_MARKER_VALUE.search(value):
+            raise ValueError("payload con marcador sensible")
+        return
+    if isinstance(value, (list, tuple)):
+        for item in value:
+            _reject_outbound_markers(item)
+
+
+class OutboundEventRequest(_StrictModel):
+    """Evento saliente: campos cerrados y payload mínimo, acotado y saneado."""
+
+    event_id: uuid.UUID = Field(strict=False)
+    event_type: WebhookEventType = Field(strict=False)
+    resource_id: uuid.UUID = Field(strict=False)
+    correlation_id: uuid.UUID = Field(strict=False)
+    payload: dict[str, object]
+
+    @field_validator("payload")
+    @classmethod
+    def _sanitize_outbound_payload(cls, value: dict[str, object]) -> dict[str, object]:
+        try:
+            safe = validate_safe_payload(value)
+        except UnsafeAgentPayloadError:
+            raise ValueError("payload no apto para webhook saliente") from None
+        _reject_outbound_markers(safe)
+        if len(safe) > _MAX_WEBHOOK_PAYLOAD_KEYS:
+            raise ValueError("payload con demasiados campos")
+        canonical = json.dumps(
+            safe, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        )
+        if len(canonical.encode("utf-8")) > _MAX_WEBHOOK_PAYLOAD_BYTES:
+            raise ValueError("payload demasiado grande")
+        return safe
+
+
+class WebhookDeliverySummary(_ResponseModel):
+    """Diagnóstico de entrega saliente; jamás incluye payload ni cuerpo."""
+
+    id: uuid.UUID
+    event_id: uuid.UUID
+    event_type: WebhookEventType
+    status: WebhookDeliveryStatus
+    attempts: int
+    last_error_code: str | None
+    last_status_code: int | None
+    created_at: datetime
+    delivered_at: datetime | None
+
+
+class WebhookDeliveryListResponse(_ResponseModel):
+    """Listado paginado de entregas salientes del tenant."""
+
+    items: list[WebhookDeliverySummary]
+    total: int
+    limit: int
+    offset: int
+
+
 __all__ = [
     "EmailSandboxConfig",
     "IntegrationConfig",
@@ -205,7 +299,10 @@ __all__ = [
     "IntegrationListResponse",
     "IntegrationResponse",
     "IntegrationUpdateRequest",
+    "OutboundEventRequest",
     "WebhookAcceptedResponse",
+    "WebhookDeliveryListResponse",
+    "WebhookDeliverySummary",
     "WebhookEnvelope",
     "WebhookEventSummary",
     "WebhookInboundConfig",

@@ -6,36 +6,65 @@ el tenant se toma de la sesión. Sin red, envíos ni webhooks en esta unidad.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
 import logging
 import uuid
 from collections.abc import Mapping
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
+from enum import StrEnum
 from typing import cast
+from urllib.parse import urlsplit
 
+from pydantic import ValidationError
 from sqlalchemy.orm import Session as DBSession
 
+from app.agents.schemas import validate_safe_payload
 from app.audit.service import record_audit
 from app.core.logging import log_structured
 from app.identity.models import MembershipRole, User, UserStatus
 from app.identity.repositories import get_membership
-from app.integrations.crypto import current_key_id, encrypt_config
+from app.integrations.crypto import current_key_id, decrypt_config, encrypt_config
 from app.integrations.models import (
     Integration,
+    IntegrationConfigUnreadableError,
     IntegrationDomainError,
     IntegrationProvider,
     IntegrationStatus,
     IntegrationTenantMismatchError,
+    WebhookDelivery,
+    WebhookDeliveryExistsError,
+    WebhookDeliveryInvalidStatusError,
+    WebhookDeliveryNotFoundError,
+    WebhookDeliveryStatus,
     WebhookEvent,
     WebhookEventStatus,
+)
+from app.integrations.outbound import HttpxWebhookSender, WebhookDeliveryResult, WebhookSender
+from app.integrations.repositories import (
+    count_webhook_deliveries as count_delivery_rows,
 )
 from app.integrations.repositories import (
     create_integration as persist_integration_row,
 )
 from app.integrations.repositories import (
+    create_webhook_delivery as persist_webhook_delivery_row,
+)
+from app.integrations.repositories import (
     create_webhook_event as persist_webhook_event_row,
 )
 from app.integrations.repositories import (
+    find_webhook_delivery as find_delivery_row,
+)
+from app.integrations.repositories import (
     get_integration as get_integration_row,
+)
+from app.integrations.repositories import (
+    get_webhook_delivery as get_delivery_row,
+)
+from app.integrations.repositories import (
+    get_webhook_delivery_by_event as get_delivery_by_event_row,
 )
 from app.integrations.repositories import (
     get_webhook_event as get_webhook_event_row,
@@ -44,20 +73,28 @@ from app.integrations.repositories import (
     list_integrations as list_integration_rows,
 )
 from app.integrations.repositories import (
+    list_webhook_deliveries as list_delivery_rows,
+)
+from app.integrations.repositories import (
     update_integration as persist_integration_update,
 )
 from app.integrations.schemas import (
     IntegrationCreateRequest,
     IntegrationUpdateRequest,
+    OutboundEventRequest,
     WebhookAcceptedResponse,
+    WebhookDeliveryListResponse,
+    WebhookDeliverySummary,
     WebhookEnvelope,
     WebhookEventSummary,
+    WebhookOutboundConfig,
     config_matches_provider,
     safe_integration_metadata,
 )
 from app.integrations.webhooks import (
     DuplicateEventError,
     WebhookDomainError,
+    canonical_payload_hash,
     verify_webhook_request,
 )
 
@@ -65,10 +102,35 @@ _WRITE_ROLES = frozenset({MembershipRole.OWNER, MembershipRole.ADMIN})
 _MAX_PAGE = 100
 _RESOURCE_INTEGRATION = "integration"
 _RESOURCE_WEBHOOK_EVENT = "webhook_event"
+_RESOURCE_WEBHOOK_DELIVERY = "webhook_delivery"
 _BROKER_CODE = "broker_unavailable"
 _RETRYABLE_STATUSES = frozenset(
     {WebhookEventStatus.FAILED, WebhookEventStatus.DEAD_LETTER}
 )
+_DELIVERY_RETRYABLE_STATUSES = frozenset(
+    {WebhookDeliveryStatus.FAILED, WebhookDeliveryStatus.DEAD_LETTER}
+)
+_DELIVERY_SENDABLE_STATUSES = frozenset(
+    {
+        WebhookDeliveryStatus.PENDING,
+        WebhookDeliveryStatus.SENDING,
+        WebhookDeliveryStatus.FAILED,
+        WebhookDeliveryStatus.DEAD_LETTER,
+    }
+)
+_TRANSIENT_STATUS_CODES = frozenset({408, 429})
+_TRANSIENT_ERROR_CODES = frozenset({"provider_timeout", "provider_unavailable"})
+_MAX_DELIVERY_ATTEMPTS = 3
+_MAX_BACKOFF_SECONDS = 300
+_PAYLOAD_VERSION = "1"
+
+
+class DeliveryOutcome(StrEnum):
+    """Resultado observable de un intento de entrega saliente."""
+
+    DELIVERED = "delivered"
+    RETRY_SCHEDULED = "retry_scheduled"
+    DEAD_LETTER = "dead_letter"
 
 
 class IntegrationServiceError(IntegrationDomainError):
@@ -263,6 +325,138 @@ def _require_inbound_for_tenant(
     if integration.provider is not IntegrationProvider.WEBHOOK_INBOUND:
         raise IntegrationTenantMismatchError()
     return integration
+
+
+def _require_outbound_for_tenant(
+    db: DBSession, organization_id: uuid.UUID, integration_id: uuid.UUID
+) -> Integration:
+    """Solo integraciones salientes activas y del tenant autenticado."""
+    integration = _require_integration(db, organization_id, integration_id)
+    if integration.provider is not IntegrationProvider.WEBHOOK_OUTBOUND:
+        raise IntegrationTenantMismatchError()
+    if integration.status is not IntegrationStatus.ACTIVE:
+        raise IntegrationServiceError("integration_inactive")
+    return integration
+
+
+def read_outbound_config(integration: Integration) -> WebhookOutboundConfig:
+    """Descifra y valida el config saliente; secretos nunca salen de esta función."""
+    if integration.provider is not IntegrationProvider.WEBHOOK_OUTBOUND:
+        raise IntegrationTenantMismatchError()
+    raw = decrypt_config(integration.encrypted_config_ref)
+    try:
+        return WebhookOutboundConfig.model_validate(raw)
+    except ValidationError:
+        raise IntegrationConfigUnreadableError() from None
+
+
+def _endpoint_snapshot(endpoint: object) -> str:
+    """URL audible sin userinfo, query ni fragmento: sin secretos en la BD."""
+    try:
+        parts = urlsplit(str(endpoint))
+        port = parts.port
+    except ValueError:
+        raise IntegrationServiceError("invalid_integration_config") from None
+    host = parts.hostname
+    if parts.scheme not in {"http", "https"} or not host:
+        raise IntegrationServiceError("invalid_integration_config")
+    host_part = f"[{host}]" if ":" in host else host
+    port_part = f":{port}" if port is not None else ""
+    path = parts.path or "/"
+    return f"{parts.scheme}://{host_part}{port_part}{path}"
+
+
+def _outbound_request(
+    *,
+    event_id: uuid.UUID,
+    event_type: object,
+    resource_id: uuid.UUID,
+    correlation_id: uuid.UUID,
+    payload: Mapping[str, object],
+) -> OutboundEventRequest:
+    """Valida el contrato estricto; errores de forma nunca exponen payload."""
+    try:
+        return OutboundEventRequest.model_validate(
+            {
+                "event_id": event_id,
+                "event_type": event_type,
+                "resource_id": resource_id,
+                "correlation_id": correlation_id,
+                "payload": dict(payload),
+            }
+        )
+    except (ValidationError, TypeError, ValueError):
+        raise IntegrationServiceError("invalid_outbound_payload") from None
+
+
+def _outbound_body(delivery: WebhookDelivery) -> bytes:
+    """Envelope SDD 11.1 + payload mínimo de metadatos; sin texto libre."""
+    created_at = delivery.created_at
+    if created_at.tzinfo is None:
+        created_at = created_at.replace(tzinfo=UTC)
+    occurred_at = created_at.astimezone(UTC)
+    safe_payload = validate_safe_payload(
+        {
+            "event_type": delivery.event_type.value,
+            "resource_id": str(delivery.resource_id),
+            "payload_hash": delivery.payload_hash,
+        }
+    )
+    envelope = {
+        "event_id": str(delivery.event_id),
+        "event_type": delivery.event_type.value,
+        "organization_id": str(delivery.organization_id),
+        "occurred_at": occurred_at.isoformat().replace("+00:00", "Z"),
+        "resource_id": str(delivery.resource_id),
+        "correlation_id": str(delivery.correlation_id),
+        "payload_version": _PAYLOAD_VERSION,
+        "payload": safe_payload,
+    }
+    return json.dumps(
+        envelope, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    ).encode("utf-8")
+
+
+def _outbound_headers(
+    delivery: WebhookDelivery,
+    config: WebhookOutboundConfig,
+    body: bytes,
+    key_id: str,
+) -> dict[str, str]:
+    """Firma el cuerpo exacto enviado; la firma viaja como prefijo sha256=."""
+    signature = hmac.new(config.secret.encode("utf-8"), body, hashlib.sha256).hexdigest()
+    return {
+        "Content-Type": "application/json",
+        "X-TalentOS-Key-ID": key_id,
+        "X-TalentOS-Event-ID": str(delivery.event_id),
+        "X-TalentOS-Timestamp": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        "X-TalentOS-Correlation-ID": str(delivery.correlation_id),
+        "X-TalentOS-Signature": f"sha256={signature}",
+    }
+
+
+def _log_delivery(
+    event: str,
+    *,
+    organization_id: uuid.UUID,
+    integration_id: uuid.UUID,
+    delivery_id: uuid.UUID,
+    correlation_id: uuid.UUID,
+    result: str,
+    error_code: str | None = None,
+) -> None:
+    """Log de una línea: IDs y códigos estables; nunca cuerpo ni secreto."""
+    message = (
+        f"{event} delivery_id={delivery_id} integration_id={integration_id} result={result}"
+    )
+    if error_code is not None:
+        message += f" error_code={error_code}"
+    log_structured(
+        logging.INFO if error_code is None else logging.WARNING,
+        message,
+        correlation_id=str(correlation_id),
+        organization_id=str(organization_id),
+    )
 
 
 def _log_webhook(
@@ -505,13 +699,301 @@ def webhook_summary(event: WebhookEvent) -> WebhookEventSummary:
     )
 
 
+def create_outbound_event(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    actor_id: uuid.UUID,
+    actor_role: MembershipRole | str,
+    integration_id: uuid.UUID,
+    event_id: uuid.UUID,
+    event_type: object,
+    resource_id: uuid.UUID,
+    correlation_id: uuid.UUID,
+    payload: Mapping[str, object],
+) -> WebhookDelivery:
+    """Escribe el outbox en la transacción del llamador; el llamador hace commit."""
+    _require_actor(db, organization_id, actor_id, actor_role, write=True)
+    integration = _require_outbound_for_tenant(db, organization_id, integration_id)
+    request = _outbound_request(
+        event_id=event_id,
+        event_type=event_type,
+        resource_id=resource_id,
+        correlation_id=correlation_id,
+        payload=payload,
+    )
+    config = read_outbound_config(integration)
+    snapshot = _endpoint_snapshot(config.endpoint)
+
+    existing = get_delivery_by_event_row(
+        db, organization_id, integration_id, request.event_id
+    )
+    if existing is not None:
+        return existing
+
+    payload_hash = canonical_payload_hash(request.payload)
+    try:
+        delivery = persist_webhook_delivery_row(
+            db,
+            organization_id=organization_id,
+            integration_id=integration_id,
+            event_id=request.event_id,
+            event_type=request.event_type,
+            resource_id=request.resource_id,
+            correlation_id=request.correlation_id,
+            endpoint_snapshot=snapshot,
+            payload_hash=payload_hash,
+        )
+    except WebhookDeliveryExistsError:
+        # Carrera de dos productores con el mismo event_id: un solo efecto.
+        existing = get_delivery_by_event_row(
+            db, organization_id, integration_id, request.event_id
+        )
+        if existing is None:
+            raise
+        return existing
+
+    record_audit(
+        db,
+        organization_id=organization_id,
+        actor_id=actor_id,
+        action="webhook_outbound.queued",
+        resource_type=_RESOURCE_WEBHOOK_DELIVERY,
+        resource_id=delivery.id,
+    )
+    _log_delivery(
+        "webhook_outbound.queued",
+        organization_id=organization_id,
+        integration_id=integration_id,
+        delivery_id=delivery.id,
+        correlation_id=request.correlation_id,
+        result="queued",
+    )
+    return delivery
+
+
+def deliver_webhook(
+    db: DBSession,
+    delivery_id: uuid.UUID,
+    *,
+    organization_id: uuid.UUID | None = None,
+    correlation_id: uuid.UUID | None = None,
+    sender: WebhookSender | None = None,
+) -> DeliveryOutcome:
+    """Firma, envía y registra el intento; el llamador es dueño del commit."""
+    delivery = find_delivery_row(db, delivery_id)
+    if delivery is None:
+        raise WebhookDeliveryNotFoundError()
+    if organization_id is not None and delivery.organization_id != organization_id:
+        raise WebhookDeliveryNotFoundError()
+    if correlation_id is not None and delivery.correlation_id != correlation_id:
+        raise IntegrationServiceError("correlation_mismatch")
+    if delivery.status is WebhookDeliveryStatus.DELIVERED:
+        raise WebhookDeliveryInvalidStatusError()
+    if delivery.status not in _DELIVERY_SENDABLE_STATUSES:
+        raise WebhookDeliveryInvalidStatusError()
+
+    integration = _require_outbound_for_tenant(
+        db, delivery.organization_id, delivery.integration_id
+    )
+    config = read_outbound_config(integration)
+    body = _outbound_body(delivery)
+    headers = _outbound_headers(delivery, config, body, integration.key_id)
+
+    delivery.status = WebhookDeliveryStatus.SENDING
+    db.flush()
+    used_sender = sender if sender is not None else HttpxWebhookSender()
+    try:
+        result = used_sender.send(str(config.endpoint), headers, body)
+    except Exception:
+        # Ninguna excepción del adaptador sube con mensaje del proveedor.
+        result = WebhookDeliveryResult(None, "provider_timeout")
+
+    delivery.last_status_code = result.status_code
+    now = datetime.now(UTC)
+    if result.succeeded:
+        delivery.status = WebhookDeliveryStatus.DELIVERED
+        delivery.delivered_at = now
+        delivery.last_error_code = None
+        delivery.next_attempt_at = None
+        record_audit(
+            db,
+            organization_id=delivery.organization_id,
+            actor_id=None,
+            action="webhook_outbound.delivered",
+            resource_type=_RESOURCE_WEBHOOK_DELIVERY,
+            resource_id=delivery.id,
+        )
+        _log_delivery(
+            "webhook_outbound.delivered",
+            organization_id=delivery.organization_id,
+            integration_id=delivery.integration_id,
+            delivery_id=delivery.id,
+            correlation_id=delivery.correlation_id,
+            result=DeliveryOutcome.DELIVERED.value,
+        )
+        return DeliveryOutcome.DELIVERED
+
+    code = result.status_code
+    transient = (
+        result.error_code in _TRANSIENT_ERROR_CODES
+        or (code is not None and code in _TRANSIENT_STATUS_CODES)
+        or (code is not None and code >= 500)
+    )
+    attempts = delivery.attempts + 1
+    delivery.attempts = attempts
+    delivery.last_error_code = result.error_code or "provider_rejected"
+    if transient and attempts < _MAX_DELIVERY_ATTEMPTS:
+        delivery.status = WebhookDeliveryStatus.FAILED
+        delivery.next_attempt_at = now + timedelta(
+            seconds=min(_MAX_BACKOFF_SECONDS, 2**attempts)
+        )
+        outcome = DeliveryOutcome.RETRY_SCHEDULED
+    else:
+        delivery.status = WebhookDeliveryStatus.DEAD_LETTER
+        delivery.next_attempt_at = None
+        outcome = DeliveryOutcome.DEAD_LETTER
+
+    _log_delivery(
+        "webhook_outbound.failed",
+        organization_id=delivery.organization_id,
+        integration_id=delivery.integration_id,
+        delivery_id=delivery.id,
+        correlation_id=delivery.correlation_id,
+        result=outcome.value,
+        error_code=delivery.last_error_code,
+    )
+    return outcome
+
+
+def list_outbound_deliveries(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    actor_id: uuid.UUID,
+    actor_role: MembershipRole | str,
+    integration_id: uuid.UUID,
+    status: WebhookDeliveryStatus | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> WebhookDeliveryListResponse:
+    """Listado tenant-scoped sin payload; estado visible para diagnóstico."""
+    _require_actor(db, organization_id, actor_id, actor_role, write=False)
+    _require_outbound_for_tenant(db, organization_id, integration_id)
+    items = list_delivery_rows(
+        db,
+        organization_id,
+        integration_id,
+        status=status,
+        limit=min(limit, _MAX_PAGE),
+        offset=offset,
+    )
+    total = count_delivery_rows(db, organization_id, integration_id, status=status)
+    return WebhookDeliveryListResponse(
+        items=[outbound_summary(item) for item in items],
+        total=total,
+        limit=min(limit, _MAX_PAGE),
+        offset=offset,
+    )
+
+
+def _enqueue_webhook_delivery(delivery: WebhookDelivery) -> None:
+    """Encola solo IDs y contexto mínimo; import local evita ciclo con tasks."""
+    from app.integrations.tasks import deliver_webhook
+
+    deliver_webhook.delay(
+        str(delivery.id),
+        str(delivery.organization_id),
+        str(delivery.correlation_id),
+    )
+
+
+def retry_outbound_delivery(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    actor_id: uuid.UUID,
+    actor_role: MembershipRole | str,
+    integration_id: uuid.UUID,
+    delivery_id: uuid.UUID,
+) -> WebhookDelivery:
+    """Reintento manual: vuelve a pending, conserva intentos y evidencia."""
+    _require_actor(db, organization_id, actor_id, actor_role, write=True)
+    integration = _require_outbound_for_tenant(db, organization_id, integration_id)
+    delivery = get_delivery_row(db, organization_id, integration.id, delivery_id)
+    if delivery is None:
+        raise WebhookDeliveryNotFoundError()
+    if delivery.status not in _DELIVERY_RETRYABLE_STATUSES:
+        raise WebhookDeliveryInvalidStatusError()
+
+    delivery.status = WebhookDeliveryStatus.PENDING
+    delivery.next_attempt_at = None
+    record_audit(
+        db,
+        organization_id=organization_id,
+        actor_id=actor_id,
+        action="webhook_outbound.retry_requested",
+        resource_type=_RESOURCE_WEBHOOK_DELIVERY,
+        resource_id=delivery.id,
+    )
+    db.commit()
+    try:
+        _enqueue_webhook_delivery(delivery)
+    except Exception:
+        delivery.status = WebhookDeliveryStatus.FAILED
+        delivery.last_error_code = _BROKER_CODE
+        db.commit()
+        _log_delivery(
+            "webhook_outbound.retry_enqueue_failed",
+            organization_id=organization_id,
+            integration_id=integration.id,
+            delivery_id=delivery.id,
+            correlation_id=delivery.correlation_id,
+            result="failed",
+            error_code=_BROKER_CODE,
+        )
+        raise WebhookDomainError(_BROKER_CODE) from None
+
+    _log_delivery(
+        "webhook_outbound.retry_requested",
+        organization_id=organization_id,
+        integration_id=integration.id,
+        delivery_id=delivery.id,
+        correlation_id=delivery.correlation_id,
+        result="queued",
+    )
+    return delivery
+
+
+def outbound_summary(delivery: WebhookDelivery) -> WebhookDeliverySummary:
+    """DTO público de la entrega; sin endpoint, config, payload ni respuesta."""
+    return WebhookDeliverySummary(
+        id=delivery.id,
+        event_id=delivery.event_id,
+        event_type=delivery.event_type,
+        status=delivery.status,
+        attempts=delivery.attempts,
+        last_error_code=delivery.last_error_code,
+        last_status_code=delivery.last_status_code,
+        created_at=delivery.created_at,
+        delivered_at=delivery.delivered_at,
+    )
+
+
 __all__ = [
+    "DeliveryOutcome",
     "IntegrationServiceError",
     "create_integration",
+    "create_outbound_event",
+    "deliver_webhook",
     "get_integration",
     "list_integrations",
+    "list_outbound_deliveries",
+    "outbound_summary",
     "process_webhook_event",
+    "read_outbound_config",
     "receive_webhook",
+    "retry_outbound_delivery",
     "retry_webhook_event",
     "update_integration",
     "webhook_summary",
