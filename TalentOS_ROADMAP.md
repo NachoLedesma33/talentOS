@@ -658,23 +658,27 @@ Se puede ejecutar el mismo experimento nuevamente y comparar resultados con mét
 
 ## Tareas
 
-- [ ] Revisar navegación global.
+- [x] Revisar navegación global.
 - [ ] Unificar tokens de diseño.
 - [ ] Unificar formularios, tablas, modales y feedback.
 - [ ] Revisar responsive desktop/tablet/mobile.
-- [ ] Implementar navegación por teclado.
-- [ ] Revisar labels y nombres accesibles.
-- [ ] Revisar contraste.
-- [ ] Revisar focus states.
-- [ ] Revisar mensajes de error.
+- [x] Implementar navegación por teclado.
+- [x] Revisar labels y nombres accesibles.
+- [x] Revisar contraste.
+- [x] Revisar focus states.
+- [x] Revisar mensajes de error.
 - [ ] Revisar loading, empty, disabled y success states.
 - [ ] Reducir renders innecesarios.
-- [ ] Revisar tablas con grandes volúmenes.
+- [x] Revisar tablas con grandes volúmenes.
 - [ ] Realizar pruebas de usabilidad con tareas concretas.
 
 ## Criterio de salida
 
 Los flujos principales pueden completarse sin ayuda externa, en desktop y mobile, y los componentes críticos cumplen criterios de accesibilidad acordados.
+
+**Evidencia Fase 13 (2026-11-25):** skip link con test de primera parada de tabulación; `nav` con nombre accesible; todas las tablas con `caption` y `overflow-x-auto`; estados de evidencia con etiqueta y marca; mensajes de error de login, registro y feedback con prefijo `Error:`; contraste de texto 15.65/7.56/6.91, acento 6.67 y bordes 3.67/3.36 (WCAG 1.4.11); tokens semánticos de foco; `tsc`, `lint`, `vitest` 16 files/96 tests y `build` OK.
+
+**Pendiente / limitaciones:** tokens y formularios no unificados por completo; sin revisión responsive exhaustiva en dispositivos reales; sin suite E2E de Playwright configurada en el repo, por lo que el criterio de salida desktop/mobile no está verificado; renders revisados en `CandidatesPanel` y `IntegrationsPanel` (guards de `active` y cleanup presentes) sin evidencia de re-render medible, sin cambios; estados loading/empty/disabled/success cubiertos en componentes pero sin auditoría sistemática. Fase sigue `IN_PROGRESS` hasta cerrar estos puntos.
 
 ---
 
