@@ -128,38 +128,40 @@ export default function DashboardPage() {
         <h2 id="recruitment-heading" className="text-sm font-semibold text-text-muted">
           Recruitment Core
         </h2>
-        <ul className="flex flex-wrap gap-4 text-sm">
-          <li>
-            <a href="/jobs">Vacantes</a>
-          </li>
-          <li>
-            <a href="/candidates">Candidatos</a>
-          </li>
-          <li>
-            <a href="/applications">Pipeline</a>
-          </li>
-          <li>
-            <a href="/documents">Documentos</a>
-          </li>
-          <li>
-            <a href="/assessment">Evaluación</a>
-          </li>
-          <li>
-            <a href="/agents">Agentes</a>
-          </li>
-          <li>
-            <a href="/automations">Automatizaciones</a>
-          </li>
-          <li>
-            <a href="/integrations">Integraciones</a>
-          </li>
-          <li>
-            <a href="/interviews">Entrevistas</a>
-          </li>
-          <li>
-            <a href="/analytics">Analítica</a>
-          </li>
-        </ul>
+        <nav aria-labelledby="recruitment-heading">
+          <ul className="flex flex-wrap gap-4 text-sm">
+            <li>
+              <a href="/jobs">Vacantes</a>
+            </li>
+            <li>
+              <a href="/candidates">Candidatos</a>
+            </li>
+            <li>
+              <a href="/applications">Pipeline</a>
+            </li>
+            <li>
+              <a href="/documents">Documentos</a>
+            </li>
+            <li>
+              <a href="/assessment">Evaluación</a>
+            </li>
+            <li>
+              <a href="/agents">Agentes</a>
+            </li>
+            <li>
+              <a href="/automations">Automatizaciones</a>
+            </li>
+            <li>
+              <a href="/integrations">Integraciones</a>
+            </li>
+            <li>
+              <a href="/interviews">Entrevistas</a>
+            </li>
+            <li>
+              <a href="/analytics">Analítica</a>
+            </li>
+          </ul>
+        </nav>
       </section>
     </div>
   );

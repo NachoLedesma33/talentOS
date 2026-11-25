@@ -157,4 +157,31 @@ describe("identidad y organizaciones", () => {
       role: "admin",
     });
   });
+
+  it("expone la navegación principal como landmark accesible", async () => {
+    const me = {
+      id: "user-1",
+      email: "user-a@example.test",
+      name: "Usuario A",
+      status: "active" as const,
+      organizations: [{ id: "org-1", name: "Organización Uno" }],
+    };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
+      const url = String(input);
+      if (url.endsWith("/api/v1/auth/me")) return jsonResponse(me);
+      if (url.endsWith("/api/v1/organizations")) return jsonResponse(organizations);
+      if (url.includes("/members")) return jsonResponse(members);
+      return jsonResponse({});
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DashboardPage />);
+
+    expect(
+      await screen.findByRole("navigation", { name: "Recruitment Core" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Analítica" }).getAttribute("href")).toBe(
+      "/analytics",
+    );
+  });
 });
