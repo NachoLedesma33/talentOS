@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import io
 import re
 
 import pytest
+from docx import Document as DocxDocument
 from pydantic import ValidationError
+from pypdf import PdfReader
 
 from app.agents.extraction_schema import FieldName, FieldStatus
 from app.evaluation.dataset import (
@@ -13,6 +16,7 @@ from app.evaluation.dataset import (
     DatasetCase,
     ExpectedField,
 )
+from app.evaluation.documents import render_case
 
 _REQUIRED_FLAGS = {
     "complete",
@@ -71,4 +75,26 @@ def test_dataset_rejects_expected_quote_absent_from_cv_text() -> None:
             ),
             review_required=True,
             prompt_injection_detected=False,
+        )
+
+
+def test_rendered_pdf_cases_preserve_synthetic_text() -> None:
+    for case in DATASET_CASES:
+        if case.format is not CvFormat.PDF:
+            continue
+        data = render_case(case)
+        assert data.startswith(b"%PDF-")
+        extracted = PdfReader(io.BytesIO(data)).pages[0].extract_text() or ""
+        assert case.text in extracted
+
+
+def test_rendered_docx_cases_preserve_synthetic_text() -> None:
+    for case in DATASET_CASES:
+        if case.format is not CvFormat.DOCX:
+            continue
+        data = render_case(case)
+        assert data.startswith(b"PK")
+        document = DocxDocument(io.BytesIO(data))
+        assert "\n".join(paragraph.text for paragraph in document.paragraphs) == case.text.rstrip(
+            "\n"
         )
