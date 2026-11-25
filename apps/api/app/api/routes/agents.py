@@ -39,7 +39,9 @@ from app.agents.schemas import (
     validate_safe_payload,
 )
 from app.agents.tasks import resume_agent_workflow
+from app.applications.models import Application
 from app.audit.service import record_audit
+from app.core.config import get_settings
 from app.core.logging import log_structured
 from app.db.session import get_db
 from app.identity.dependencies import (
@@ -117,6 +119,11 @@ class EventSummary(_ResponseModel):
 class AgentRunDetail(AgentRunSummary):
     event_summary: list[EventSummary] = Field(default_factory=list)
     event_count: int = 0
+    duration_ms: int
+    configured_provider: str
+    configured_model: str | None
+    job_id: uuid.UUID | None
+    candidate_id: uuid.UUID | None
 
 
 class AgentRunListResponse(_ResponseModel):
@@ -216,12 +223,44 @@ def _event_summary(
     return [EventSummary(event_type=key, count=value) for key, value in counts.items()], total
 
 
+def _duration_ms(run: AgentRun) -> int:
+    return max(0, int((run.updated_at - run.created_at).total_seconds() * 1000))
+
+
+def _application_ids(
+    db: DBSession, run: AgentRun
+) -> tuple[uuid.UUID | None, uuid.UUID | None]:
+    if not run.input_ref:
+        return None, None
+    try:
+        application_id = uuid.UUID(run.input_ref)
+    except ValueError:
+        return None, None
+    row = db.execute(
+        select(Application.job_id, Application.candidate_id).where(
+            Application.id == application_id,
+            Application.organization_id == run.organization_id,
+        )
+    ).one_or_none()
+    if row is None:
+        return None, None
+    job_id, candidate_id = row
+    return job_id, candidate_id
+
+
 def _detail(db: DBSession, run: AgentRun) -> AgentRunDetail:
     summary, total = _event_summary(db, run.organization_id, run.id)
+    settings = get_settings()
+    job_id, candidate_id = _application_ids(db, run)
     return AgentRunDetail(
         **_summary(run).model_dump(),
         event_summary=summary,
         event_count=total,
+        duration_ms=_duration_ms(run),
+        configured_provider=settings.LLM_PROVIDER,
+        configured_model=settings.LLM_MODEL.strip() or None,
+        job_id=job_id,
+        candidate_id=candidate_id,
     )
 
 

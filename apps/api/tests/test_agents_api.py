@@ -416,7 +416,7 @@ def test_start_run_creates_once_and_reuses_idempotency_key(
 
 
 def test_detail_events_and_approvals_expose_no_sensitive_data(
-    client: TestClient, seeded: _Seed, runtime: _Provider
+    client: TestClient, db: DBSession, seeded: _Seed, runtime: _Provider
 ) -> None:
     del runtime
     run = _start_run(client, seeded, key="no-pii")
@@ -427,6 +427,15 @@ def test_detail_events_and_approvals_expose_no_sensitive_data(
     for marker in (_CV_MARKER, _STORAGE_MARKER, _SECRET_MARKER, seeded.org_a):
         assert marker not in detail_text
     assert detail.json()["event_count"] >= 1
+    assert isinstance(detail.json()["duration_ms"], int)
+    assert detail.json()["duration_ms"] >= 0
+    settings = get_settings()
+    assert detail.json()["configured_provider"] == settings.LLM_PROVIDER
+    assert detail.json()["configured_model"] == (settings.LLM_MODEL.strip() or None)
+    application = db.get(Application, uuid.UUID(seeded.application_id))
+    assert application is not None
+    assert detail.json()["job_id"] == str(application.job_id)
+    assert detail.json()["candidate_id"] == str(application.candidate_id)
 
     events = client.get(f"{_URL}/runs/{run_id}/events", headers=_headers(seeded))
     assert events.status_code == 200
