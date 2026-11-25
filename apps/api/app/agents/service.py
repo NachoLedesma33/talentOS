@@ -290,6 +290,8 @@ def _apply_terminal(
     last_error = errors[-1] if errors else None
     raw_duration = last_error.get("duration_ms") if last_error else None
     duration_ms = raw_duration if isinstance(raw_duration, int) else 0
+    raw_attempts = last_error.get("attempts") if last_error else None
+    attempts = raw_attempts if isinstance(raw_attempts, int) and raw_attempts >= 0 else 0
     _emit(
         db,
         run,
@@ -298,6 +300,7 @@ def _apply_terminal(
             "node": contract.nodes[-1].name.value,
             "status": status.value,
             "duration_ms": duration_ms,
+            "attempts": attempts,
             "error_type": str(state.get("error_type") or "") or None,
             "draft_id": str(state.get("draft_id") or "") or None,
             "delegated_run_id": str(state.get("delegated_run_id") or "") or None,

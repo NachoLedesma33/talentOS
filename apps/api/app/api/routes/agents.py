@@ -78,6 +78,7 @@ _PUBLIC_EVENT_KEYS = frozenset(
     {
         "action_type",
         "agent_run_id",
+        "attempts",
         "approval_id",
         "correlation_id",
         "decided_by",

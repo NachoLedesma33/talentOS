@@ -686,6 +686,56 @@ def test_cancel_reaches_terminal_state_and_audits_once(
     assert _audit_count(db, "agent.run_cancelled") == 1
 
 
+def test_terminal_event_records_attempts_from_last_error(
+    client: TestClient, db: DBSession, seeded: _Seed, runtime: _Provider
+) -> None:
+    del runtime
+    run = _start_run(client, seeded, key="attempts-terminal")
+    run_id = str(run["id"])
+    model = db.get(AgentRun, uuid.UUID(run_id))
+    assert model is not None
+    agents_service._apply_terminal(
+        db,
+        model,
+        {
+            "status": "cancelled",
+            "error_type": "internal_error",
+            "errors": [
+                {
+                    "node": "matching",
+                    "error_type": "internal_error",
+                    "attempts": 3,
+                    "duration_ms": 9,
+                }
+            ],
+        },
+        correlation_id=model.correlation_id,
+    )
+    db.commit()
+    event = db.scalars(
+        select(AgentEvent)
+        .where(
+            AgentEvent.agent_run_id == model.id,
+            AgentEvent.event_type == AgentEventType.RUN_CANCELLED,
+        )
+        .order_by(AgentEvent.created_at.desc())
+    ).first()
+    assert event is not None
+    assert event.payload["attempts"] == 3
+    assert event.payload["duration_ms"] == 9
+
+    response = client.get(
+        f"{_URL}/runs/{run_id}/events?limit=100", headers=_headers(seeded)
+    )
+    assert response.status_code == 200
+    public_attempts = [
+        item["payload"]["attempts"]
+        for item in response.json()["items"]
+        if item["event_type"] == "run.cancelled" and "attempts" in item["payload"]
+    ]
+    assert 3 in public_attempts
+
+
 def test_auth_and_tenant_boundaries(
     client: TestClient, seeded: _Seed, runtime: _Provider
 ) -> None:
