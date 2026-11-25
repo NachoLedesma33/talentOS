@@ -114,6 +114,8 @@ class AgentRunSummary(_ResponseModel):
     created_at: datetime
     updated_at: datetime
     output_ref: str | None
+    job_id: uuid.UUID | None
+    candidate_id: uuid.UUID | None
 
 
 class EventSummary(_ResponseModel):
@@ -127,8 +129,6 @@ class AgentRunDetail(AgentRunSummary):
     duration_ms: int
     configured_provider: str
     configured_model: str | None
-    job_id: uuid.UUID | None
-    candidate_id: uuid.UUID | None
 
 
 class AgentRunListResponse(_ResponseModel):
@@ -198,7 +198,8 @@ def _require_run(
     return run
 
 
-def _summary(run: AgentRun) -> AgentRunSummary:
+def _summary(db: DBSession, run: AgentRun) -> AgentRunSummary:
+    job_id, candidate_id = _application_ids(db, run)
     return AgentRunSummary(
         id=run.id,
         workflow=run.workflow,
@@ -208,6 +209,8 @@ def _summary(run: AgentRun) -> AgentRunSummary:
         created_at=run.created_at,
         updated_at=run.updated_at,
         output_ref=run.output_ref,
+        job_id=job_id,
+        candidate_id=candidate_id,
     )
 
 
@@ -256,16 +259,13 @@ def _application_ids(
 def _detail(db: DBSession, run: AgentRun) -> AgentRunDetail:
     summary, total = _event_summary(db, run.organization_id, run.id)
     settings = get_settings()
-    job_id, candidate_id = _application_ids(db, run)
     return AgentRunDetail(
-        **_summary(run).model_dump(),
+        **_summary(db, run).model_dump(),
         event_summary=summary,
         event_count=total,
         duration_ms=_duration_ms(run),
         configured_provider=settings.LLM_PROVIDER,
         configured_model=settings.LLM_MODEL.strip() or None,
-        job_id=job_id,
-        candidate_id=candidate_id,
     )
 
 
@@ -459,7 +459,7 @@ def list_runs(
         .offset(offset)
     ).all()
     return AgentRunListResponse(
-        items=[_summary(row) for row in rows],
+        items=[_summary(db, row) for row in rows],
         total=total,
         limit=limit,
         offset=offset,

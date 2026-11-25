@@ -875,6 +875,9 @@ def test_list_filters_by_dates_job_candidate_and_agent(
         headers=_headers(seeded),
     )
     assert by_job.json()["total"] == 1
+    item = by_job.json()["items"][0]
+    assert item["job_id"] == str(application.job_id)
+    assert item["candidate_id"] == str(application.candidate_id)
 
     by_candidate = client.get(
         f"{_URL}/runs",
