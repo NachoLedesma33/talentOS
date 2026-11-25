@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
 import type { Candidate, Document as DocumentDto } from "../lib/types";
-import { Button } from "./ui/Button";
+import { Button } from "./ui/shadcn/button";
 
 type Phase = "idle" | "uploading" | "extracting" | "done" | "error";
 

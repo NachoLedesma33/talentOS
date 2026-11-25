@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
 import type { AuthResponse, LoginRequest } from "../lib/types";
-import { Button } from "./ui/Button";
+import { Button } from "./ui/shadcn/button";
 
 type SubmitStatus = "idle" | "loading" | "success" | "error";
 

@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { Button } from "../src/components/ui/Button";
+import { Button } from "../src/components/ui/shadcn/button";
 
 describe("Button", () => {
   afterEach(() => {
@@ -11,14 +11,14 @@ describe("Button", () => {
     render(<Button>Acción</Button>);
 
     const button = screen.getByRole("button", { name: "Acción" });
-    expect(button.className).toContain("bg-accent");
+    expect(button.className).toContain("bg-primary");
   });
 
-  it("renderiza secondary con borde", () => {
+  it("renderiza secondary", () => {
     render(<Button variant="secondary">Acción</Button>);
 
     const button = screen.getByRole("button", { name: "Acción" });
-    expect(button.className).toContain("border-border");
+    expect(button.className).toContain("bg-secondary");
   });
 
   it("preserva type button", () => {
