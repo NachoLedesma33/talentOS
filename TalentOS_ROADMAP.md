@@ -628,23 +628,27 @@ Se puede ejecutar el mismo experimento nuevamente y comparar resultados con mét
 
 ## Indicadores iniciales
 
-- [ ] Vacantes abiertas y cerradas.
-- [ ] Candidatos por etapa.
-- [ ] Conversión entre etapas.
-- [ ] Tiempo medio por etapa.
-- [ ] Tiempo total de proceso.
-- [ ] Evaluaciones pendientes de revisión.
-- [ ] Ejecuciones de agentes exitosas y fallidas.
-- [ ] Automatizaciones ejecutadas.
-- [ ] Tiempo estimado ahorrado, con metodología explícita.
+- [x] Vacantes abiertas y cerradas.
+- [x] Candidatos por etapa.
+- [x] Conversión entre etapas.
+- [x] Tiempo medio por etapa.
+- [x] Tiempo total de proceso.
+- [x] Evaluaciones pendientes de revisión.
+- [x] Ejecuciones de agentes exitosas y fallidas.
+- [x] Automatizaciones ejecutadas.
+- [x] Tiempo estimado ahorrado, con metodología explícita.
 
 ## Criterios
 
-- [ ] Las métricas tienen definición documentada.
-- [ ] Los filtros respetan organización y permisos.
-- [ ] Los datos se calculan desde fuentes verificables.
-- [ ] Se distingue dato real de estimación.
-- [ ] Los gráficos tienen estados vacíos y accesibilidad.
+- [x] Las métricas tienen definición documentada.
+- [x] Los filtros respetan organización y permisos.
+- [x] Los datos se calculan desde fuentes verificables.
+- [x] Se distingue dato real de estimación.
+- [x] Los gráficos tienen estados vacíos y accesibilidad.
+
+## Implementación
+
+`GET /api/v1/analytics/overview` devuelve `pipeline` y `operational` del tenant activo. El servicio calcula métricas desde tablas operativas, declara definiciones y marca `is_estimate`. Tiempo ahorrado = 5 minutos por automatización live completada: supuesto declarado, no medición ni coste monetario. UI en `/analytics` con consulta explícita, estados vacío/carga/error y tablas accesibles.
 
 ---
 
@@ -898,7 +902,7 @@ Actualizar esta tabla durante el desarrollo.
 | 9 — Integrations | DONE | 2026-11-24 | 2026-11-24 | Commits `a67d40f`, `045f0b2`, `c187d00`, `aec6a05`, `f205ac0`, `6301e7e`; ADR-013 y migraciones `0013`-`0016`; `Integration` tenant-scoped con Fernet, webhooks entrantes HMAC/anti-replay/dedupe, outbox saliente firmado con reintentos, correo sandbox con aprobación separada y envío explícito, UI `/integrations`; ruff/mypy OK, pytest 467 passed / 1 failed flaky conocido de LangGraph/SQLite (aislado 4/5 passed), npm typecheck/lint/test 86/build OK, alembic harness upgrade/check/downgrade OK; CI run 45531304759 success (https://github.com/NachoLedesma33/talentOS/actions/runs/45531304759). |
 | 10 — Control Center | DONE | 2026-11-25 | 2026-11-25 | Commits `f3cd3d2` `520e795` `ef1c7b1` `1071b3f` `ae44f93` `7146839` `633da9b` `3294e2d` `0b03201` `83b2a6d` `c96a89e` `0e58183`; traza con `attempts`, listado filtrable, correlación vacante/candidato y retención automática de 30 días con purga tenant-scoped; ruff/mypy OK; pytest 472 passed; npm typecheck/lint/test 87/build OK; CI run `45652701849` success (https://github.com/NachoLedesma33/talentOS/actions/runs/45652701849). |
 | 11 — Simulation Lab | DONE | 2026-11-25 | 2026-11-25 | Commits `977c7b0` `3f83d92` `b25f050` `e7f4558` `8fbb268` `46d07c9` `781d5b1`; dataset sintético v1.0.0 con PDF/DOCX y etiquetas verificadas; evaluadores de extracción y matching sobre proveedor mock; métricas de esquema, evidencia, injector/revisión, latencia y tokens; comparación de regresiones por prompt/proveedor; simulación de proveedor lento/caído, tool fallida, aprobación rechazada y reintento; sin coste monetario por `estimate_usage` heurístico (RF-065); ruff/mypy OK; pytest 492 passed. |
-| 12 — Analytics | NOT_STARTED | — | — | — |
+| 12 — Analytics | DONE_LOCAL | 2026-11-25 | — | Commits `78ee0dd` `30e51c5` `75aaa2e` `381f9aa` `40fd5e3` `0d95499` `a9f7dbb`; servicio tenant-scoped con definiciones y estimación declarada; endpoint `/api/v1/analytics/overview` con autorización por membresía y tests cross-tenant; UI `/analytics` con estados vacío/carga/error y accesibilidad; ruff/mypy OK (124 archivos), pytest 500 passed, npm typecheck/lint OK, vitest 90 passed. Sin CI propia: pendiente de push. CI Fase 11 `45659663690` failure en `test_matching_workflow.py`; fix local `40fd5e3` pendiente de verificación. |
 | 13 — UX & Accessibility | NOT_STARTED | — | — | — |
 | 14 — Security & Privacy | NOT_STARTED | — | — | — |
 | 15 — Release | NOT_STARTED | — | — | — |
