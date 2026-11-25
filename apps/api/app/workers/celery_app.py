@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from celery import Celery  # type: ignore[import-untyped]  # Celery 5.4 no publica stubs PEP 561.
+from celery.schedules import crontab  # type: ignore[import-untyped]
 
 from app.core.config import get_settings
 
@@ -22,4 +23,10 @@ celery_app.conf.update(
     accept_content=["json"],
     timezone="UTC",
     enable_utc=True,
+    beat_schedule={
+        "purge-old-agent-events": {
+            "task": "agents.purge_old_events",
+            "schedule": crontab(hour=3, minute=0),
+        },
+    },
 )

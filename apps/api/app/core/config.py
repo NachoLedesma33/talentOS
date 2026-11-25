@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import AnyHttpUrl, PostgresDsn, RedisDsn
+from pydantic import AnyHttpUrl, Field, PostgresDsn, RedisDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _REQUIRED_SETTINGS = (
@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     INTEGRATION_ENCRYPTION_KEY: str = ""
     SESSION_COOKIE_NAME: str = "talentos_session"
     SESSION_TTL_SECONDS: int = 86400
+    AGENT_EVENT_RETENTION_DAYS: int = Field(default=30, gt=0)
 
 
 @lru_cache(maxsize=1)
