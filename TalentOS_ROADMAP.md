@@ -659,9 +659,9 @@ Se puede ejecutar el mismo experimento nuevamente y comparar resultados con mét
 ## Tareas
 
 - [x] Revisar navegación global.
-- [ ] Unificar tokens de diseño.
-- [ ] Unificar formularios, tablas, modales y feedback.
-- [ ] Revisar responsive desktop/tablet/mobile.
+- [x] Unificar tokens de diseño.
+- [x] Unificar formularios, tablas y feedback con shadcn/ui (A6–A11; no hay modales en la UI actual).
+- [x] Revisar responsive desktop/tablet/mobile.
 - [x] Implementar navegación por teclado.
 - [x] Revisar labels y nombres accesibles.
 - [x] Revisar contraste.
@@ -676,9 +676,9 @@ Se puede ejecutar el mismo experimento nuevamente y comparar resultados con mét
 
 Los flujos principales pueden completarse sin ayuda externa, en desktop y mobile, y los componentes críticos cumplen criterios de accesibilidad acordados.
 
-**Evidencia Fase 13 (2026-11-25):** skip link con test de primera parada de tabulación; `nav` con nombre accesible; todas las tablas con `caption` y `overflow-x-auto`; estados de evidencia con etiqueta y marca; mensajes de error de login, registro y feedback con prefijo `Error:`; contraste de texto 15.65/7.56/6.91, acento 6.67 y bordes 3.67/3.36 (WCAG 1.4.11); tokens semánticos de foco; `tsc`, `lint`, `vitest` 16 files/96 tests y `build` OK.
+**Evidencia Fase 13 (2026-11-25):** skip link con test de primera parada de tabulación; `nav` con nombre accesible; todas las tablas con `caption` y `overflow-x-auto`; estados de evidencia con etiqueta y marca; mensajes de error de login, registro y feedback con prefijo `Error:`; contraste de texto 15.65/7.56/6.91, acento 6.67 y bordes 3.67/3.36 (WCAG 1.4.11); tokens semánticos de foco; `tsc`, `lint`, `vitest` 18 files/105 tests, `build` y E2E OK (3 passed / 1 skipped); A6–A11 migran la UI a primitivas shadcn bajo ADR-016; CI `45737722649` y `45738753726` success.
 
-**Pendiente / limitaciones:** tokens y formularios no unificados por completo; sin revisión responsive exhaustiva en dispositivos reales; sin suite E2E de Playwright configurada en el repo, por lo que el criterio de salida desktop/mobile no está verificado; renders revisados en `CandidatesPanel` y `IntegrationsPanel` (guards de `active` y cleanup presentes) sin evidencia de re-render medible, sin cambios; estados loading/empty/disabled/success cubiertos en componentes pero sin auditoría sistemática. Fase sigue `IN_PROGRESS` hasta cerrar estos puntos.
+**Pendiente / limitaciones:** command menu, menú de usuario, recuperación de contraseña y onboarding sin implementar (los dos últimos sin contrato backend); renders revisados en `CandidatesPanel` y `IntegrationsPanel` (guards de `active` y cleanup presentes) sin evidencia de re-render medible; estados loading/empty/disabled/success cubiertos pero sin auditoría sistemática; pruebas de usabilidad con tareas concretas pendientes. Fase sigue `IN_PROGRESS` hasta cerrar estos puntos.
 
 ---
 
@@ -907,7 +907,7 @@ Actualizar esta tabla durante el desarrollo.
 | 10 — Control Center | DONE | 2026-11-25 | 2026-11-25 | Commits `f3cd3d2` `520e795` `ef1c7b1` `1071b3f` `ae44f93` `7146839` `633da9b` `3294e2d` `0b03201` `83b2a6d` `c96a89e` `0e58183`; traza con `attempts`, listado filtrable, correlación vacante/candidato y retención automática de 30 días con purga tenant-scoped; ruff/mypy OK; pytest 472 passed; npm typecheck/lint/test 87/build OK; CI run `45652701849` success (https://github.com/NachoLedesma33/talentOS/actions/runs/45652701849). |
 | 11 — Simulation Lab | DONE | 2026-11-25 | 2026-11-25 | Commits `977c7b0` `3f83d92` `b25f050` `e7f4558` `8fbb268` `46d07c9` `781d5b1`; dataset sintético v1.0.0 con PDF/DOCX y etiquetas verificadas; evaluadores de extracción y matching sobre proveedor mock; métricas de esquema, evidencia, injector/revisión, latencia y tokens; comparación de regresiones por prompt/proveedor; simulación de proveedor lento/caído, tool fallida, aprobación rechazada y reintento; sin coste monetario por `estimate_usage` heurístico (RF-065); ruff/mypy OK; pytest 492 passed. |
 | 12 — Analytics | DONE | 2026-11-25 | 2026-11-25 | Commits `78ee0dd` `30e51c5` `75aaa2e` `381f9aa` `40fd5e3` `0d95499` `a9f7dbb` `12c8bd0`; servicio tenant-scoped con definiciones y estimación declarada; endpoint `/api/v1/analytics/overview` con autorización por membresía y tests cross-tenant; UI `/analytics` con estados vacío/carga/error y accesibilidad; ruff/mypy OK (124 archivos), pytest 500 passed, npm typecheck/lint OK, vitest 90 passed. Push `9e71f5a..12c8bd0`; CI run `45667294069` success para `12c8bd004b211e67d464492144e0e534c135507a` (https://github.com/NachoLedesma33/talentOS/actions/runs/45667294069). CI Fase 11 `45659663690` failure en `test_matching_workflow.py`; fix `40fd5e3` verificado en CI. |
-| 13 — UX & Accessibility | IN_PROGRESS | 2026-11-25 | — | Commits locales `7f20ccb` `eecf39c` `c5c9c75` `bcb0d0b` `ffaaca4` `5e9b801` `bed67e1` `bf8ef48` `0745a29` `08d0c1a` `78f1278` `d860647` `cc51a61` `51524b5` `1e47f45` `6121fbc` `a1b8625`; skip link y landmark `nav`, test de primera parada de tabulación; errores de formularios con prefijo `Error:`; bordes con contraste 3.67:1 / 3.36:1; errores de login y registro con prefijo `Error:` y `aria-live` assertivo; todas las tablas con scroll horizontal y nombre accesible; estados de evidencia con etiqueta y marca; tokens semánticos de foco y contraste verificado; tsc/lint/vitest 96 passed/build OK. Faltan formularios/modales, estados y renders. Sin push. |
+| 13 — UX & Accessibility | IN_PROGRESS | 2026-11-25 | — | Commits locales `7f20ccb` `eecf39c` `c5c9c75` `bcb0d0b` `ffaaca4` `5e9b801` `bed67e1` `bf8ef48` `0745a29` `08d0c1a` `78f1278` `d860647` `cc51a61` `51524b5` `1e47f45` `6121fbc` `a1b8625`; skip link y landmark `nav`, test de primera parada de tabulación; errores de formularios con prefijo `Error:`; bordes con contraste 3.67:1 / 3.36:1; errores de login y registro con prefijo `Error:` y `aria-live` assertivo; todas las tablas con scroll horizontal y nombre accesible; estados de evidencia con etiqueta y marca; tokens semánticos de foco y contraste verificado; tsc/lint/vitest 105 passed/build/E2E OK; shadcn A6–A11 cerrado; push `09f23679fb55cd968fc5461842d4b52768d417da`, CI `45738753726` success. Faltan command menu, menú de usuario, re-renders, auditoría de estados y usabilidad. |
 | 14 — Security & Privacy | NOT_STARTED | — | — | — |
 | 15 — Release | NOT_STARTED | — | — | — |
 
