@@ -83,8 +83,20 @@ test("portada pública", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: /Decisiones de contratación con evidencia/ }),
   ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Acceder" })).toHaveAttribute("href", "/login");
+  await expect(page.getByRole("link", { name: "Empezar ahora" })).toHaveAttribute("href", "/register");
   await expect(page.getByRole("link", { name: "Crear cuenta" })).toHaveAttribute("href", "/register");
   await expect(page.getByRole("link", { name: "Ir al panel" })).toHaveAttribute("href", "/dashboard");
+  const cta = page.getByRole("link", { name: "Crear cuenta" });
+  expect(await cta.evaluate((element) => getComputedStyle(element).textDecorationLine)).toBe("none");
+});
+
+test("página 404 con acciones", async ({ page }) => {
+  await page.goto("/ruta-inexistente");
+
+  await expect(page.getByRole("heading", { name: "Esta página no existe." })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Volver al panel" })).toHaveAttribute("href", "/dashboard");
+  await expect(page.getByRole("link", { name: "Ir al inicio" })).toHaveAttribute("href", "/");
 });
 
 test("ruta de navegación principal del workspace", async ({ page }, testInfo) => {
