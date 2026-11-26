@@ -1015,8 +1015,8 @@ TalentOS está listo para presentarse como portfolio cuando:
 
 | Lote | Pedido | Unidad prevista | Estado | Evidencia |
 |---|---|---|---|---|
-| 16-01 | Roadmap y loop | `TalentOS_ROADMAP.md` | `IN_PROGRESS` | — |
-| 16-02 | Logout vuelve a landing | logout en shell + test E2E/unit | `NOT_STARTED` | — |
+| 16-01 | Roadmap y loop | `TalentOS_ROADMAP.md` | `DONE` | Commits `70c2667`, `1b96d65`; CI `45899845419` success. |
+| 16-02 | Logout vuelve a landing | logout en shell + test E2E/unit | `DONE` | Commit `1adbe42`; CI `45901374970` success; `vitest` 120 passed, `build` OK, E2E OK. |
 | 16-03 | Imagen hero propia | SVG propio + `apps/web/src/app/page.tsx` | `NOT_STARTED` | — |
 | 16-04 | Favicon característico | icon SVG + metadata | `NOT_STARTED` | — |
 | 16-05 | Sitemap y `robots` | rutas Next `sitemap.ts`/`robots.ts` | `NOT_STARTED` | — |
@@ -1065,4 +1065,5 @@ TalentOS está listo para presentarse como portfolio cuando:
 
 | Fecha | Lote | Commit | CI run | Resultado |
 |---|---|---|---|---|
-| 2026-11-26 | 16-01 | — | — | Roadmap escrito; sin código aún. |
+| 2026-11-26 | 16-01 | `1b96d65` | `45899845419` | Roadmap y loop publicados. |
+| 2026-11-26 | 16-02 | `1adbe42` | `45901374970` | Logout limpia `talentos:active-org` y vuelve a `/`. |
