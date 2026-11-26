@@ -6,6 +6,17 @@ import type {
   AutomationRunStatus,
   AutomationRunSummary,
 } from "../lib/types";
+import { Button } from "./ui/shadcn/button";
+import { Card } from "./ui/shadcn/card";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "./ui/shadcn/table";
 
 /** Espejo de las claves públicas del backend; defensa en profundidad en la UI. */
 const PUBLIC_PAYLOAD_KEYS = new Set([
@@ -111,119 +122,116 @@ export function AutomationRunTimeline({
       </div>
 
       {error ? (
-        <p role="alert" className="rounded-sm border border-border p-3 text-sm">
+        <Card role="alert" className="p-3 text-sm">
           {error}
-        </p>
+        </Card>
       ) : null}
 
       <div className="space-y-2">
         <h4 className="text-sm font-semibold">Ejecuciones</h4>
         {!loading && runs.length === 0 && !error ? (
-          <p className="rounded-sm border border-border bg-surface-muted p-3 text-sm text-text-muted">
+          <Card className="bg-secondary p-3 text-sm text-text-muted">
             No hay ejecuciones registradas para esta automatización.
-          </p>
+          </Card>
         ) : (
-          <div className="overflow-x-auto rounded-sm border border-border">
-            <table className="w-full border-collapse text-left text-sm">
-              <caption className="sr-only">Ejecuciones de la automatización</caption>
-              <thead className="bg-surface-muted text-xs uppercase tracking-wide text-text-muted">
-                <tr>
-                  <th scope="col" className="px-3 py-2 font-semibold">Ejecución</th>
-                  <th scope="col" className="px-3 py-2 font-semibold">Modo</th>
-                  <th scope="col" className="px-3 py-2 font-semibold">Estado</th>
-                  <th scope="col" className="px-3 py-2 font-semibold">Error</th>
-                  <th scope="col" className="px-3 py-2 font-semibold">Creada UTC</th>
-                  <th scope="col" className="px-3 py-2 font-semibold">Duración</th>
-                  <th scope="col" className="px-3 py-2 font-semibold">Correlación</th>
-                </tr>
-              </thead>
-              <tbody>
-                {runs.map((run) => {
-                  const duration = formatDuration(run);
-                  return (
-                    <tr
-                      key={run.id}
-                      className="border-t border-border align-top"
-                      aria-current={run.id === selectedRunId ? "true" : undefined}
-                    >
-                      <td className="px-3 py-2">
-                        {onSelectRun ? (
-                          <button
-                            type="button"
-                            onClick={() => onSelectRun(run.id)}
-                            aria-label={`Ver ejecución ${run.id}`}
-                            className="rounded-sm border border-border px-2 py-1 text-xs font-semibold"
-                          >
-                            {run.id} · v{run.version}
-                          </button>
-                        ) : (
-                          <span>{run.id} · v{run.version}</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2">{RUN_MODE_LABELS[run.mode]}</td>
-                      <td className="px-3 py-2">{RUN_STATUS_LABELS[run.status]}</td>
-                      <td className="px-3 py-2 text-text-muted">{run.error_code ?? "—"}</td>
-                      <td className="whitespace-nowrap px-3 py-2 text-text-muted">
-                        {formatUtc(run.created_at)}
-                      </td>
-                      <td className="px-3 py-2 text-text-muted">{duration ?? "—"}</td>
-                      <td className="px-3 py-2 text-text-muted">{run.correlation_id}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <Table className="border border-border text-left">
+            <TableCaption className="sr-only">Ejecuciones de la automatización</TableCaption>
+            <TableHeader className="bg-surface-muted text-xs uppercase tracking-wide text-text-muted">
+              <TableRow>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">Ejecución</TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">Modo</TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">Estado</TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">Error</TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">Creada UTC</TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">Duración</TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">Correlación</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {runs.map((run) => {
+                const duration = formatDuration(run);
+                return (
+                  <TableRow
+                    key={run.id}
+                    className="border-t border-border align-top"
+                    aria-current={run.id === selectedRunId ? "true" : undefined}
+                  >
+                    <TableCell className="px-3 py-2">
+                      {onSelectRun ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onSelectRun(run.id)}
+                          aria-label={`Ver ejecución ${run.id}`}
+                        >
+                          {run.id} · v{run.version}
+                        </Button>
+                      ) : (
+                        <span>{run.id} · v{run.version}</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="px-3 py-2">{RUN_MODE_LABELS[run.mode]}</TableCell>
+                    <TableCell className="px-3 py-2">{RUN_STATUS_LABELS[run.status]}</TableCell>
+                    <TableCell className="px-3 py-2 text-text-muted">{run.error_code ?? "—"}</TableCell>
+                    <TableCell className="whitespace-nowrap px-3 py-2 text-text-muted">
+                      {formatUtc(run.created_at)}
+                    </TableCell>
+                    <TableCell className="px-3 py-2 text-text-muted">{duration ?? "—"}</TableCell>
+                    <TableCell className="px-3 py-2 text-text-muted">{run.correlation_id}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         )}
       </div>
 
       <div className="space-y-2">
         <h4 className="text-sm font-semibold">Eventos de la ejecución seleccionada</h4>
         {!loading && events.length === 0 && !error ? (
-          <p className="rounded-sm border border-border bg-surface-muted p-3 text-sm text-text-muted">
+          <Card className="bg-secondary p-3 text-sm text-text-muted">
             Todavía no hay eventos para esta ejecución.
-          </p>
+          </Card>
         ) : (
-          <div className="overflow-x-auto rounded-sm border border-border">
-            <table className="w-full border-collapse text-left text-sm">
-              <caption className="sr-only">Eventos con payload saneado</caption>
-              <thead className="bg-surface-muted text-xs uppercase tracking-wide text-text-muted">
-                <tr>
-                  <th scope="col" className="px-3 py-2 font-semibold">Tipo</th>
-                  <th scope="col" className="px-3 py-2 font-semibold">Fecha UTC</th>
-                  <th scope="col" className="px-3 py-2 font-semibold">Correlación</th>
-                  <th scope="col" className="px-3 py-2 font-semibold">Payload saneado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {events.map((event, index) => {
-                  const payload = safePayload(event.payload ?? {});
-                  const keys = Object.keys(payload);
-                  return (
-                    <tr
-                      key={`${event.event_type}-${event.created_at}-${index}`}
-                      className="border-t border-border align-top"
-                    >
-                      <td className="px-3 py-2 font-medium">{event.event_type}</td>
-                      <td className="whitespace-nowrap px-3 py-2 text-text-muted">
-                        {formatUtc(event.created_at)}
-                      </td>
-                      <td className="px-3 py-2 text-text-muted">{event.correlation_id}</td>
-                      <td className="px-3 py-2">
-                        {keys.length === 0 ? (
-                          <span className="text-xs text-text-muted">Sin metadatos adicionales.</span>
-                        ) : (
-                          <code className="block break-all text-xs text-text-muted">
-                            {JSON.stringify(payload)}
-                          </code>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <Table className="border border-border text-left">
+            <TableCaption className="sr-only">Eventos con payload saneado</TableCaption>
+            <TableHeader className="bg-surface-muted text-xs uppercase tracking-wide text-text-muted">
+              <TableRow>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">Tipo</TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">Fecha UTC</TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">Correlación</TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">Payload saneado</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {events.map((event, index) => {
+                const payload = safePayload(event.payload ?? {});
+                const keys = Object.keys(payload);
+                return (
+                  <TableRow
+                    key={`${event.event_type}-${event.created_at}-${index}`}
+                    className="border-t border-border align-top"
+                  >
+                    <TableCell className="px-3 py-2 font-medium">{event.event_type}</TableCell>
+                    <TableCell className="whitespace-nowrap px-3 py-2 text-text-muted">
+                      {formatUtc(event.created_at)}
+                    </TableCell>
+                    <TableCell className="px-3 py-2 text-text-muted">{event.correlation_id}</TableCell>
+                    <TableCell className="px-3 py-2">
+                      {keys.length === 0 ? (
+                        <span className="text-xs text-text-muted">Sin metadatos adicionales.</span>
+                      ) : (
+                        <code className="block break-all text-xs text-text-muted">
+                          {JSON.stringify(payload)}
+                        </code>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         )}
       </div>
     </section>

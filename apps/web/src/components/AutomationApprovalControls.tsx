@@ -9,6 +9,11 @@ import type {
   AutomationDecisionRequest,
   AutomationRunDetail,
 } from "../lib/types";
+import { Button } from "./ui/shadcn/button";
+import { Card } from "./ui/shadcn/card";
+import { Input } from "./ui/shadcn/input";
+import { Label } from "./ui/shadcn/label";
+import { Select } from "./ui/shadcn/select";
 
 type Decision = Exclude<AutomationApprovalStatus, "pending">;
 
@@ -120,102 +125,95 @@ export function AutomationApprovalControls({
         {notice ?? "Sin decisiones registradas en esta vista."}
       </p>
       {error ? (
-        <p role="alert" className="rounded-sm border border-border p-3 text-sm">
+        <Card role="alert" className="p-3 text-sm">
           {error}
-        </p>
+        </Card>
       ) : null}
 
       {approvals.length === 0 ? (
-        <p className="rounded-sm border border-border bg-surface-muted p-3 text-sm text-text-muted">
+        <Card className="bg-secondary p-3 text-sm text-text-muted">
           No hay aprobaciones para esta ejecución.
-        </p>
+        </Card>
       ) : (
         <ul className="space-y-3">
           {approvals.map((approval) => {
             const current = confirmed[approval.id] ?? approval.status;
             const decided = approval.status !== "pending" || Boolean(confirmed[approval.id]);
             return (
-              <li key={approval.id} className="space-y-2 rounded-sm border border-border p-3">
-                <dl className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-text-muted">
-                  <div>
-                    <dt className="inline font-semibold">Acción: </dt>
-                    <dd className="inline">{approval.action_type}</dd>
-                  </div>
-                  <div>
-                    <dt className="inline font-semibold">Creada UTC: </dt>
-                    <dd className="inline">{formatUtc(approval.created_at)}</dd>
-                  </div>
-                  <div>
-                    <dt className="inline font-semibold">Estado: </dt>
-                    <dd className="inline">{STATUS_LABELS[current]}</dd>
-                  </div>
-                </dl>
+              <li key={approval.id}>
+                <Card className="space-y-2 p-3">
+                  <dl className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-text-muted">
+                    <div>
+                      <dt className="inline font-semibold">Acción: </dt>
+                      <dd className="inline">{approval.action_type}</dd>
+                    </div>
+                    <div>
+                      <dt className="inline font-semibold">Creada UTC: </dt>
+                      <dd className="inline">{formatUtc(approval.created_at)}</dd>
+                    </div>
+                    <div>
+                      <dt className="inline font-semibold">Estado: </dt>
+                      <dd className="inline">{STATUS_LABELS[current]}</dd>
+                    </div>
+                  </dl>
 
-                {decided ? (
-                  <p role="status" className="text-sm text-text-muted">
-                    Decisión registrada: {STATUS_LABELS[current]}. No se puede repetir.
-                  </p>
-                ) : (
-                  <form
-                    onSubmit={(event) => void decide(event, approval)}
-                    className="flex flex-wrap items-end gap-3"
-                  >
-                    <div className="space-y-1">
-                      <label
-                        htmlFor={`automation-decision-${approval.id}`}
-                        className="block text-sm font-semibold"
-                      >
-                        Decisión para {approval.action_type}
-                      </label>
-                      <select
-                        id={`automation-decision-${approval.id}`}
-                        value={selections[approval.id] ?? ""}
-                        onChange={(event) =>
-                          setSelections((currentState) => ({
-                            ...currentState,
-                            [approval.id]: event.target.value as Decision | "",
-                          }))
-                        }
-                        disabled={isBusy}
-                        required
-                        className="rounded-sm border border-border bg-surface px-2 py-2 text-sm"
-                      >
-                        <option value="">Selecciona decisión</option>
-                        <option value="approved">Aprobar acción</option>
-                        <option value="rejected">Rechazar y devolver a revisión</option>
-                      </select>
-                    </div>
-                    <div className="min-w-48 flex-1 space-y-1">
-                      <label
-                        htmlFor={`automation-note-${approval.id}`}
-                        className="block text-sm font-semibold"
-                      >
-                        Nota opcional para {approval.action_type}
-                      </label>
-                      <input
-                        id={`automation-note-${approval.id}`}
-                        value={notes[approval.id] ?? ""}
-                        onChange={(event) =>
-                          setNotes((currentState) => ({
-                            ...currentState,
-                            [approval.id]: event.target.value,
-                          }))
-                        }
-                        maxLength={500}
-                        disabled={isBusy}
-                        className="w-full rounded-sm border border-border bg-surface px-2 py-2 text-sm"
-                      />
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={isBusy || !selections[approval.id]}
-                      aria-label={`Registrar decisión para ${approval.action_type}`}
-                      className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-on-accent disabled:opacity-60"
+                  {decided ? (
+                    <p role="status" className="text-sm text-text-muted">
+                      Decisión registrada: {STATUS_LABELS[current]}. No se puede repetir.
+                    </p>
+                  ) : (
+                    <form
+                      onSubmit={(event) => void decide(event, approval)}
+                      className="flex flex-wrap items-end gap-3"
                     >
-                      {busy === `decide:${approval.id}` ? "Registrando…" : "Registrar decisión"}
-                    </button>
-                  </form>
-                )}
+                      <div className="space-y-1">
+                        <Label htmlFor={`automation-decision-${approval.id}`} className="block">
+                          Decisión para {approval.action_type}
+                        </Label>
+                        <Select
+                          id={`automation-decision-${approval.id}`}
+                          value={selections[approval.id] ?? ""}
+                          onChange={(event) =>
+                            setSelections((currentState) => ({
+                              ...currentState,
+                              [approval.id]: event.target.value as Decision | "",
+                            }))
+                          }
+                          disabled={isBusy}
+                          required
+                        >
+                          <option value="">Selecciona decisión</option>
+                          <option value="approved">Aprobar acción</option>
+                          <option value="rejected">Rechazar y devolver a revisión</option>
+                        </Select>
+                      </div>
+                      <div className="min-w-48 flex-1 space-y-1">
+                        <Label htmlFor={`automation-note-${approval.id}`} className="block">
+                          Nota opcional para {approval.action_type}
+                        </Label>
+                        <Input
+                          id={`automation-note-${approval.id}`}
+                          value={notes[approval.id] ?? ""}
+                          onChange={(event) =>
+                            setNotes((currentState) => ({
+                              ...currentState,
+                              [approval.id]: event.target.value,
+                            }))
+                          }
+                          maxLength={500}
+                          disabled={isBusy}
+                        />
+                      </div>
+                      <Button
+                        type="submit"
+                        disabled={isBusy || !selections[approval.id]}
+                        aria-label={`Registrar decisión para ${approval.action_type}`}
+                      >
+                        {busy === `decide:${approval.id}` ? "Registrando…" : "Registrar decisión"}
+                      </Button>
+                    </form>
+                  )}
+                </Card>
               </li>
             );
           })}
@@ -223,14 +221,14 @@ export function AutomationApprovalControls({
       )}
 
       <div className="flex flex-wrap items-center gap-3">
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={() => void cancel()}
           disabled={isBusy || !runId}
-          className="rounded-sm border border-border px-3 py-2 text-sm font-semibold disabled:opacity-60"
         >
           {busy === "cancel" ? "Cancelando…" : "Cancelar ejecución"}
-        </button>
+        </Button>
       </div>
     </section>
   );

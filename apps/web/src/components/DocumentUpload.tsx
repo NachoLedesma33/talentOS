@@ -4,6 +4,10 @@ import { useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
 import type { Candidate, Document as DocumentDto } from "../lib/types";
 import { Button } from "./ui/shadcn/button";
+import { Card } from "./ui/shadcn/card";
+import { Input } from "./ui/shadcn/input";
+import { Label } from "./ui/shadcn/label";
+import { Select } from "./ui/shadcn/select";
 
 type Phase = "idle" | "uploading" | "extracting" | "done" | "error";
 
@@ -72,20 +76,20 @@ export function DocumentUpload({
   const busy = phase === "uploading" || phase === "extracting";
 
   return (
-    <form onSubmit={handleSubmit} aria-busy={busy} className="space-y-3">
+    <form onSubmit={handleSubmit} aria-busy={busy}>
+      <Card className="space-y-3 p-4">
       <h2 className="text-lg font-semibold">Subir CV</h2>
       <div className="space-y-1">
-        <label htmlFor="document-candidate" className="block text-sm font-semibold">
+        <Label htmlFor="document-candidate" className="block">
           Candidato
-        </label>
+        </Label>
         {candidates.length > 0 ? (
-          <select
+          <Select
             id="document-candidate"
             value={candidateId}
             onChange={(event) => setCandidateId(event.target.value)}
             required
             disabled={busy}
-            className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm"
           >
             <option value="">Selecciona un candidato</option>
             {candidates.map((candidate) => (
@@ -93,24 +97,23 @@ export function DocumentUpload({
                 {candidate.name}
               </option>
             ))}
-          </select>
+          </Select>
         ) : (
-          <input
+          <Input
             id="document-candidate"
             value={candidateId}
             onChange={(event) => setCandidateId(event.target.value)}
             placeholder="UUID del candidato"
             required
             disabled={busy}
-            className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm"
           />
         )}
       </div>
       <div className="space-y-1">
-        <label htmlFor="document-file" className="block text-sm font-semibold">
+        <Label htmlFor="document-file" className="block">
           Archivo PDF o DOCX
-        </label>
-        <input
+        </Label>
+        <Input
           id="document-file"
           type="file"
           accept={ACCEPTED_TYPES}
@@ -140,6 +143,7 @@ export function DocumentUpload({
           Reintentar
         </Button>
       ) : null}
+      </Card>
     </form>
   );
 }

@@ -17,6 +17,19 @@ import type {
   WebhookDeliveryList,
   WebhookDeliveryStatus,
 } from "../lib/types";
+import { Button } from "./ui/shadcn/button";
+import { Card } from "./ui/shadcn/card";
+import { Label } from "./ui/shadcn/label";
+import { Select } from "./ui/shadcn/select";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "./ui/shadcn/table";
 
 const PAGE_SIZE = 20;
 
@@ -263,30 +276,26 @@ export function IntegrationsPanel() {
       </p>
 
       {error ? (
-        <section role="alert" className="space-y-2 rounded-sm border border-border p-3">
+        <Card role="alert" className="space-y-2 p-3">
           <p className="text-sm">{error}</p>
-          <button
-            type="button"
-            onClick={() => void loadList()}
-            className="rounded-sm border border-border px-3 py-1 text-sm font-semibold"
-          >
+          <Button type="button" variant="outline" size="sm" onClick={() => void loadList()}>
             Reintentar
-          </button>
-        </section>
+          </Button>
+        </Card>
       ) : null}
 
       {actionError ? (
-        <section role="alert" className="rounded-sm border border-border p-3 text-sm">
+        <Card role="alert" className="p-3 text-sm">
           {actionError}
-        </section>
+        </Card>
       ) : null}
 
       <div className="flex flex-wrap items-end gap-3">
         <div className="space-y-1">
-          <label htmlFor="integration-status-filter" className="block text-sm font-semibold">
+          <Label htmlFor="integration-status-filter" className="block">
             Filtrar por estado
-          </label>
-          <select
+          </Label>
+          <Select
             id="integration-status-filter"
             value={statusFilter}
             onChange={(event) => {
@@ -295,96 +304,91 @@ export function IntegrationsPanel() {
               void loadList(next, 0);
             }}
             disabled={working}
-            className="rounded-sm border border-border bg-surface px-2 py-2 text-sm"
           >
             <option value="all">Todos</option>
             <option value="active">Activa</option>
             <option value="disabled">Desactivada</option>
-          </select>
+          </Select>
         </div>
-        <button
-          type="button"
-          onClick={() => void loadList()}
-          disabled={working}
-          className="rounded-sm border border-border px-3 py-2 text-sm font-semibold disabled:opacity-60"
-        >
+        <Button type="button" variant="outline" onClick={() => void loadList()} disabled={working}>
           Actualizar listado
-        </button>
+        </Button>
       </div>
 
       {list && list.items.length > 0 ? (
         <div className="space-y-2">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
-              <caption className="sr-only">Integraciones de la organización activa</caption>
-              <thead>
-                <tr className="border-b border-border text-left">
-                  <th scope="col" className="px-2 py-2 font-semibold">Proveedor</th>
-                  <th scope="col" className="px-2 py-2 font-semibold">Estado</th>
-                  <th scope="col" className="px-2 py-2 font-semibold">Versión de config.</th>
-                  <th scope="col" className="px-2 py-2 font-semibold">ID de clave</th>
-                  <th scope="col" className="px-2 py-2 font-semibold">Creada (UTC)</th>
-                  <th scope="col" className="px-2 py-2 font-semibold">Actualizada (UTC)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {list.items.map((item) => (
-                  <tr key={item.id} className="border-b border-border">
-                    <td className="px-2 py-2">
-                      <button
-                        type="button"
-                        disabled={working}
-                        onClick={() => void selectIntegration(item)}
-                        aria-current={item.id === selected?.id ? "true" : undefined}
-                        aria-label={`Seleccionar integración ${item.provider}`}
-                        className="rounded-sm border border-border bg-surface px-2 py-1 text-left font-semibold disabled:opacity-60"
-                      >
-                        {PROVIDER_LABELS[item.provider]} · <code>{item.provider}</code>
-                      </button>
-                    </td>
-                    <td className="px-2 py-2">{INTEGRATION_STATUS_LABELS[item.status]}</td>
-                    <td className="px-2 py-2">{item.config_version}</td>
-                    <td className="px-2 py-2"><code>{item.key_id}</code></td>
-                    <td className="px-2 py-2">{item.created_at}</td>
-                    <td className="px-2 py-2">{item.updated_at}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table className="text-left">
+            <TableCaption className="sr-only">Integraciones de la organización activa</TableCaption>
+            <TableHeader>
+              <TableRow className="border-b border-border text-left">
+                <TableHead scope="col" className="px-2 py-2 font-semibold">Proveedor</TableHead>
+                <TableHead scope="col" className="px-2 py-2 font-semibold">Estado</TableHead>
+                <TableHead scope="col" className="px-2 py-2 font-semibold">Versión de config.</TableHead>
+                <TableHead scope="col" className="px-2 py-2 font-semibold">ID de clave</TableHead>
+                <TableHead scope="col" className="px-2 py-2 font-semibold">Creada (UTC)</TableHead>
+                <TableHead scope="col" className="px-2 py-2 font-semibold">Actualizada (UTC)</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {list.items.map((item) => (
+                <TableRow key={item.id} className="border-b border-border">
+                  <TableCell className="px-2 py-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={working}
+                      onClick={() => void selectIntegration(item)}
+                      aria-current={item.id === selected?.id ? "true" : undefined}
+                      aria-label={`Seleccionar integración ${item.provider}`}
+                    >
+                      {PROVIDER_LABELS[item.provider]} · <code>{item.provider}</code>
+                    </Button>
+                  </TableCell>
+                  <TableCell className="px-2 py-2">{INTEGRATION_STATUS_LABELS[item.status]}</TableCell>
+                  <TableCell className="px-2 py-2">{item.config_version}</TableCell>
+                  <TableCell className="px-2 py-2"><code>{item.key_id}</code></TableCell>
+                  <TableCell className="px-2 py-2">{item.created_at}</TableCell>
+                  <TableCell className="px-2 py-2">{item.updated_at}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
           <div className="flex flex-wrap items-center gap-3 text-sm text-text-muted">
             <span>{`Página ${currentPage} de ${totalPages} · ${list.total} registros`}</span>
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               disabled={working || offset === 0}
               onClick={() => {
                 const next = Math.max(0, offset - PAGE_SIZE);
                 setOffset(next);
                 void loadList(statusFilter, next);
               }}
-              className="rounded-sm border border-border px-3 py-1 font-semibold disabled:opacity-60"
             >
               Página anterior
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               disabled={working || offset + PAGE_SIZE >= list.total}
               onClick={() => {
                 const next = offset + PAGE_SIZE;
                 setOffset(next);
                 void loadList(statusFilter, next);
               }}
-              className="rounded-sm border border-border px-3 py-1 font-semibold disabled:opacity-60"
             >
               Página siguiente
-            </button>
+            </Button>
           </div>
         </div>
       ) : list && !listLoading && !error ? (
-        <p className="rounded-sm border border-border bg-surface-muted p-3 text-sm text-text-muted">
+        <Card className="bg-secondary p-3 text-sm text-text-muted">
           No hay integraciones registradas. Configúralas desde la API; esta pantalla no pide ni
           muestra credenciales.
-        </p>
+        </Card>
       ) : null}
 
       {selected ? (
@@ -393,7 +397,8 @@ export function IntegrationsPanel() {
             <h3 id="integration-detail-heading" className="text-base font-semibold">
               {PROVIDER_LABELS[selected.provider]} · <code>{selected.provider}</code>
             </h3>
-            <dl className="flex flex-wrap gap-x-6 gap-y-1 rounded-sm border border-border p-3 text-sm">
+            <Card className="p-3 text-sm">
+              <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
               <div>
                 <dt className="text-xs font-semibold text-text-muted">Estado: </dt>
                 <dd className="inline">{INTEGRATION_STATUS_LABELS[selected.status]}</dd>
@@ -402,11 +407,12 @@ export function IntegrationsPanel() {
                 <dt className="text-xs font-semibold text-text-muted">Versión de config.: </dt>
                 <dd className="inline">{selected.config_version}</dd>
               </div>
-              <div>
-                <dt className="text-xs font-semibold text-text-muted">ID de clave: </dt>
-                <dd className="inline"><code>{selected.key_id}</code></dd>
-              </div>
-            </dl>
+                <div>
+                  <dt className="text-xs font-semibold text-text-muted">ID de clave: </dt>
+                  <dd className="inline"><code>{selected.key_id}</code></dd>
+                </div>
+              </dl>
+            </Card>
           </section>
 
           {selected.provider === "webhook_outbound" ? (

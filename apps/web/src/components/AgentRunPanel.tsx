@@ -11,6 +11,20 @@ import type {
   AgentRunStatus,
   Approval,
 } from "../lib/types";
+import { Button } from "./ui/shadcn/button";
+import { Card } from "./ui/shadcn/card";
+import { Input } from "./ui/shadcn/input";
+import { Label } from "./ui/shadcn/label";
+import { Select } from "./ui/shadcn/select";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "./ui/shadcn/table";
 import { AgentApprovalControls } from "./AgentApprovalControls";
 import { AgentEventTimeline } from "./AgentEventTimeline";
 
@@ -153,50 +167,43 @@ export function AgentRunPanel() {
 
       <form onSubmit={(event) => void start(event)} className="flex flex-wrap items-end gap-3">
         <div className="min-w-64 flex-1 space-y-1">
-          <label htmlFor="agent-application-id" className="block text-sm font-semibold">
+          <Label htmlFor="agent-application-id" className="block">
             ID de postulación
-          </label>
-          <input
+          </Label>
+          <Input
             id="agent-application-id"
             value={applicationId}
             onChange={(event) => setApplicationId(event.target.value)}
             required
             placeholder="00000000-0000-4000-8000-000000000000"
-            className="w-full rounded-sm border border-border bg-surface px-2 py-2 text-sm"
           />
         </div>
         <div className="min-w-48 flex-1 space-y-1">
-          <label htmlFor="agent-idempotency-key" className="block text-sm font-semibold">
+          <Label htmlFor="agent-idempotency-key" className="block">
             Clave de idempotencia
-          </label>
-          <input
+          </Label>
+          <Input
             id="agent-idempotency-key"
             value={idempotencyKey}
             onChange={(event) => setIdempotencyKey(event.target.value)}
             required
             maxLength={100}
-            className="w-full rounded-sm border border-border bg-surface px-2 py-2 text-sm"
           />
         </div>
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-on-accent disabled:opacity-60"
-        >
+        <Button type="submit" disabled={submitting}>
           {submitting ? "Iniciando…" : "Iniciar ejecución"}
-        </button>
+        </Button>
       </form>
 
       <form onSubmit={(event) => void listRuns(event)} className="grid gap-3 sm:grid-cols-3">
         <div className="space-y-1">
-          <label htmlFor="agent-list-status" className="block text-sm font-semibold">
+          <Label htmlFor="agent-list-status" className="block">
             Estado (filtro)
-          </label>
-          <select
+          </Label>
+          <Select
             id="agent-list-status"
             value={listStatus}
             onChange={(event) => setListStatus(event.target.value as AgentRunStatus | "")}
-            className="w-full rounded-sm border border-border bg-surface px-2 py-2 text-sm"
           >
             <option value="">Todos</option>
             {Object.entries(STATUS_LABELS).map(([value, label]) => (
@@ -204,109 +211,101 @@ export function AgentRunPanel() {
                 {label}
               </option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="space-y-1">
-          <label htmlFor="agent-list-agent" className="block text-sm font-semibold">
+          <Label htmlFor="agent-list-agent" className="block">
             Agente (filtro)
-          </label>
-          <input
+          </Label>
+          <Input
             id="agent-list-agent"
             value={listAgent}
             onChange={(event) => setListAgent(event.target.value)}
-            className="w-full rounded-sm border border-border bg-surface px-2 py-2 text-sm"
           />
         </div>
         <div className="space-y-1">
-          <label htmlFor="agent-list-date-from" className="block text-sm font-semibold">
+          <Label htmlFor="agent-list-date-from" className="block">
             Desde
-          </label>
-          <input
+          </Label>
+          <Input
             id="agent-list-date-from"
             type="date"
             value={listDateFrom}
             onChange={(event) => setListDateFrom(event.target.value)}
-            className="w-full rounded-sm border border-border bg-surface px-2 py-2 text-sm"
           />
         </div>
         <div className="space-y-1">
-          <label htmlFor="agent-list-date-to" className="block text-sm font-semibold">
+          <Label htmlFor="agent-list-date-to" className="block">
             Hasta
-          </label>
-          <input
+          </Label>
+          <Input
             id="agent-list-date-to"
             type="date"
             value={listDateTo}
             onChange={(event) => setListDateTo(event.target.value)}
-            className="w-full rounded-sm border border-border bg-surface px-2 py-2 text-sm"
           />
         </div>
         <div className="space-y-1">
-          <label htmlFor="agent-list-job" className="block text-sm font-semibold">
+          <Label htmlFor="agent-list-job" className="block">
             Vacante (ID)
-          </label>
-          <input
+          </Label>
+          <Input
             id="agent-list-job"
             value={listJobId}
             onChange={(event) => setListJobId(event.target.value)}
-            className="w-full rounded-sm border border-border bg-surface px-2 py-2 text-sm"
           />
         </div>
         <div className="space-y-1">
-          <label htmlFor="agent-list-candidate" className="block text-sm font-semibold">
+          <Label htmlFor="agent-list-candidate" className="block">
             Candidato (ID)
-          </label>
-          <input
+          </Label>
+          <Input
             id="agent-list-candidate"
             value={listCandidateId}
             onChange={(event) => setListCandidateId(event.target.value)}
-            className="w-full rounded-sm border border-border bg-surface px-2 py-2 text-sm"
           />
         </div>
-        <button
-          type="submit"
-          disabled={listing}
-          className="self-end rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-on-accent disabled:opacity-60"
-        >
+        <Button type="submit" disabled={listing} className="self-end">
           {listing ? "Buscando…" : "Buscar ejecuciones"}
-        </button>
+        </Button>
       </form>
 
       {runs.length > 0 ? (
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <caption className="sr-only">Ejecuciones de agentes</caption>
-            <thead>
-              <tr className="border-b border-border">
-                <th scope="col" className="py-2 pr-3 font-semibold">Ejecución</th>
-                <th scope="col" className="py-2 pr-3 font-semibold">Agente</th>
-                <th scope="col" className="py-2 pr-3 font-semibold">Estado</th>
-                <th scope="col" className="py-2 pr-3 font-semibold">Vacante</th>
-                <th scope="col" className="py-2 pr-3 font-semibold">Candidato</th>
-                <th scope="col" className="py-2 font-semibold">Creada</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table className="text-left">
+            <TableCaption className="sr-only">Ejecuciones de agentes</TableCaption>
+            <TableHeader>
+              <TableRow>
+                <TableHead scope="col" className="py-2 pr-3 font-semibold">Ejecución</TableHead>
+                <TableHead scope="col" className="py-2 pr-3 font-semibold">Agente</TableHead>
+                <TableHead scope="col" className="py-2 pr-3 font-semibold">Estado</TableHead>
+                <TableHead scope="col" className="py-2 pr-3 font-semibold">Vacante</TableHead>
+                <TableHead scope="col" className="py-2 pr-3 font-semibold">Candidato</TableHead>
+                <TableHead scope="col" className="py-2 font-semibold">Creada</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {runs.map((item) => (
-                <tr key={item.id} className="border-b border-border">
-                  <td className="py-2 pr-3">
-                    <button
+                <TableRow key={item.id}>
+                  <TableCell className="py-2 pr-3">
+                    <Button
                       type="button"
+                      variant="link"
+                      className="h-auto p-0 text-accent underline"
                       onClick={() => void selectRun(item.id)}
-                      className="text-accent underline"
                     >
                       {item.id}
-                    </button>
-                  </td>
-                  <td className="py-2 pr-3">{item.workflow}</td>
-                  <td className="py-2 pr-3">{STATUS_LABELS[item.status]}</td>
-                  <td className="py-2 pr-3">{item.job_id ?? "—"}</td>
-                  <td className="py-2 pr-3">{item.candidate_id ?? "—"}</td>
-                  <td className="py-2">{formatUtc(item.created_at)}</td>
-                </tr>
+                    </Button>
+                  </TableCell>
+                  <TableCell className="py-2 pr-3">{item.workflow}</TableCell>
+                  <TableCell className="py-2 pr-3">{STATUS_LABELS[item.status]}</TableCell>
+                  <TableCell className="py-2 pr-3">{item.job_id ?? "—"}</TableCell>
+                  <TableCell className="py-2 pr-3">{item.candidate_id ?? "—"}</TableCell>
+                  <TableCell className="py-2">{formatUtc(item.created_at)}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       ) : null}
 
@@ -318,25 +317,26 @@ export function AgentRunPanel() {
             : notice}
       </p>
       {error ? (
-        <section role="alert" className="space-y-2 rounded-sm border border-border p-3">
+        <Card role="alert" className="space-y-2 p-3">
           <p className="text-sm">{error}</p>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => {
               setError(null);
               setNotice(null);
             }}
-            className="rounded-sm border border-border px-3 py-1 text-sm font-semibold"
           >
             Reintentar con otra ejecución
-          </button>
-        </section>
+          </Button>
+        </Card>
       ) : null}
 
       {!run && !error && !submitting && !loadingDetail ? (
-        <p className="rounded-sm border border-border bg-surface-muted p-3 text-sm text-text-muted">
+        <Card className="bg-secondary p-3 text-sm text-text-muted">
           Ingresa una postulación y una clave de idempotencia para inspeccionar una ejecución.
-        </p>
+        </Card>
       ) : null}
 
       {run ? (
@@ -345,7 +345,8 @@ export function AgentRunPanel() {
             <h3 id="agent-run-detail-heading" className="text-base font-semibold">
               Detalle de la ejecución
             </h3>
-            <dl className="flex flex-wrap gap-x-6 gap-y-2 rounded-sm border border-border p-3 text-sm">
+            <Card className="p-3 text-sm">
+              <dl className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
               <div>
                 <dt className="text-xs font-semibold text-text-muted">Workflow: </dt>
                 <dd className="inline">{run.workflow}</dd>
@@ -388,11 +389,12 @@ export function AgentRunPanel() {
                   <dd className="inline">{run.output_ref}</dd>
                 </div>
               ) : null}
-            </dl>
+              </dl>
+            </Card>
             {reviewRequired ? (
-              <p role="status" className="rounded-sm border border-border px-3 py-2 text-sm">
+              <Card role="status" className="px-3 py-2 text-sm">
                 review_required: revisión humana requerida antes de continuar.
-              </p>
+              </Card>
             ) : null}
           </section>
 
