@@ -15,8 +15,13 @@
 
   a {
     color: var(--color-accent);
+    text-decoration: none;
+  }
+
+  .text-link {
     text-decoration: underline;
-    text-underline-offset: 2px;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
   }
 
   :focus-visible {
