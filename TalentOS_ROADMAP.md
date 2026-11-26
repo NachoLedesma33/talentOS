@@ -1017,11 +1017,11 @@ TalentOS está listo para presentarse como portfolio cuando:
 |---|---|---|---|---|
 | 16-01 | Roadmap y loop | `TalentOS_ROADMAP.md` | `DONE` | Commits `70c2667`, `1b96d65`; CI `45899845419` success. |
 | 16-02 | Logout vuelve a landing | logout en shell + test E2E/unit | `DONE` | Commit `1adbe42`; CI `45901374970` success; `vitest` 120 passed, `build` OK, E2E OK. |
-| 16-03 | Imagen hero propia | SVG propio + `apps/web/src/app/page.tsx` | `NOT_STARTED` | — |
-| 16-04 | Favicon característico | icon SVG + metadata | `NOT_STARTED` | — |
-| 16-05 | Sitemap y `robots` | rutas Next `sitemap.ts`/`robots.ts` | `NOT_STARTED` | — |
+| 16-03 | Imagen hero propia | SVG propio + `apps/web/src/app/page.tsx` | `DONE` | Commit `ca27081`; CI `45903296474` success; `build` y E2E OK. |
+| 16-04 | Favicon característico | icon SVG + metadata | `DONE` | Commit `c8ae354`; CI `45904442600` success; ruta `/icon.svg` generada. |
+| 16-05 | Sitemap y `robots` | rutas Next `sitemap.ts`/`robots.ts` | `DONE` | Commit `f938b2d`; CI `45905612312` success; rutas `/sitemap.xml` y `/robots.txt` generadas. |
 | 16-06 | Idioma `es`/`en` + botón | módulo de textos + selector + `lang` | `NOT_STARTED` | — |
-| 16-07 | Política de privacidad | `docs/privacy-policy.md` | `NOT_STARTED` | — |
+| 16-07 | Política de privacidad | `docs/privacy-policy.md` | `IN_REVIEW` | Documento creado; falta enlace visible en UI. |
 | 16-08 | Términos y condiciones | `docs/terms-of-service.md` | `NOT_STARTED` | — |
 | 16-09 | Consentimiento informado | formularios de alta y recuperación | `NOT_STARTED` | — |
 | 16-10 | Borrado de datos de usuario | endpoint tenant-scoped + test + auditoría | `NOT_STARTED` | — |
@@ -1067,3 +1067,7 @@ TalentOS está listo para presentarse como portfolio cuando:
 |---|---|---|---|---|
 | 2026-11-26 | 16-01 | `1b96d65` | `45899845419` | Roadmap y loop publicados. |
 | 2026-11-26 | 16-02 | `1adbe42` | `45901374970` | Logout limpia `talentos:active-org` y vuelve a `/`. |
+| 2026-11-26 | 16-03 | `ca27081` | `45903296474` | Hero usa ilustración SVG original. |
+| 2026-11-26 | 16-04 | `c8ae354` | `45904442600` | Icono propio disponible en `/icon.svg`. |
+| 2026-11-26 | 16-05 | `f938b2d` | `45905612312` | `sitemap.xml` y `robots.txt` derivan del host de la petición. |
+| 2026-11-26 | 16-07 | — | — | `docs/privacy-policy.md` escrito; enlace de UI pendiente. |
