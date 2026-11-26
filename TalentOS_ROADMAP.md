@@ -1020,9 +1020,9 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 16-03 | Imagen hero propia | SVG propio + `apps/web/src/app/page.tsx` | `DONE` | Commit `ca27081`; CI `45903296474` success; `build` y E2E OK. |
 | 16-04 | Favicon característico | icon SVG + metadata | `DONE` | Commit `c8ae354`; CI `45904442600` success; ruta `/icon.svg` generada. |
 | 16-05 | Sitemap y `robots` | rutas Next `sitemap.ts`/`robots.ts` | `DONE` | Commit `f938b2d`; CI `45905612312` success; rutas `/sitemap.xml` y `/robots.txt` generadas. |
-| 16-06 | Idioma `es`/`en` + botón | módulo de textos + selector + `lang` | `NOT_STARTED` | — |
-| 16-07 | Política de privacidad | `docs/privacy-policy.md` | `IN_REVIEW` | Documento creado; falta enlace visible en UI. |
-| 16-08 | Términos y condiciones | `docs/terms-of-service.md` | `IN_REVIEW` | Documento creado; falta enlace visible en UI. |
+| 16-06 | Idioma `es`/`en` + botón | módulo de textos + selector + `lang` | `IN_REVIEW` | Commits `5d52c7e`, `ddf10aa`, `4a8a850`, `dd798b1`; landing, shell y encabezado de panel traducidos; falta cubrir módulos internos. |
+| 16-07 | Política de privacidad | `docs/privacy-policy.md` | `DONE` | Commit `4a8a850`; CI `45911085332` success; enlace en footer del workspace. |
+| 16-08 | Términos y condiciones | `docs/terms-of-service.md` | `DONE` | Commit `4a8a850`; CI `45911085332` success; enlace en footer del workspace. |
 | 16-09 | Consentimiento informado | formularios de alta y recuperación | `NOT_STARTED` | — |
 | 16-10 | Borrado de datos de usuario | endpoint tenant-scoped + test + auditoría | `NOT_STARTED` | — |
 | 16-11 | Audit de vulnerabilidades | revisión de hallazgos y correcciones | `NOT_STARTED` | — |
@@ -1070,5 +1070,6 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 2026-11-26 | 16-03 | `ca27081` | `45903296474` | Hero usa ilustración SVG original. |
 | 2026-11-26 | 16-04 | `c8ae354` | `45904442600` | Icono propio disponible en `/icon.svg`. |
 | 2026-11-26 | 16-05 | `f938b2d` | `45905612312` | `sitemap.xml` y `robots.txt` derivan del host de la petición. |
-| 2026-11-26 | 16-07 | — | — | `docs/privacy-policy.md` escrito; enlace de UI pendiente. |
-| 2026-11-26 | 16-08 | — | — | `docs/terms-of-service.md` escrito; enlace de UI pendiente. |
+| 2026-11-26 | 16-06 | `dd798b1` | `45912168237` | Selector `es`/`en`, `lang` y textos de landing/shell; cobertura parcial. |
+| 2026-11-26 | 16-07 | `4a8a850` | `45911085332` | Política de privacidad enlazada desde el workspace. |
+| 2026-11-26 | 16-08 | `4a8a850` | `45911085332` | Términos enlazados desde el workspace. |

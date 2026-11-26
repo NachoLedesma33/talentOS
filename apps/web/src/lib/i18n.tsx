@@ -117,7 +117,7 @@ const es = {
   "shell.panel": "Panel",
   "shell.organization": "Organización",
   "shell.members": "Miembros",
-  "shell.recruitment": "Recruitment Core",
+  "shell.recruitment": "Núcleo de selección",
   "shell.analytics": "Analítica",
   "shell.assessment": "Evaluación",
   "shell.agents": "Agentes",
