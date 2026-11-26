@@ -1022,7 +1022,7 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 16-05 | Sitemap y `robots` | rutas Next `sitemap.ts`/`robots.ts` | `DONE` | Commit `f938b2d`; CI `45905612312` success; rutas `/sitemap.xml` y `/robots.txt` generadas. |
 | 16-06 | Idioma `es`/`en` + botón | módulo de textos + selector + `lang` | `NOT_STARTED` | — |
 | 16-07 | Política de privacidad | `docs/privacy-policy.md` | `IN_REVIEW` | Documento creado; falta enlace visible en UI. |
-| 16-08 | Términos y condiciones | `docs/terms-of-service.md` | `NOT_STARTED` | — |
+| 16-08 | Términos y condiciones | `docs/terms-of-service.md` | `IN_REVIEW` | Documento creado; falta enlace visible en UI. |
 | 16-09 | Consentimiento informado | formularios de alta y recuperación | `NOT_STARTED` | — |
 | 16-10 | Borrado de datos de usuario | endpoint tenant-scoped + test + auditoría | `NOT_STARTED` | — |
 | 16-11 | Audit de vulnerabilidades | revisión de hallazgos y correcciones | `NOT_STARTED` | — |
@@ -1071,3 +1071,4 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 2026-11-26 | 16-04 | `c8ae354` | `45904442600` | Icono propio disponible en `/icon.svg`. |
 | 2026-11-26 | 16-05 | `f938b2d` | `45905612312` | `sitemap.xml` y `robots.txt` derivan del host de la petición. |
 | 2026-11-26 | 16-07 | — | — | `docs/privacy-policy.md` escrito; enlace de UI pendiente. |
+| 2026-11-26 | 16-08 | — | — | `docs/terms-of-service.md` escrito; enlace de UI pendiente. |
