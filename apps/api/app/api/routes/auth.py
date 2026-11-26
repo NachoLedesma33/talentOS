@@ -13,16 +13,22 @@ from app.identity.schemas import (
     LoginRequest,
     MeResponse,
     MessageResponse,
+    PasswordResetConfirm,
+    PasswordResetRequest,
+    PasswordResetRequestResponse,
     RegisterRequest,
     UserResponse,
 )
 from app.identity.service import (
     EmailAlreadyRegisteredError,
     InvalidCredentialsError,
+    PasswordResetTokenError,
     authenticate_user,
     register_user,
+    request_password_reset,
     revoke_session,
 )
+from app.identity.service import reset_password as reset_password_service
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -72,6 +78,36 @@ def login(
         secure=settings.APP_ENV == "production",
     )
     return user
+
+
+@router.post("/forgot-password", response_model=PasswordResetRequestResponse)
+def forgot_password(
+    _origin: OriginChecked,
+    payload: PasswordResetRequest,
+    db: DbDependency,
+) -> PasswordResetRequestResponse:
+    settings = config.get_settings()
+    token = request_password_reset(db, email=payload.email)
+    return PasswordResetRequestResponse(
+        message="Si el email existe, se generó una solicitud de recuperación.",
+        dev_token=token if settings.APP_ENV != "production" else None,
+    )
+
+
+@router.post("/reset-password", response_model=MessageResponse)
+def reset_password(
+    _origin: OriginChecked,
+    payload: PasswordResetConfirm,
+    db: DbDependency,
+) -> MessageResponse:
+    try:
+        reset_password_service(db, token=payload.token, password=payload.password)
+    except PasswordResetTokenError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El enlace de recuperación no es válido o expiró.",
+        ) from None
+    return MessageResponse(message="Contraseña actualizada.")
 
 
 @router.post("/logout", response_model=MessageResponse)

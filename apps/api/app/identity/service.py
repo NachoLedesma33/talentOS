@@ -3,13 +3,20 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session as DBSession
 
 from app.audit.service import record_audit
 from app.core import config
-from app.identity.models import Membership, MembershipRole, Organization, User, UserStatus
+from app.identity.models import (
+    Membership,
+    MembershipRole,
+    Organization,
+    PasswordResetToken,
+    User,
+    UserStatus,
+)
 from app.identity.models import Session as UserSession
 from app.identity.repositories import get_membership, list_organization_members
 from app.identity.schemas import MemberResponse
@@ -22,6 +29,11 @@ class EmailAlreadyRegisteredError(Exception):
 
 class InvalidCredentialsError(Exception):
     """Credenciales o sesión no válidas; mensaje público genérico."""
+
+
+class PasswordResetTokenError(Exception):
+    """Token ausente, expirado, ya usado o usuario inactivo."""
+
 
 
 def _find_user_by_email(db: DBSession, email: str) -> User | None:
@@ -85,6 +97,66 @@ def revoke_session(db: DBSession, *, user: User, token: str) -> None:
     if session is None:
         return
     session.revoked_at = datetime.now(UTC)
+    db.commit()
+
+
+PASSWORD_RESET_TTL_SECONDS = 900
+
+
+def request_password_reset(db: DBSession, *, email: str) -> str | None:
+    """Emite un token de un solo uso; email desconocido devuelve `None` sin revelarlo."""
+    user = _find_user_by_email(db, email)
+    if user is None:
+        return None
+
+    token = new_session_token()
+    now = datetime.now(UTC)
+    db.execute(
+        update(PasswordResetToken)
+        .where(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.used_at.is_(None),
+        )
+        .values(used_at=now)
+    )
+    db.add(
+        PasswordResetToken(
+            user_id=user.id,
+            token_hash=hash_token(token),
+            expires_at=now + timedelta(seconds=PASSWORD_RESET_TTL_SECONDS),
+        )
+    )
+    db.commit()
+    return token
+
+
+def reset_password(db: DBSession, *, token: str, password: str) -> None:
+    """Cambia la contraseña, consume el token y revoca las sesiones vigentes."""
+    now = datetime.now(UTC)
+    reset = db.execute(
+        select(PasswordResetToken).where(
+            PasswordResetToken.token_hash == hash_token(token),
+            PasswordResetToken.used_at.is_(None),
+            PasswordResetToken.expires_at > now,
+        )
+    ).scalar_one_or_none()
+    if reset is None:
+        raise PasswordResetTokenError
+
+    user = db.get(User, reset.user_id)
+    if user is None or user.status is not UserStatus.ACTIVE:
+        raise PasswordResetTokenError
+
+    user.password_hash = hash_password(password)
+    reset.used_at = now
+    db.execute(
+        update(UserSession)
+        .where(
+            UserSession.user_id == user.id,
+            UserSession.revoked_at.is_(None),
+        )
+        .values(revoked_at=now)
+    )
     db.commit()
 
 

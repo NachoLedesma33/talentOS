@@ -16,8 +16,9 @@ from app.core.config import get_settings
 from app.db import base as base_module
 from app.db.base import Base
 from app.db.session import get_db
+from app.identity.models import PasswordResetToken, User
 from app.identity.models import Session as UserSession
-from app.identity.models import User
+from app.identity.security import hash_token
 from app.main import app
 
 _EMAIL = "synthetic.user@example.com"
@@ -229,3 +230,109 @@ def test_logout_with_configured_origin_is_allowed(client: TestClient) -> None:
 
     assert response.status_code == 200
     assert _COOKIE not in client.cookies
+
+
+def _forgot(client: TestClient, email: str = _EMAIL) -> Response:
+    return client.post("/api/v1/auth/forgot-password", json={"email": email})
+
+
+def _reset(
+    client: TestClient, token: str, password: str = "NewSyntheticPass456"
+) -> Response:
+    return client.post(
+        "/api/v1/auth/reset-password", json={"token": token, "password": password}
+    )
+
+
+def test_forgot_password_returns_demo_token_and_stores_only_hash(
+    client: TestClient, db: DBSession
+) -> None:
+    assert _register(client).status_code == 201
+
+    response = _forgot(client)
+
+    assert response.status_code == 200
+    token = response.json()["dev_token"]
+    assert token
+    stored = db.scalar(select(PasswordResetToken.token_hash))
+    assert stored == hash_token(token)
+    assert stored != token
+
+
+def test_forgot_password_unknown_email_does_not_reveal_account(
+    client: TestClient, db: DBSession
+) -> None:
+    assert _register(client).status_code == 201
+    known = _forgot(client)
+
+    unknown = _forgot(client, "unknown.synthetic@example.com")
+
+    assert unknown.status_code == 200
+    assert unknown.json()["message"] == known.json()["message"]
+    assert unknown.json()["dev_token"] is None
+    assert len(db.scalars(select(PasswordResetToken)).all()) == 1
+
+
+def test_reset_password_changes_password_consumes_token_and_revokes_sessions(
+    client: TestClient, db: DBSession
+) -> None:
+    assert _register(client).status_code == 201
+    assert _login(client).status_code == 200
+    token = _forgot(client).json()["dev_token"]
+
+    response = _reset(client, token)
+
+    assert response.status_code == 200
+    assert response.json() == {"message": "Contraseña actualizada."}
+    assert client.get("/api/v1/auth/me").status_code == 401
+    stored = db.scalar(select(PasswordResetToken))
+    assert stored is not None
+    assert stored.used_at is not None
+    assert _login(client).status_code == 401
+    assert _login(client, "NewSyntheticPass456").status_code == 200
+
+
+def test_reset_password_rejects_replayed_expired_and_invalid_tokens(
+    client: TestClient, db: DBSession
+) -> None:
+    assert _register(client).status_code == 201
+    token = _forgot(client).json()["dev_token"]
+    assert _reset(client, token).status_code == 200
+
+    replay = _reset(client, token)
+    assert replay.status_code == 400
+    assert replay.json()["error"]["code"] == "bad_request"
+
+    invalid = _reset(client, "not-a-real-token")
+    assert invalid.status_code == 400
+
+    expired_token = _forgot(client).json()["dev_token"]
+    active = db.scalar(
+        select(PasswordResetToken).where(PasswordResetToken.used_at.is_(None))
+    )
+    assert active is not None
+    active.expires_at = datetime.now(UTC) - timedelta(seconds=1)
+    db.commit()
+
+    expired = _reset(client, expired_token)
+    assert expired.status_code == 400
+
+
+def test_forgot_password_invalidates_previous_tokens(client: TestClient) -> None:
+    assert _register(client).status_code == 201
+    first = _forgot(client).json()["dev_token"]
+    second = _forgot(client).json()["dev_token"]
+
+    assert first != second
+    assert _reset(client, first).status_code == 400
+    assert _reset(client, second).status_code == 200
+
+
+def test_reset_password_rejects_short_password(client: TestClient) -> None:
+    assert _register(client).status_code == 201
+    token = _forgot(client).json()["dev_token"]
+
+    response = _reset(client, token, "short")
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "validation_error"

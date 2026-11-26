@@ -93,3 +93,24 @@ class MessageResponse(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True)
 
     message: str
+
+
+class PasswordResetRequest(_InputModel):
+    email: EmailStr
+
+
+class PasswordResetConfirm(_InputModel):
+    token: str = Field(min_length=1, max_length=128)
+    password: str = Field(min_length=8)
+
+    @field_validator("password")
+    @classmethod
+    def password_fits_bcrypt(cls, value: str) -> str:
+        if len(value.encode("utf-8")) > MAX_PASSWORD_BYTES:
+            raise ValueError("La contraseña no puede superar 72 bytes.")
+        return value
+
+
+class PasswordResetRequestResponse(MessageResponse):
+    # Demo sin SMTP: el token viaja solo en entornos no productivos.
+    dev_token: str | None = None
