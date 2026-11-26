@@ -219,7 +219,7 @@ describe("identidad y organizaciones", () => {
     render(<DashboardPage />);
 
     expect(
-      await screen.findByRole("navigation", { name: "Recruitment Core" }),
+      await screen.findByRole("navigation", { name: /Recruitment Core|Núcleo de selección/ }),
     ).toBeTruthy();
     expect(screen.getByRole("link", { name: "Analítica" }).getAttribute("href")).toBe(
       "/analytics",
@@ -304,13 +304,13 @@ describe("identidad y organizaciones", () => {
 
     render(<DashboardPage />);
     expect(await screen.findByRole("heading", { name: "Creá tu organización" })).toBeTruthy();
-    expect(screen.queryByRole("navigation", { name: "Recruitment Core" })).toBeNull();
+    expect(screen.queryByRole("navigation", { name: /Recruitment Core|Núcleo de selección/ })).toBeNull();
 
     fireEvent.change(screen.getByLabelText("Nombre"), { target: { value: "Nueva Org" } });
     fireEvent.change(screen.getByLabelText("Identificador"), { target: { value: "nueva-org" } });
     fireEvent.click(screen.getByRole("button", { name: "Crear organización" }));
 
-    expect(await screen.findByRole("navigation", { name: "Recruitment Core" })).toBeTruthy();
+    expect(await screen.findByRole("navigation", { name: /Recruitment Core|Núcleo de selección/ })).toBeTruthy();
     const postCall = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
     expect(JSON.parse(String(postCall?.[1]?.body))).toEqual({
       name: "Nueva Org",
@@ -367,7 +367,7 @@ describe("identidad y organizaciones", () => {
 
     render(<DashboardPage />);
     expect(await screen.findByRole("heading", { name: "Invitación pendiente" })).toBeTruthy();
-    expect(screen.queryByRole("navigation", { name: "Recruitment Core" })).toBeNull();
+    expect(screen.queryByRole("navigation", { name: /Recruitment Core|Núcleo de selección/ })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Ya la acepté, revisar de nuevo" }));
 

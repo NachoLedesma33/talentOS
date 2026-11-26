@@ -6,6 +6,7 @@ import { MembersPanel } from "../../components/MembersPanel";
 import { WorkspaceShell } from "../../components/WorkspaceShell";
 import { OrganizationSelector } from "../../components/OrganizationSelector";
 import { ApiError, apiFetch } from "../../lib/api";
+import { useI18n } from "../../lib/i18n";
 import type { MeResponse, Organization } from "../../lib/types";
 import { Button } from "../../components/ui/shadcn/button";
 import { Card } from "../../components/ui/shadcn/card";
@@ -42,6 +43,7 @@ function requestSession(): Promise<MeResponse> {
 }
 
 export default function DashboardPage() {
+  const { t } = useI18n();
   const [status, setStatus] = useState<SessionStatus>("loading");
   const [user, setUser] = useState<MeResponse | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -356,7 +358,7 @@ export default function DashboardPage() {
         <Card className="space-y-4 p-5">
           <div className="space-y-1">
             <h2 id="recruitment-heading" className="text-lg font-semibold tracking-tight text-text">
-              Recruitment Core
+              {t("shell.recruitment")}
             </h2>
             <p className="text-sm text-text-muted">
               Módulos del recorrido. Cada uno responde una decisión concreta.
