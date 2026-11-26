@@ -103,12 +103,23 @@ Cada lote se cierra con `npx tsc --noEmit`, `npm run lint`, `npm test -- --run` 
 
 | Ítem | Estado real | Fuente |
 |---|---|---|
-| Landing `/` | Existe; lista de enlaces con etiqueta de fase, sin CTAs jerarquizados ni secciones | `apps/web/src/app/page.tsx` |
-| `/login`, `/register` | Existen; `LoginForm` y `RegisterForm` usan primitivas shadcn y errores accesibles | `apps/web/src/app/login/page.tsx`, `apps/web/src/app/register/page.tsx` |
+| Landing `/` | Implementada: hero con propuesta y CTAs jerarquizados (`Crear cuenta`, `Ir al panel`), secciones Producto/Flujo/Accesos, tarjetas de capacidades y pasos, footer con `/health` y `/ready` | `apps/web/src/app/page.tsx` |
+| `/login`, `/register` | Páginas públicas sin `WorkspaceShell`: `Card` + formularios shadcn, enlaces cruzados y metadata por ruta | `apps/web/src/app/login/page.tsx`, `apps/web/src/app/register/page.tsx` |
 | API de autenticación | `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/me` | `apps/api/app/api/routes/auth.py` |
 | Recuperación de contraseña | Sin endpoint ni ruta; no implementar sin contrato backend | `apps/api/app/api/routes/auth.py` |
 | Invitaciones | `POST /api/v1/organizations/{org_id}/members` invita usuario existente por email; UI en `MembersPanel`; no es onboarding | `apps/api/app/api/routes/organizations.py`, `apps/web/src/components/MembersPanel.tsx` |
 | Onboarding | Sin ruta ni endpoint dedicado | — |
-| Metadata | Global en `layout.tsx`; sin metadata por ruta | `apps/web/src/app/layout.tsx` |
+| Metadata | Global en `layout.tsx` y por ruta en `/`, `/login`, `/register` | `apps/web/src/app/layout.tsx`, rutas citadas |
 
-Alcance B según `TalentOS_UI_UX_IMPROVEMENT_PLAN.md:1243`: landing, login, registro, recuperación, invitaciones, onboarding y metadata/estados. Sólo se implementará sobre contratos backend existentes; los gaps sin endpoint quedan documentados, no inventados.
+Alcance B según `TalentOS_UI_UX_IMPROVEMENT_PLAN.md:1243`: landing, login, registro, recuperación, invitaciones, onboarding y metadata/estados. Sólo se implementó sobre contratos backend existentes; recuperación, invitaciones y onboarding quedan documentados como gaps sin endpoint, no inventados. B cerrado en `97bd342` (`97bd342c67e3612da462212ceaeb565b35716efd`), CI `45742414595` success: typecheck/lint/unit 105/build/E2E 5 passed + 1 skipped.
+
+## 9. Entrega C — Workspace (2026-11-25)
+
+| Ítem | Estado real | Fuente |
+|---|---|---|
+| Sidebar, header, breadcrumbs, responsive nav | Ya existían en A4; sin cambios en C | `apps/web/src/components/WorkspaceShell.tsx` |
+| Command menu | Implementado: diálogo controlado por React, `Ctrl/Cmd+K`, filtro por etiqueta, Escape y `aria-expanded` | `apps/web/src/components/CommandMenu.tsx` |
+| Organización activa | `OrganizationSelector` sigue sólo en `/dashboard:160`; no integrado en el shell | `apps/web/src/app/dashboard/page.tsx` |
+| Menú de usuario | Sin implementar | — |
+
+Evidencia C1/C2: `CommandMenu.tsx` + integración en `WorkspaceShell.tsx`; E2E añade `menú de comandos del workspace` con apertura por click y por `Control+k`, filtro y cierre con Escape. Gates locales typecheck/lint/unit 105/build/E2E 7 passed + 1 skipped OK. Nota: E2E sirve `next start` desde `.next`, por lo que todo cambio de componente exige `npm run build` antes de `npm run test:e2e`; en local con `reuseExistingServer` puede reutilizar servidores stale, mitigado con `CI=1` y `WEB_BASE_URL` en puerto libre.

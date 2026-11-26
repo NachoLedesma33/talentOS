@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { Button } from "./ui/shadcn/button";
+import { CommandMenu } from "./CommandMenu";
 
 const workspaceLinks = [
   { href: "/dashboard", label: "Panel" },
@@ -34,16 +35,19 @@ export function WorkspaceShell({
       </aside>
 
       <div className="min-w-0 flex-1">
-        <header className="mb-4 flex items-center justify-between gap-4 border-b border-border-subtle pb-3">
+        <header className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-3">
           <p className="text-sm font-semibold tracking-tight">Workspace</p>
-          <nav aria-label="Ruta de navegación">
-            <ol className="flex gap-2 text-xs text-text-muted">
-              <li>
-                <a href="/dashboard">Inicio</a>
-              </li>
-              <li aria-current="page">{section}</li>
-            </ol>
-          </nav>
+          <div className="flex items-center gap-3">
+            <CommandMenu />
+            <nav aria-label="Ruta de navegación">
+              <ol className="flex gap-2 text-xs text-text-muted">
+                <li>
+                  <a href="/dashboard">Inicio</a>
+                </li>
+                <li aria-current="page">{section}</li>
+              </ol>
+            </nav>
+          </div>
         </header>
 
         <Button

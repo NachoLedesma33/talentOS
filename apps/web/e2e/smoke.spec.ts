@@ -22,6 +22,28 @@ test("ruta de navegación principal del workspace", async ({ page }, testInfo) =
   }
 });
 
+test("menú de comandos del workspace", async ({ page }) => {
+  await page.goto("/jobs");
+
+  const trigger = page.getByRole("button", { name: "Buscar sección…" });
+  await expect(trigger).toBeVisible();
+  await trigger.click();
+
+  const dialog = page.getByRole("dialog", { name: "Buscar sección" });
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+
+  await page.keyboard.press("Control+k");
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("searchbox", { name: "Filtrar secciones" }).fill("candidatos");
+  await expect(dialog.getByRole("link", { name: /Candidatos/ })).toBeVisible();
+  await expect(dialog.getByRole("link", { name: /Vacantes/ })).toHaveCount(0);
+
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+});
+
 test("menú móvil del workspace", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile", "solo móvil");
 
