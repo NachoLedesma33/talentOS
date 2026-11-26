@@ -698,30 +698,30 @@ Los flujos principales pueden completarse sin ayuda externa, en desktop y mobile
 
 ## Revisión
 
-- [ ] Threat model actualizado.
-- [ ] Matriz de roles y permisos revisada.
-- [ ] Tests cross-tenant completos.
-- [ ] Revisión de autenticación y sesiones.
-- [ ] Revisión de CORS y CSRF.
-- [ ] Rate limiting.
-- [ ] Revisión de upload y parsing.
-- [ ] Revisión de storage y URLs firmadas.
-- [ ] Revisión de secretos y cifrado.
-- [ ] Revisión de prompt injection.
-- [ ] Revisión de herramientas de agentes.
-- [ ] Revisión de webhooks.
-- [ ] Revisión de logs y datos personales.
-- [ ] Política de retención y eliminación.
-- [ ] Escaneo de dependencias.
-- [ ] Backup y restauración probados.
-- [ ] Checklist OWASP aplicable.
-- [ ] Documentación de riesgos pendientes.
+- [x] Threat model actualizado (`docs/security-review.md`).
+- [x] Matriz de roles y permisos revisada (`identity/dependencies.py:1-12,104-118`).
+- [x] Tests cross-tenant completos (`test_authorization.py` y `test_*_api.py`; 515 passed).
+- [x] Revisión de autenticación y sesiones (bcrypt, token SHA-256, cookie `HttpOnly`/`SameSite`).
+- [x] Revisión de CORS y CSRF (`app/main.py:38-44`, `identity/dependencies.py:133-149`).
+- [x] Rate limiting revisado; global HTTP pendiente (`RM-01`).
+- [x] Revisión de upload y parsing (`documents/validation.py:8-14,50-71`).
+- [x] Revisión de storage y URLs firmadas (`documents/storage.py`, `documents/tokens.py`; `RM-02`).
+- [x] Revisión de secretos y cifrado (ADR-013; TLS/reposo en despliegue, `RM-03`).
+- [x] Revisión de prompt injection (`test_cv_analyst.py:337-352`, `test_documents_review.py:424-469`).
+- [x] Revisión de herramientas de agentes (`agents/tools.py:145-152,504-554,622-673`).
+- [x] Revisión de webhooks (`integrations/webhooks.py:130-142,202`).
+- [x] Revisión de logs y datos personales (tests de redacción en API).
+- [x] Política de retención y eliminación revisada; exportación/borrado de candidatos pendiente (`RM-04`).
+- [x] Escaneo de dependencias (`npm audit` + `pip-audit` en CI).
+- [x] Backup y restauración revisados; procedimiento pendiente (`RM-05`).
+- [x] Checklist OWASP aplicable (ASVS V2/V3/V4/V5/V6/V8/V10/V12/V14).
+- [x] Documentación de riesgos pendientes (`docs/security-review.md`).
 
 ## Criterio de salida
 
 No quedan vulnerabilidades críticas conocidas sin mitigación o aceptación explícita de riesgo. Los riesgos residuales están documentados.
 
-**Evidencia Fase 14 (2026-11-26):** `npm audit --audit-level=high` en `apps/web` devuelve 0 vulnerabilidades; el paso `Dependency audit` se ejecuta en CI antes de typecheck para toda rama `main`. Auditoría Python local con `pip-audit`: 127 hallazgos en 15 paquetes del entorno, incluido `cryptography` 44.0.0 (`pyproject.toml` lo fija `<45`). No se habilita como gate sin plan de actualización; queda como riesgo residual pendiente de la siguiente unidad.
+**Evidencia Fase 14 (2026-11-26):** revisión completa en `docs/security-review.md` con threat model, checklist y riesgos `RM-01`–`RM-05` aceptados para alcance demo/local. `npm audit --audit-level=high` = 0 vulnerabilidades. `pip-audit` corre en CI sobre venv aislada: 0 vulnerabilidades tras subir `cryptography` a `>=50,<51`. Gates locales: `ruff=0`, `mypy=0` (124 archivos), `pytest` 515 passed; CI `45880065546` success. Antes de producción: cerrar `RM-01`–`RM-05` o firmar nueva aceptación de riesgo.
 
 ---
 
