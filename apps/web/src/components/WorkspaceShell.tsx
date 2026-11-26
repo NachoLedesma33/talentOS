@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, type ChangeEvent, type ReactNode } from "react";
 import { ACTIVE_ORG_STORAGE_KEY, ApiError, apiFetch } from "../lib/api";
+import { LocaleToggle, useI18n, type MessageKey } from "../lib/i18n";
 import type { MeResponse, Organization } from "../lib/types";
 import { Button } from "./ui/shadcn/button";
 import { Select } from "./ui/shadcn/select";
@@ -14,12 +15,26 @@ function describeError(error: unknown, fallback: string): string {
   return error instanceof ApiError ? error.message : fallback;
 }
 
-const workspaceLinks = [
-  { href: "/dashboard", label: "Panel" },
-  { href: "/dashboard#organization-selector-heading", label: "Organización" },
-  { href: "/dashboard#members-heading", label: "Miembros" },
-  { href: "/dashboard#recruitment-heading", label: "Recruitment Core" },
+const workspaceLinks: ReadonlyArray<{ href: string; labelKey: MessageKey }> = [
+  { href: "/dashboard", labelKey: "shell.panel" },
+  { href: "/dashboard#organization-selector-heading", labelKey: "shell.organization" },
+  { href: "/dashboard#members-heading", labelKey: "shell.members" },
+  { href: "/dashboard#recruitment-heading", labelKey: "shell.recruitment" },
 ];
+
+const sectionKeys: Readonly<Record<string, MessageKey>> = {
+  Panel: "shell.panel",
+  Analítica: "shell.analytics",
+  Evaluación: "shell.assessment",
+  Agentes: "shell.agents",
+  Pipeline: "shell.pipeline",
+  Candidatos: "shell.candidates",
+  Automatizaciones: "shell.automations",
+  Documentos: "shell.documents",
+  Integraciones: "shell.integrations",
+  Entrevistas: "shell.interviews",
+  Vacantes: "shell.jobs",
+};
 
 export function WorkspaceShell({
   children,
@@ -35,6 +50,8 @@ export function WorkspaceShell({
   const [notice, setNotice] = useState<string | null>(null);
   const [headerError, setHeaderError] = useState<string | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
+  const { t } = useI18n();
+  const sectionLabel = sectionKeys[section] ? t(sectionKeys[section]) : section;
 
   function loadSession(force = false) {
     if (!force && sessionStatus !== "idle") {
@@ -49,7 +66,7 @@ export function WorkspaceShell({
       },
       (cause: unknown) => {
         setSessionStatus("error");
-        setHeaderError(describeError(cause, "No se pudo cargar la sesión."));
+        setHeaderError(describeError(cause, t("shell.sessionError")));
       },
     );
   }
@@ -80,7 +97,7 @@ export function WorkspaceShell({
       },
       (cause: unknown) => {
         setOrgStatus("error");
-        setHeaderError(describeError(cause, "No se pudieron cargar las organizaciones."));
+        setHeaderError(describeError(cause, t("shell.orgsError")));
       },
     );
   }
@@ -100,11 +117,11 @@ export function WorkspaceShell({
     try {
       await apiFetch<{ message: string }>("/api/v1/auth/logout", { method: "POST" });
       setUser(null);
-      setNotice("Sesión cerrada.");
+      setNotice(t("shell.logoutNotice"));
       window.localStorage.removeItem(ACTIVE_ORG_STORAGE_KEY);
       window.setTimeout(() => window.location.replace("/"), 600);
     } catch (cause) {
-      setHeaderError(describeError(cause, "No se pudo cerrar la sesión."));
+      setHeaderError(describeError(cause, t("shell.logoutError")));
     } finally {
       setLoggingOut(false);
     }
@@ -133,17 +150,17 @@ export function WorkspaceShell({
             </span>
             <span className="text-sm font-semibold tracking-tight">TalentOS</span>
             <span className="hidden text-[11px] uppercase tracking-widest text-text-muted sm:inline">
-              Workspace
+              {t("shell.workspace")}
             </span>
           </a>
 
-          <nav aria-label="Ruta de navegación" className="order-3 w-full md:order-none md:w-auto md:flex-1">
+          <nav aria-label={t("shell.breadcrumb")} className="order-3 w-full md:order-none md:w-auto md:flex-1">
             <ol className="flex gap-2 text-xs text-text-muted">
               <li>
-                <a href="/dashboard">Inicio</a>
+                <a href="/dashboard">{t("shell.home")}</a>
               </li>
               <li aria-current="page" className="font-medium text-text">
-                {section}
+                {sectionLabel}
               </li>
             </ol>
           </nav>
@@ -155,21 +172,21 @@ export function WorkspaceShell({
                   type="button"
                   variant="outline"
                   size="sm"
-                  aria-label="Organización activa en la barra"
+                  aria-label={t("shell.activeOrgAria")}
                   onClick={() => loadOrganizations()}
                 >
-                  Organización activa
+                  {t("shell.activeOrg")}
                 </Button>
               ) : null}
               {orgStatus === "loading" ? (
                 <p role="status" className="text-xs text-text-muted">
-                  Cargando organización…
+                  {t("shell.loadingOrg")}
                 </p>
               ) : null}
               {orgStatus === "error" ? (
                 <>
                   <p role="alert" className="text-xs text-text">
-                    Error: organización no disponible.
+                    {t("shell.orgError")}
                   </p>
                   <Button
                     type="button"
@@ -177,21 +194,21 @@ export function WorkspaceShell({
                     size="sm"
                     onClick={() => loadOrganizations(true)}
                   >
-                    Reintentar organizaciones
+                    {t("shell.retryOrgs")}
                   </Button>
                 </>
               ) : null}
               {orgStatus === "ready" && organizations.length === 0 ? (
-                <p className="text-xs text-text-muted">Sin organizaciones.</p>
+                <p className="text-xs text-text-muted">{t("shell.noOrgs")}</p>
               ) : null}
               {orgStatus === "ready" && organizations.length > 0 ? (
                 <>
                   <label htmlFor="workspace-active-org" className="sr-only">
-                    Organización activa en la barra
+                    {t("shell.activeOrgAria")}
                   </label>
                   <Select
                     id="workspace-active-org"
-                    aria-label="Organización activa en la barra"
+                    aria-label={t("shell.activeOrgAria")}
                     className="h-8 w-40 text-xs"
                     value={activeOrgId}
                     onChange={handleOrgChange}
@@ -205,6 +222,7 @@ export function WorkspaceShell({
                 </>
               ) : null}
             </div>
+            <LocaleToggle />
             <CommandMenu />
             <div className="relative">
               <Button
@@ -220,7 +238,7 @@ export function WorkspaceShell({
                   setUserMenuOpen((open) => !open);
                 }}
               >
-                {user ? user.name : sessionStatus === "loading" ? "Cargando usuario…" : "Cuenta"}
+                {user ? user.name : sessionStatus === "loading" ? t("shell.loadingUser") : t("shell.account")}
               </Button>
               {userMenuOpen ? (
                 <div
@@ -229,7 +247,7 @@ export function WorkspaceShell({
                 >
                   {sessionStatus === "loading" ? (
                     <p role="status" className="text-text-muted">
-                      Cargando sesión…
+                      {t("shell.loadingSession")}
                     </p>
                   ) : null}
                   {user ? (
@@ -243,13 +261,13 @@ export function WorkspaceShell({
                         disabled={loggingOut}
                         onClick={() => void handleLogout()}
                       >
-                        {loggingOut ? "Cerrando sesión…" : "Cerrar sesión"}
+                        {loggingOut ? t("shell.closingSession") : t("shell.logout")}
                       </Button>
                     </>
                   ) : null}
                   {sessionStatus === "error" || (sessionStatus === "ready" && !user) ? (
                     <a href="/login" className="block font-medium text-accent">
-                      Iniciar sesión
+                      {t("shell.login")}
                     </a>
                   ) : null}
                   {notice ? (
@@ -259,7 +277,8 @@ export function WorkspaceShell({
                   ) : null}
                   {headerError ? (
                     <p role="alert" className="text-text">
-                      Error: {headerError}
+                      {t("shell.errorPrefix")}
+                      {headerError}
                     </p>
                   ) : null}
                 </div>
@@ -271,14 +290,14 @@ export function WorkspaceShell({
 
       <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 md:flex-row">
         <aside
-          aria-label="Navegación del workspace"
+          aria-label={t("shell.navWorkspace")}
           className="hidden w-52 shrink-0 md:block"
         >
           <div className="sticky top-24 space-y-4">
             <p className="px-2 text-[11px] font-semibold uppercase tracking-widest text-text-muted">
-              Espacio de trabajo
+              {t("shell.workspaceSpace")}
             </p>
-            <nav aria-label="Secciones del workspace">
+            <nav aria-label={t("shell.navSections")}>
               <ul className="space-y-1 text-sm">
                 {workspaceLinks.map((link) => (
                   <li key={link.href}>
@@ -286,7 +305,7 @@ export function WorkspaceShell({
                       href={link.href}
                       className="block rounded-md px-2 py-2 text-text-muted transition-colors hover:bg-surface-muted hover:text-text"
                     >
-                      {link.label}
+                      {t(link.labelKey)}
                     </a>
                   </li>
                 ))}
@@ -305,17 +324,17 @@ export function WorkspaceShell({
             onClick={() => setMobileNavOpen((open) => !open)}
             className="md:hidden"
           >
-            {mobileNavOpen ? "Ocultar menú" : "Mostrar menú"}
+            {mobileNavOpen ? t("shell.hideMenu") : t("shell.showMenu")}
           </Button>
           <nav
             id="workspace-mobile-nav"
-            aria-label="Navegación móvil del workspace"
+            aria-label={t("shell.navMobile")}
             className={`${mobileNavOpen ? "block" : "hidden"} md:hidden`}
           >
             <ul className="flex flex-wrap gap-3 rounded-lg bg-surface-muted p-3 text-sm">
               {workspaceLinks.map((link) => (
                 <li key={link.href}>
-                  <a href={link.href}>{link.label}</a>
+                  <a href={link.href}>{t(link.labelKey)}</a>
                 </li>
               ))}
             </ul>
@@ -327,9 +346,15 @@ export function WorkspaceShell({
 
       <footer className="border-t border-border-subtle bg-surface-muted">
         <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-xs text-text-muted sm:px-6">
-          <p>TalentOS · reclutamiento asistido, trazable y supervisado.</p>
-          <nav aria-label="Enlaces del workspace" className="flex flex-wrap gap-4">
-            <Link href="/">Portada</Link>
+          <p>{t("shell.footerTagline")}</p>
+          <nav aria-label={t("shell.footerLinks")} className="flex flex-wrap gap-4">
+            <Link href="/">{t("shell.homeLink")}</Link>
+            <a href="https://github.com/NachoLedesma33/talentOS/blob/main/docs/privacy-policy.md">
+              {t("shell.privacy")}
+            </a>
+            <a href="https://github.com/NachoLedesma33/talentOS/blob/main/docs/terms-of-service.md">
+              {t("shell.terms")}
+            </a>
             <a href="http://localhost:8000/health">/health</a>
             <a href="http://localhost:8000/ready">/ready</a>
           </nav>
