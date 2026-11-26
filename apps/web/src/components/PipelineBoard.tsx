@@ -9,6 +9,11 @@ import type {
   StageChange,
   StageChangeRequest,
 } from "../lib/types";
+import { Button } from "./ui/shadcn/button";
+import { Card } from "./ui/shadcn/card";
+import { Input } from "./ui/shadcn/input";
+import { Label } from "./ui/shadcn/label";
+import { Select } from "./ui/shadcn/select";
 
 const PAGE_SIZE = 20;
 
@@ -147,30 +152,28 @@ export function PipelineBoard() {
         </h2>
         <form onSubmit={handleFilters} className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
-            <label htmlFor="pipeline-job-filter" className="block text-sm font-semibold">
+            <Label htmlFor="pipeline-job-filter" className="block">
               ID de vacante (UUID)
-            </label>
-            <input
+            </Label>
+            <Input
               id="pipeline-job-filter"
               type="text"
               value={jobFilter}
               onChange={(event) => {
                 setJobFilter(event.target.value);
               }}
-              className="rounded-sm border border-border bg-surface px-3 py-2 text-sm"
             />
           </div>
           <div className="space-y-1">
-            <label htmlFor="pipeline-stage-filter" className="block text-sm font-semibold">
+            <Label htmlFor="pipeline-stage-filter" className="block">
               Etapa
-            </label>
-            <select
+            </Label>
+            <Select
               id="pipeline-stage-filter"
               value={stageFilter}
               onChange={(event) => {
                 setStageFilter(event.target.value);
               }}
-              className="rounded-sm border border-border bg-surface px-3 py-2 text-sm"
             >
               <option value="">Todas</option>
               {STAGES.map((stage) => (
@@ -178,38 +181,33 @@ export function PipelineBoard() {
                   {stage}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
-          <button
-            type="submit"
-            className="rounded-sm bg-accent px-4 py-2 text-sm font-semibold text-on-accent"
-          >
-            Aplicar filtros
-          </button>
+          <Button type="submit">Aplicar filtros</Button>
           <p className="text-sm text-text-muted">Total: {visibleTotal}</p>
         </form>
 
         <div className="flex items-center gap-3">
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={() => {
               setOffset((current) => Math.max(0, current - PAGE_SIZE));
             }}
             disabled={offset === 0}
-            className="rounded-sm border border-border px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
           >
             Anterior
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="outline"
             onClick={() => {
               setOffset((current) => current + PAGE_SIZE);
             }}
             disabled={visibleLoadStatus !== "ready" || offset + PAGE_SIZE >= visibleTotal}
-            className="rounded-sm border border-border px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
           >
             Siguiente
-          </button>
+          </Button>
         </div>
 
         <div aria-live="polite">
@@ -251,23 +249,17 @@ export function PipelineBoard() {
               (application) => application.stage === stage,
             );
             return (
-              <section
-                key={stage}
-                aria-label={`Etapa ${stage}`}
-                className="space-y-2 rounded-sm border border-border bg-surface-muted p-3"
-              >
-                <h3 className="text-sm font-semibold">
-                  {stage}
-                  <span className="ml-2 text-xs text-text-muted">({columnItems.length})</span>
-                </h3>
-                {columnItems.length === 0 ? (
-                  <p className="text-sm text-text-muted">Sin postulaciones.</p>
-                ) : null}
-                {columnItems.map((application) => (
-                  <article
-                    key={application.id}
-                    className="space-y-2 rounded-sm border border-border bg-surface p-3"
-                  >
+              <section key={stage} aria-label={`Etapa ${stage}`} className="space-y-2">
+                <Card className="space-y-2 bg-secondary p-3">
+                  <h3 className="text-sm font-semibold">
+                    {stage}
+                    <span className="ml-2 text-xs text-text-muted">({columnItems.length})</span>
+                  </h3>
+                  {columnItems.length === 0 ? (
+                    <p className="text-sm text-text-muted">Sin postulaciones.</p>
+                  ) : null}
+                  {columnItems.map((application) => (
+                    <Card role="article" key={application.id} className="space-y-2 p-3">
                     <p className="text-sm font-semibold" title={application.id}>
                       Postulación {application.id.slice(0, 8)}
                     </p>
@@ -278,13 +270,13 @@ export function PipelineBoard() {
                       Vacante: {application.job_id.slice(0, 8)}
                     </p>
                     <div className="space-y-1">
-                      <label
+                      <Label
                         htmlFor={`stage-target-${application.id}`}
-                        className="block text-xs font-semibold"
+                        className="block text-xs"
                       >
                         Etapa destino
-                      </label>
-                      <select
+                      </Label>
+                      <Select
                         id={`stage-target-${application.id}`}
                         aria-label={`Etapa destino para ${application.id}`}
                         value={targets[application.id] ?? application.stage}
@@ -293,23 +285,22 @@ export function PipelineBoard() {
                           setTargets((current) => ({ ...current, [application.id]: next }));
                         }}
                         disabled={busyId === application.id}
-                        className="w-full rounded-sm border border-border bg-surface px-2 py-1 text-sm"
                       >
                         {STAGES.map((option) => (
                           <option key={option} value={option}>
                             {option}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </div>
                     <div className="space-y-1">
-                      <label
+                      <Label
                         htmlFor={`stage-note-${application.id}`}
-                        className="block text-xs font-semibold"
+                        className="block text-xs"
                       >
                         Nota (opcional)
-                      </label>
-                      <input
+                      </Label>
+                      <Input
                         id={`stage-note-${application.id}`}
                         type="text"
                         maxLength={1000}
@@ -320,22 +311,22 @@ export function PipelineBoard() {
                           setNotes((current) => ({ ...current, [application.id]: next }));
                         }}
                         disabled={busyId === application.id}
-                        className="w-full rounded-sm border border-border bg-surface px-2 py-1 text-sm"
                       />
                     </div>
-                    <button
+                    <Button
                       type="button"
+                      size="sm"
                       aria-label={`Avanzar etapa de postulación ${application.id}`}
                       onClick={() => {
                         void handleStageChange(application);
                       }}
                       disabled={busyId !== null}
-                      className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-60"
                     >
                       {busyId === application.id ? "Cambiando…" : "Avanzar etapa"}
-                    </button>
-                  </article>
-                ))}
+                    </Button>
+                    </Card>
+                  ))}
+                </Card>
               </section>
             );
           })}

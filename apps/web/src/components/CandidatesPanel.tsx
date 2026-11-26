@@ -9,6 +9,10 @@ import type {
   NoteList,
 } from "../lib/types";
 import { CandidateForm } from "./CandidateForm";
+import { Button } from "./ui/shadcn/button";
+import { Card } from "./ui/shadcn/card";
+import { Input } from "./ui/shadcn/input";
+import { Label } from "./ui/shadcn/label";
 
 const PAGE_SIZE = 20;
 
@@ -180,10 +184,10 @@ export function CandidatesPanel() {
         </h2>
         <form onSubmit={handleSearch} className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
-            <label htmlFor="candidate-search" className="block text-sm font-semibold">
+            <Label htmlFor="candidate-search" className="block">
               Búsqueda (nombre o correo)
-            </label>
-            <input
+            </Label>
+            <Input
               id="candidate-search"
               type="search"
               value={query}
@@ -191,15 +195,9 @@ export function CandidatesPanel() {
               onChange={(event) => {
                 setQuery(event.target.value);
               }}
-              className="rounded-sm border border-border bg-surface px-3 py-2 text-sm"
             />
           </div>
-          <button
-            type="submit"
-            className="rounded-sm bg-accent px-4 py-2 text-sm font-semibold text-on-accent"
-          >
-            Buscar
-          </button>
+          <Button type="submit">Buscar</Button>
           <p className="text-sm text-text-muted">Total: {visibleTotal}</p>
         </form>
 
@@ -220,53 +218,56 @@ export function CandidatesPanel() {
         </div>
 
         {visibleLoadStatus === "ready" && visibleCandidates.length > 0 ? (
-          <ul className="divide-y divide-border rounded-sm border border-border">
+          <ul className="space-y-2">
             {visibleCandidates.map((candidate) => (
-              <li key={candidate.id} className="flex flex-wrap items-center justify-between gap-3 px-3 py-2">
-                <div className="space-y-0">
-                  <p className="text-sm font-semibold">{candidate.name}</p>
-                  <p className="text-xs text-text-muted">
-                    {candidate.email}
-                    {candidate.location ? ` · ${candidate.location}` : ""}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  aria-label={`Ver detalle de ${candidate.name}`}
-                  aria-pressed={candidate.id === selectedId}
-                  onClick={() => {
-                    setSelectedId(candidate.id);
-                  }}
-                  className="rounded-sm border border-border px-2 py-1 text-sm font-semibold"
-                >
-                  Ver detalle
-                </button>
+              <li key={candidate.id}>
+                <Card className="flex flex-wrap items-center justify-between gap-3 p-3">
+                  <div className="space-y-0">
+                    <p className="text-sm font-semibold">{candidate.name}</p>
+                    <p className="text-xs text-text-muted">
+                      {candidate.email}
+                      {candidate.location ? ` · ${candidate.location}` : ""}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    variant={candidate.id === selectedId ? "secondary" : "outline"}
+                    size="sm"
+                    aria-label={`Ver detalle de ${candidate.name}`}
+                    aria-pressed={candidate.id === selectedId}
+                    onClick={() => {
+                      setSelectedId(candidate.id);
+                    }}
+                  >
+                    Ver detalle
+                  </Button>
+                </Card>
               </li>
             ))}
           </ul>
         ) : null}
 
         <div className="flex items-center gap-3">
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={() => {
               setOffset((current) => Math.max(0, current - PAGE_SIZE));
             }}
             disabled={offset === 0}
-            className="rounded-sm border border-border px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
           >
             Anterior
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="outline"
             onClick={() => {
               setOffset((current) => current + PAGE_SIZE);
             }}
             disabled={visibleLoadStatus !== "ready" || offset + PAGE_SIZE >= visibleTotal}
-            className="rounded-sm border border-border px-3 py-2 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-60"
           >
             Siguiente
-          </button>
+          </Button>
           <span className="text-sm text-text-muted">
             {visibleLoadStatus === "ready"
               ? `${offset + 1}–${Math.min(offset + PAGE_SIZE, visibleTotal)}`
@@ -280,16 +281,18 @@ export function CandidatesPanel() {
           Detalle del candidato
         </h2>
         {selectedCandidate ? (
-          <div className="space-y-1">
+          <Card className="space-y-1 p-3">
             <p className="text-sm font-semibold">{selectedCandidate.name}</p>
             <p className="text-sm text-text-muted">{selectedCandidate.email}</p>
             <p className="text-sm text-text-muted">
               {selectedCandidate.location ?? "Sin ubicación"} ·{" "}
               {selectedCandidate.profile_status}
             </p>
-          </div>
+          </Card>
         ) : (
-          <p className="text-sm text-text-muted">Selecciona un candidato para ver su detalle.</p>
+          <Card className="p-3 text-sm text-text-muted">
+            Selecciona un candidato para ver su detalle.
+          </Card>
         )}
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -313,11 +316,13 @@ export function CandidatesPanel() {
               ) : (
                 <ul className="space-y-1">
                   {visibleNotes.map((note) => (
-                    <li key={note.id} className="rounded-sm border border-border px-3 py-2 text-sm">
-                      {note.body}
-                      <span className="block text-xs text-text-muted">
-                        Autor: {note.author_id}
-                      </span>
+                    <li key={note.id}>
+                      <Card className="p-3 text-sm">
+                        {note.body}
+                        <span className="block text-xs text-text-muted">
+                          Autor: {note.author_id}
+                        </span>
+                      </Card>
                     </li>
                   ))}
                 </ul>
@@ -345,9 +350,11 @@ export function CandidatesPanel() {
               ) : (
                 <ul className="space-y-1">
                   {visibleActivity.map((entry) => (
-                    <li key={entry.id} className="rounded-sm border border-border px-3 py-2 text-sm">
-                      {entry.action} · {entry.resource_type}
-                      <span className="block text-xs text-text-muted">{entry.timestamp}</span>
+                    <li key={entry.id}>
+                      <Card className="p-3 text-sm">
+                        {entry.action} · {entry.resource_type}
+                        <span className="block text-xs text-text-muted">{entry.timestamp}</span>
+                      </Card>
                     </li>
                   ))}
                 </ul>

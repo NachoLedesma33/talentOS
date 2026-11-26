@@ -13,6 +13,8 @@ import {
   TableHeader,
   TableRow,
 } from "./ui/shadcn/table";
+import { Label } from "./ui/shadcn/label";
+import { Select } from "./ui/shadcn/select";
 import { JobForm } from "./JobForm";
 import { RequirementsEditor } from "./RequirementsEditor";
 
@@ -113,17 +115,16 @@ export function JobsPanel() {
         </h2>
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
-            <label htmlFor="jobs-status" className="block text-sm font-semibold">
+            <Label htmlFor="jobs-status" className="block">
               Estado
-            </label>
-            <select
+            </Label>
+            <Select
               id="jobs-status"
               value={statusFilter}
               onChange={(event) => {
                 setStatusFilter(event.target.value);
                 setOffset(0);
               }}
-              className="rounded-sm border border-border bg-surface px-3 py-2 text-sm"
             >
               <option value="">Todos</option>
               {STATUSES.map((status) => (
@@ -131,7 +132,7 @@ export function JobsPanel() {
                   {status}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
           <p className="text-sm text-text-muted">Total: {visibleTotal}</p>
         </div>
@@ -155,7 +156,7 @@ export function JobsPanel() {
         </div>
 
         {visibleLoadStatus === "ready" && visibleJobs.length > 0 ? (
-          <Table className="rounded-sm border border-border text-left">
+          <Table className="text-left">
             <TableCaption className="sr-only">
               Vacantes de la organización activa
             </TableCaption>

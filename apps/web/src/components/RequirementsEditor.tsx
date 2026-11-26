@@ -9,6 +9,12 @@ import type {
   RequirementImportance,
   JobRequirement,
 } from "../lib/types";
+import { Button } from "./ui/shadcn/button";
+import { Card } from "./ui/shadcn/card";
+import { Input } from "./ui/shadcn/input";
+import { Label } from "./ui/shadcn/label";
+import { Select } from "./ui/shadcn/select";
+import { Textarea } from "./ui/shadcn/textarea";
 
 const CATEGORIES: readonly RequirementCategory[] = [
   "skill",
@@ -87,112 +93,107 @@ export function RequirementsEditor({ job }: { job: Job | null }) {
         </p>
       )}
 
-      <form onSubmit={handleSubmit} aria-busy={submitting} className="space-y-3">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1">
-            <label htmlFor="requirement-category" className="block text-sm font-semibold">
-              Categoría
-            </label>
-            <select
-              id="requirement-category"
-              name="category"
-              defaultValue="skill"
-              disabled={submitting || !job}
-              className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm"
-            >
-              {CATEGORIES.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
+      <form onSubmit={handleSubmit} aria-busy={submitting}>
+        <Card className="space-y-3 p-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label htmlFor="requirement-category" className="block">
+                Categoría
+              </Label>
+              <Select
+                id="requirement-category"
+                name="category"
+                defaultValue="skill"
+                disabled={submitting || !job}
+              >
+                {CATEGORIES.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="requirement-importance" className="block">
+                Importancia
+              </Label>
+              <Select
+                id="requirement-importance"
+                name="importance"
+                defaultValue="required"
+                disabled={submitting || !job}
+              >
+                {IMPORTANCES.map((importance) => (
+                  <option key={importance} value={importance}>
+                    {importance}
+                  </option>
+                ))}
+              </Select>
+            </div>
           </div>
           <div className="space-y-1">
-            <label htmlFor="requirement-importance" className="block text-sm font-semibold">
-              Importancia
-            </label>
-            <select
-              id="requirement-importance"
-              name="importance"
-              defaultValue="required"
+            <Label htmlFor="requirement-description" className="block">
+              Descripción del requisito
+            </Label>
+            <Textarea
+              id="requirement-description"
+              name="description"
+              rows={2}
+              required
               disabled={submitting || !job}
-              className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm"
-            >
-              {IMPORTANCES.map((importance) => (
-                <option key={importance} value={importance}>
-                  {importance}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-        <div className="space-y-1">
-          <label htmlFor="requirement-description" className="block text-sm font-semibold">
-            Descripción del requisito
-          </label>
-          <textarea
-            id="requirement-description"
-            name="description"
-            rows={2}
-            required
-            disabled={submitting || !job}
-            className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm"
-          />
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1">
-            <label htmlFor="requirement-weight" className="block text-sm font-semibold">
-              Peso (0 a 1)
-            </label>
-            <input
-              id="requirement-weight"
-              name="weight"
-              type="number"
-              min={0}
-              max={1}
-              step={0.01}
-              defaultValue="0"
-              disabled={submitting || !job}
-              className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm"
             />
           </div>
-          <div className="space-y-1">
-            <label htmlFor="requirement-justification" className="block text-sm font-semibold">
-              Justificación del peso
-            </label>
-            <input
-              id="requirement-justification"
-              name="weight_justification"
-              type="text"
-              disabled={submitting || !job}
-              className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm"
-            />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1">
+              <Label htmlFor="requirement-weight" className="block">
+                Peso (0 a 1)
+              </Label>
+              <Input
+                id="requirement-weight"
+                name="weight"
+                type="number"
+                min={0}
+                max={1}
+                step={0.01}
+                defaultValue="0"
+                disabled={submitting || !job}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="requirement-justification" className="block">
+                Justificación del peso
+              </Label>
+              <Input
+                id="requirement-justification"
+                name="weight_justification"
+                type="text"
+                disabled={submitting || !job}
+              />
+            </div>
           </div>
-        </div>
-        <button
-          type="submit"
-          disabled={submitting || !job}
-          className="rounded-sm bg-accent px-4 py-2 text-sm font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {submitting ? "Añadiendo requisito…" : "Añadir requisito"}
-        </button>
-        <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
-          {error ? (
-            <span role="alert" className="text-text">
-              {error}
-            </span>
-          ) : (
-            message
-          )}
-        </p>
+          <Button type="submit" disabled={submitting || !job}>
+            {submitting ? "Añadiendo requisito…" : "Añadir requisito"}
+          </Button>
+          <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
+            {error ? (
+              <span role="alert" className="text-text">
+                {error}
+              </span>
+            ) : (
+              message
+            )}
+          </p>
+        </Card>
       </form>
 
       {visibleRequirements.length > 0 ? (
         <ul className="space-y-1">
           {visibleRequirements.map((requirement) => (
-            <li key={requirement.id} className="text-sm text-text-muted">
-              <span className="font-semibold text-text">{requirement.category}</span>:{" "}
-              {requirement.description} ({requirement.importance}, peso {requirement.weight})
+            <li key={requirement.id}>
+              <Card className="p-3 text-sm text-text-muted">
+                <span className="font-semibold text-text">{requirement.category}</span>:{" "}
+                {requirement.description} ({requirement.importance}, peso {requirement.weight})
+              </Card>
             </li>
           ))}
         </ul>

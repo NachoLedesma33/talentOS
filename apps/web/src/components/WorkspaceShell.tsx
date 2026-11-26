@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { Button } from "./ui/shadcn/button";
 
 const workspaceLinks = [
   { href: "/dashboard", label: "Panel" },
@@ -45,15 +46,17 @@ export function WorkspaceShell({
           </nav>
         </header>
 
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           aria-expanded={mobileNavOpen}
           aria-controls="workspace-mobile-nav"
           onClick={() => setMobileNavOpen((open) => !open)}
-          className="mb-4 rounded-sm border border-border px-3 py-2 text-sm font-semibold md:hidden"
+          className="mb-4 md:hidden"
         >
           {mobileNavOpen ? "Ocultar menú" : "Mostrar menú"}
-        </button>
+        </Button>
         <nav
           id="workspace-mobile-nav"
           aria-label="Navegación móvil del workspace"

@@ -8,6 +8,11 @@ import type {
   InterviewFeedbackStatus,
   InterviewFeedbackSubmitRequest,
 } from "../lib/types";
+import { Button } from "./ui/shadcn/button";
+import { Card } from "./ui/shadcn/card";
+import { Checkbox } from "./ui/shadcn/checkbox";
+import { Label } from "./ui/shadcn/label";
+import { Textarea } from "./ui/shadcn/textarea";
 
 const MAX_LINES = 20;
 const MAX_LINE_LENGTH = 500;
@@ -154,73 +159,66 @@ export function FeedbackForm({ questionId, requirementId }: FeedbackFormProps) {
         <p className="text-xs text-text-muted">Requisito vinculado: {requirementId}</p>
       </div>
 
-      <form onSubmit={(event) => void submit(event)} aria-busy={submitting} className="space-y-2">
-        <div className="space-y-1">
-          <label
-            htmlFor={`feedback-evidence-${questionId}`}
-            className="block text-xs font-semibold"
-          >
-            Evidencia observada (una por línea, máx. {MAX_LINES})
-          </label>
-          <textarea
-            id={`feedback-evidence-${questionId}`}
-            value={observedText}
-            onChange={(event) => setObservedText(event.target.value)}
-            rows={3}
-            className="w-full rounded-sm border border-border bg-surface px-2 py-1 text-sm"
-          />
-        </div>
-        <div className="space-y-1">
-          <label htmlFor={`feedback-gaps-${questionId}`} className="block text-xs font-semibold">
-            Brechas (una por línea, máx. {MAX_LINES})
-          </label>
-          <textarea
-            id={`feedback-gaps-${questionId}`}
-            value={gapsText}
-            onChange={(event) => setGapsText(event.target.value)}
-            rows={3}
-            className="w-full rounded-sm border border-border bg-surface px-2 py-1 text-sm"
-          />
-        </div>
-        <label htmlFor={`feedback-follow-up-${questionId}`} className="flex items-center gap-2 text-sm">
-          <input
-            id={`feedback-follow-up-${questionId}`}
-            type="checkbox"
-            checked={followUpNeeded}
-            onChange={(event) => setFollowUpNeeded(event.target.checked)}
-            className="h-4 w-4"
-          />
-          Requiere seguimiento
-        </label>
-        <div className="space-y-1">
-          <label htmlFor={`feedback-notes-${questionId}`} className="block text-xs font-semibold">
-            Notas opcionales
-          </label>
-          <textarea
-            id={`feedback-notes-${questionId}`}
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            maxLength={MAX_NOTES}
-            rows={2}
-            className="w-full rounded-sm border border-border bg-surface px-2 py-1 text-sm"
-          />
-        </div>
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded-sm bg-accent px-3 py-1 text-sm font-semibold text-on-accent disabled:opacity-60"
-        >
-          {submitting ? "Registrando…" : "Registrar feedback"}
-        </button>
+      <form onSubmit={(event) => void submit(event)} aria-busy={submitting}>
+        <Card className="space-y-2 p-3">
+          <div className="space-y-1">
+            <Label
+              htmlFor={`feedback-evidence-${questionId}`}
+              className="block text-xs"
+            >
+              Evidencia observada (una por línea, máx. {MAX_LINES})
+            </Label>
+            <Textarea
+              id={`feedback-evidence-${questionId}`}
+              value={observedText}
+              onChange={(event) => setObservedText(event.target.value)}
+              rows={3}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor={`feedback-gaps-${questionId}`} className="block text-xs">
+              Brechas (una por línea, máx. {MAX_LINES})
+            </Label>
+            <Textarea
+              id={`feedback-gaps-${questionId}`}
+              value={gapsText}
+              onChange={(event) => setGapsText(event.target.value)}
+              rows={3}
+            />
+          </div>
+          <Label htmlFor={`feedback-follow-up-${questionId}`} className="flex items-center gap-2 text-sm">
+            <Checkbox
+              id={`feedback-follow-up-${questionId}`}
+              checked={followUpNeeded}
+              onChange={(event) => setFollowUpNeeded(event.target.checked)}
+            />
+            Requiere seguimiento
+          </Label>
+          <div className="space-y-1">
+            <Label htmlFor={`feedback-notes-${questionId}`} className="block text-xs">
+              Notas opcionales
+            </Label>
+            <Textarea
+              id={`feedback-notes-${questionId}`}
+              value={notes}
+              onChange={(event) => setNotes(event.target.value)}
+              maxLength={MAX_NOTES}
+              rows={2}
+            />
+          </div>
+          <Button type="submit" size="sm" disabled={submitting}>
+            {submitting ? "Registrando…" : "Registrar feedback"}
+          </Button>
+        </Card>
       </form>
 
       <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
         {loading ? "Cargando historial de feedback…" : notice}
       </p>
       {error ? (
-        <section role="alert" className="rounded-sm border border-border p-2 text-sm">
+        <Card role="alert" className="p-2 text-sm">
           Error: {error}
-        </section>
+        </Card>
       ) : null}
 
       {recorded ? (
