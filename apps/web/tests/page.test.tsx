@@ -1,6 +1,11 @@
-import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import Home from "../src/app/page";
+import { LocaleProvider } from "../src/lib/i18n";
+
+beforeEach(() => {
+  window.localStorage.clear();
+});
 
 afterEach(() => {
   cleanup();
@@ -27,5 +32,21 @@ describe("portada pública", () => {
     const readyLink = screen.getByRole("link", { name: "/ready" });
     expect(healthLink.getAttribute("href")).toBe("http://localhost:8000/health");
     expect(readyLink.getAttribute("href")).toBe("http://localhost:8000/ready");
+  });
+
+  it("cambia a inglés con el botón de idioma y persiste la preferencia", () => {
+    render(
+      <LocaleProvider>
+        <Home />
+      </LocaleProvider>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Cambiar a inglés" }));
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: /Hiring decisions backed by evidence/ }),
+    ).toBeTruthy();
+    expect(document.documentElement.lang).toBe("en");
+    expect(window.localStorage.getItem("talentos:locale")).toBe("en");
   });
 });
