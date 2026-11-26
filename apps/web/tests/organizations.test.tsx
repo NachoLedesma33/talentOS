@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import DashboardPage from "../src/app/dashboard/page";
 import { MembersPanel } from "../src/components/MembersPanel";
@@ -12,6 +12,13 @@ function jsonResponse(payload: unknown, status = 200): Response {
     json: async () => payload,
   } as unknown as Response;
 }
+
+const meBase = {
+  id: "user-1",
+  email: "user-a@example.test",
+  name: "Usuario A",
+  status: "active" as const,
+};
 
 const organizations = [
   {
@@ -217,5 +224,112 @@ describe("identidad y organizaciones", () => {
     expect(screen.getByRole("link", { name: "Analítica" }).getAttribute("href")).toBe(
       "/analytics",
     );
+  });
+
+  it("ofrece crear organización y vuelve al panel tras crearla", async () => {
+    let meCalls = 0;
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+        const url = String(input);
+        if (url.endsWith("/api/v1/auth/me")) {
+          meCalls += 1;
+          return jsonResponse({
+            ...meBase,
+            organizations: [],
+            onboarding: {
+              step: meCalls === 1 ? "create_organization" : "complete",
+            },
+          });
+        }
+        if (url === "http://localhost:8000/api/v1/organizations" && init?.method === "POST") {
+          return jsonResponse(
+            {
+              id: "org-1",
+              name: "Nueva Org",
+              slug: "nueva-org",
+              created_at: "2026-01-01T00:00:00Z",
+            },
+            201,
+          );
+        }
+        if (url.endsWith("/api/v1/organizations")) return jsonResponse(organizations);
+        if (url.includes("/members")) return jsonResponse(members);
+        return jsonResponse({});
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DashboardPage />);
+    expect(await screen.findByRole("heading", { name: "Creá tu organización" })).toBeTruthy();
+    expect(screen.queryByRole("navigation", { name: "Recruitment Core" })).toBeNull();
+
+    fireEvent.change(screen.getByLabelText("Nombre"), { target: { value: "Nueva Org" } });
+    fireEvent.change(screen.getByLabelText("Identificador"), { target: { value: "nueva-org" } });
+    fireEvent.click(screen.getByRole("button", { name: "Crear organización" }));
+
+    expect(await screen.findByRole("navigation", { name: "Recruitment Core" })).toBeTruthy();
+    const postCall = fetchMock.mock.calls.find(([, init]) => init?.method === "POST");
+    expect(JSON.parse(String(postCall?.[1]?.body))).toEqual({
+      name: "Nueva Org",
+      slug: "nueva-org",
+    });
+  });
+
+  it("muestra checklist de primeros pasos con enlaces reales", async () => {
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL): Promise<Response> => {
+        const url = String(input);
+        if (url.endsWith("/api/v1/auth/me")) {
+          return jsonResponse({
+            ...meBase,
+            organizations: [],
+            onboarding: { step: "complete" },
+          });
+        }
+        if (url.endsWith("/api/v1/organizations")) return jsonResponse(organizations);
+        if (url.includes("/members")) return jsonResponse(members);
+        return jsonResponse({});
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DashboardPage />);
+    expect(await screen.findByRole("list", { name: "Primeros pasos" })).toBeTruthy();
+    expect(screen.getByText("Crear tu organización").textContent).not.toContain("completado");
+    expect(screen.getByRole("link", { name: "Invitar a tu equipo" }).getAttribute("href")).toBe(
+      "#members-heading",
+    );
+    expect(screen.getByRole("link", { name: "Publicar una vacante" }).getAttribute("href")).toBe(
+      "/jobs",
+    );
+    expect(screen.getByRole("link", { name: "Añadir candidatos" }).getAttribute("href")).toBe(
+      "/candidates",
+    );
+  });
+
+  it("pide aceptar invitación pendiente y permite reconsultar el estado", async () => {
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL): Promise<Response> => {
+        if (String(input).endsWith("/api/v1/auth/me")) {
+          return jsonResponse({
+            ...meBase,
+            organizations: [],
+            onboarding: { step: "accept_invitation" },
+          });
+        }
+        return jsonResponse({});
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DashboardPage />);
+    expect(await screen.findByRole("heading", { name: "Invitación pendiente" })).toBeTruthy();
+    expect(screen.queryByRole("navigation", { name: "Recruitment Core" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ya la acepté, revisar de nuevo" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
   });
 });

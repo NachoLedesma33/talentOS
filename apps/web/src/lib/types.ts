@@ -20,9 +20,16 @@ export interface User {
 /** Login/register devuelven UserResponse; la sesión vive en cookie HttpOnly. */
 export type AuthResponse = User;
 
+export type OnboardingStep = "create_organization" | "accept_invitation" | "complete";
+
+export interface OnboardingStatus {
+  step: OnboardingStep;
+}
+
 /** MeResponse: UserResponse más el resumen de organizaciones del backend. */
 export interface MeResponse extends User {
   organizations: Array<Record<string, string>>;
+  onboarding: OnboardingStatus;
 }
 
 /** OrganizationResponse. */
@@ -51,6 +58,41 @@ export interface RegisterRequest {
   email: string;
   password: string;
   name: string;
+}
+
+/** Recuperación de contraseña y respuestas demo sin SMTP. */
+export interface PasswordResetRequest {
+  email: string;
+}
+
+export interface PasswordResetConfirm {
+  token: string;
+  password: string;
+}
+
+export interface MessageResponse {
+  message: string;
+}
+
+export interface PasswordResetRequestResponse extends MessageResponse {
+  dev_token: string | null;
+}
+
+export interface InvitationCreateResponse extends MessageResponse {
+  dev_token: string | null;
+}
+
+export interface InvitationDetailResponse {
+  organization_name: string;
+  email: string;
+  role: MembershipRole;
+  expires_at: string;
+}
+
+export interface InvitationAcceptResponse {
+  organization_id: string;
+  organization_name: string;
+  role: MembershipRole;
 }
 
 export interface MemberInvite {

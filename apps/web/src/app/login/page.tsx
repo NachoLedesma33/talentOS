@@ -25,6 +25,12 @@ export default function LoginPage() {
           <LoginForm />
         </Card>
         <p className="text-sm text-text-muted">
+          ¿Olvidaste tu contraseña?{" "}
+          <Link href="/forgot-password" className="text-accent underline underline-offset-4">
+            Recuperar contraseña
+          </Link>
+        </p>
+        <p className="text-sm text-text-muted">
           ¿Aún no tienes cuenta?{" "}
           <Link href="/register" className="text-accent underline underline-offset-4">
             Crear cuenta

@@ -1,13 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { MembersPanel } from "../../components/MembersPanel";
 import { WorkspaceShell } from "../../components/WorkspaceShell";
 import { OrganizationSelector } from "../../components/OrganizationSelector";
 import { ApiError, apiFetch } from "../../lib/api";
-import type { MeResponse } from "../../lib/types";
+import type { MeResponse, Organization } from "../../lib/types";
 import { Button } from "../../components/ui/shadcn/button";
 import { Card } from "../../components/ui/shadcn/card";
+import { Input } from "../../components/ui/shadcn/input";
+import { Label } from "../../components/ui/shadcn/label";
 
 type SessionStatus =
   | "loading"
@@ -18,6 +20,9 @@ type SessionStatus =
   | "serverError"
   | "error";
 
+type SubmitStatus = "idle" | "loading" | "error";
+type OrganizationPayload = Pick<Organization, "name" | "slug">;
+
 function requestSession(): Promise<MeResponse> {
   return apiFetch<MeResponse>("/api/v1/auth/me");
 }
@@ -27,6 +32,8 @@ export default function DashboardPage() {
   const [user, setUser] = useState<MeResponse | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [activeOrganizationId, setActiveOrganizationId] = useState<string | null>(null);
+  const [orgStatus, setOrgStatus] = useState<SubmitStatus>("idle");
+  const [orgMessage, setOrgMessage] = useState<string | null>(null);
 
   const applySessionSuccess = useCallback((currentUser: MeResponse) => {
     setUser(currentUser);
@@ -72,6 +79,35 @@ export default function DashboardPage() {
       active = false;
     };
   }, [applySessionSuccess, applySessionError]);
+
+  const reloadSession = useCallback(() => {
+    setStatus("loading");
+    setMessage(null);
+    requestSession().then(applySessionSuccess, applySessionError);
+  }, [applySessionSuccess, applySessionError]);
+
+  async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    const payload: OrganizationPayload = {
+      name: String(data.get("name") ?? "").trim(),
+      slug: String(data.get("slug") ?? "").trim(),
+    };
+    setOrgStatus("loading");
+    setOrgMessage(null);
+    try {
+      await apiFetch<Organization>("/api/v1/organizations", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
+      reloadSession();
+    } catch (error) {
+      setOrgStatus("error");
+      setOrgMessage(
+        error instanceof ApiError ? error.message : "No se pudo crear la organización.",
+      );
+    }
+  }
 
   if (status === "loading") {
     return (
@@ -134,15 +170,80 @@ export default function DashboardPage() {
         <Button
           type="button"
           variant="outline"
-          onClick={() => {
-            setStatus("loading");
-            setMessage(null);
-            requestSession().then(applySessionSuccess, applySessionError);
-          }}
+          onClick={reloadSession}
         >
           Reintentar
         </Button>
       </section>
+    );
+  }
+
+  const onboardingStep = status === "ready" ? user?.onboarding?.step ?? "complete" : "complete";
+  const hasOrganization = (user?.organizations?.length ?? 0) > 0;
+
+  if (onboardingStep === "create_organization") {
+    return (
+      <main className="flex min-h-screen items-center justify-center px-4 py-10">
+        <Card className="w-full max-w-md space-y-4 p-5">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight">Creá tu organización</h1>
+            <p className="text-sm text-text-muted">
+              Primer paso para usar TalentOS. Después podés invitar a tu equipo.
+            </p>
+          </div>
+          <form
+            onSubmit={handleCreateOrganization}
+            aria-busy={orgStatus === "loading"}
+            className="space-y-4"
+          >
+            <div className="space-y-1">
+              <Label htmlFor="org-name" className="block">
+                Nombre
+              </Label>
+              <Input id="org-name" name="name" type="text" required maxLength={200} />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="org-slug" className="block">
+                Identificador
+              </Label>
+              <Input
+                id="org-slug"
+                name="slug"
+                type="text"
+                required
+                pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
+              />
+            </div>
+            <Button type="submit" disabled={orgStatus === "loading"}>
+              {orgStatus === "loading" ? "Creando…" : "Crear organización"}
+            </Button>
+            <p
+              aria-live="assertive"
+              role={orgStatus === "error" ? "alert" : undefined}
+              className="min-h-5 text-sm text-text-muted"
+            >
+              {orgStatus === "error" ? `Error: ${orgMessage}` : null}
+            </p>
+          </form>
+        </Card>
+      </main>
+    );
+  }
+
+  if (onboardingStep === "accept_invitation") {
+    return (
+      <main className="flex min-h-screen items-center justify-center px-4 py-10">
+        <Card className="w-full max-w-md space-y-4 p-5">
+          <h1 className="text-2xl font-semibold tracking-tight">Invitación pendiente</h1>
+          <p className="text-sm text-text-muted">
+            Tenés una invitación pendiente. Abrí el enlace que recibiste por correo para
+            aceptarla.
+          </p>
+          <Button type="button" variant="outline" onClick={reloadSession}>
+            Ya la acepté, revisar de nuevo
+          </Button>
+        </Card>
+      </main>
     );
   }
 
@@ -154,6 +255,35 @@ export default function DashboardPage() {
           <p className="text-sm text-text-muted">
             Sesión activa: {user?.name} ({user?.email})
           </p>
+        </Card>
+
+        <Card className="space-y-2 p-4">
+          <h2 id="first-steps-heading" className="text-sm font-semibold text-text-muted">
+            Primeros pasos
+          </h2>
+          <ol aria-labelledby="first-steps-heading" className="space-y-2 text-sm">
+            <li className="flex items-center gap-2">
+              <span aria-hidden="true">{hasOrganization ? "✓" : "○"}</span>
+              <span>
+                Crear tu organización
+                {hasOrganization ? (
+                  <span className="ml-2 text-text-muted">(completado)</span>
+                ) : null}
+              </span>
+            </li>
+            <li className="flex items-center gap-2">
+              <span aria-hidden="true">○</span>
+              <a href="#members-heading">Invitar a tu equipo</a>
+            </li>
+            <li className="flex items-center gap-2">
+              <span aria-hidden="true">○</span>
+              <a href="/jobs">Publicar una vacante</a>
+            </li>
+            <li className="flex items-center gap-2">
+              <span aria-hidden="true">○</span>
+              <a href="/candidates">Añadir candidatos</a>
+            </li>
+          </ol>
         </Card>
 
         <Card className="p-4">
