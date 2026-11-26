@@ -99,14 +99,14 @@ function ResetPasswordForm() {
             </p>
 
             {status === "success" ? (
-              <Link href="/login" className="text-accent underline underline-offset-4">
+              <Link href="/login" className="font-medium text-accent hover:opacity-80">
                 Ir a iniciar sesión
               </Link>
             ) : null}
           </form>
         </Card>
         <p className="text-sm text-text-muted">
-          <Link href="/forgot-password" className="text-accent underline underline-offset-4">
+          <Link href="/forgot-password" className="font-medium text-accent hover:opacity-80">
             Solicitar otro token
           </Link>
         </p>

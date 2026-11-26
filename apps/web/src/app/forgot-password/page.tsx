@@ -91,7 +91,7 @@ export default function ForgotPasswordPage() {
                 <code className="block break-all text-xs">{devToken}</code>
                 <Link
                   href={`/reset-password?token=${encodeURIComponent(devToken)}`}
-                  className="text-accent underline underline-offset-4"
+                  className="font-medium text-accent hover:opacity-80"
                 >
                   Continuar con el restablecimiento
                 </Link>
@@ -100,7 +100,7 @@ export default function ForgotPasswordPage() {
           </form>
         </Card>
         <p className="text-sm text-text-muted">
-          <Link href="/login" className="text-accent underline underline-offset-4">
+          <Link href="/login" className="font-medium text-accent hover:opacity-80">
             Volver a iniciar sesión
           </Link>
         </p>
