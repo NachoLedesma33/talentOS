@@ -26,13 +26,13 @@ export default function LoginPage() {
         </Card>
         <p className="text-sm text-text-muted">
           ¿Olvidaste tu contraseña?{" "}
-          <Link href="/forgot-password" className="text-accent underline underline-offset-4">
+          <Link href="/forgot-password" className="font-medium text-accent hover:opacity-80">
             Recuperar contraseña
           </Link>
         </p>
         <p className="text-sm text-text-muted">
           ¿Aún no tienes cuenta?{" "}
-          <Link href="/register" className="text-accent underline underline-offset-4">
+          <Link href="/register" className="font-medium text-accent hover:opacity-80">
             Crear cuenta
           </Link>
         </p>

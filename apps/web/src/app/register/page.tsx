@@ -26,7 +26,7 @@ export default function RegisterPage() {
         </Card>
         <p className="text-sm text-text-muted">
           ¿Ya tienes cuenta?{" "}
-          <Link href="/login" className="text-accent underline underline-offset-4">
+          <Link href="/login" className="font-medium text-accent hover:opacity-80">
             Iniciar sesión
           </Link>
         </p>
