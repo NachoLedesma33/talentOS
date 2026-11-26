@@ -129,7 +129,7 @@ export function AssessmentPanel() {
         {loading ? "Evaluando evidencia confirmada…" : notice}
       </p>
       {error ? (
-        <section role="alert" className="space-y-2 rounded-sm border border-border p-3">
+        <Card role="alert" className="space-y-2 p-3">
           <p className="text-sm">{error}</p>
           <Button
             type="button"
@@ -142,12 +142,12 @@ export function AssessmentPanel() {
           >
             Reintentar con otra postulación
           </Button>
-        </section>
+        </Card>
       ) : null}
       {!assessment && !error && !loading ? (
-        <p className="rounded-sm border border-border bg-surface-muted p-3 text-sm text-text-muted">
+        <Card className="bg-secondary p-3 text-sm text-text-muted">
           Ingresa el ID de una postulación para ver sus criterios, evidencias y limitaciones.
-        </p>
+        </Card>
       ) : null}
 
       {assessment ? (

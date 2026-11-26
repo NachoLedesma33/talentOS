@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ApiError, apiFetch } from "../lib/api";
 import type { GuideRevision, GuideRevisionList } from "../lib/types";
 import { Button } from "./ui/shadcn/button";
+import { Card } from "./ui/shadcn/card";
 import {
   Table,
   TableBody,
@@ -99,15 +100,15 @@ export function GuideHistory({ guideId }: { guideId: string }) {
         {loading ? "Cargando historial de la guía…" : null}
       </p>
       {error ? (
-        <section role="alert" className="rounded-sm border border-border p-2 text-sm">
+        <Card role="alert" className="p-2 text-sm">
           {error}
-        </section>
+        </Card>
       ) : null}
 
       {!loading && revisions.length === 0 && !error ? (
-        <p className="rounded-sm border border-border bg-surface-muted p-3 text-sm text-text-muted">
+        <Card className="bg-secondary p-3 text-sm text-text-muted">
           Todavía no hay revisiones registradas para esta guía.
-        </p>
+        </Card>
       ) : revisions.length > 0 ? (
         <Table className="text-left text-xs">
           <TableCaption className="sr-only">Revisiones de la guía</TableCaption>

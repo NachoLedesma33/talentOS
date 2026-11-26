@@ -174,7 +174,7 @@ export function InterviewGuidePanel() {
               : notice}
       </p>
       {error ? (
-        <section role="alert" className="space-y-2 rounded-sm border border-border p-3">
+        <Card role="alert" className="space-y-2 p-3">
           <p className="text-sm">{error}</p>
           <Button
             type="button"
@@ -187,7 +187,7 @@ export function InterviewGuidePanel() {
           >
             Revisar y reintentar
           </Button>
-        </section>
+        </Card>
       ) : null}
 
       {guides ? (
@@ -212,17 +212,17 @@ export function InterviewGuidePanel() {
               ))}
             </ul>
           ) : (
-            <p className="rounded-sm border border-border bg-surface-muted p-3 text-sm text-text-muted">
+            <Card className="bg-secondary p-3 text-sm text-text-muted">
               No hay guías registradas para esta postulación.
-            </p>
+            </Card>
           )}
         </section>
       ) : null}
 
       {!guide && !error && !busy ? (
-        <p className="rounded-sm border border-border bg-surface-muted p-3 text-sm text-text-muted">
+        <Card className="bg-secondary p-3 text-sm text-text-muted">
           Ingresa el ID de una postulación para generar o recuperar su guía de entrevista.
-        </p>
+        </Card>
       ) : null}
 
       {guide ? (

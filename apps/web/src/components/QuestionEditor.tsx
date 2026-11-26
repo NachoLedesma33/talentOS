@@ -13,6 +13,7 @@ import type {
 import { FeedbackForm } from "./FeedbackForm";
 import { Button } from "./ui/shadcn/button";
 import { Card } from "./ui/shadcn/card";
+import { Checkbox } from "./ui/shadcn/checkbox";
 import { Input } from "./ui/shadcn/input";
 import { Label } from "./ui/shadcn/label";
 import { Select } from "./ui/shadcn/select";
@@ -562,12 +563,10 @@ export function QuestionEditor({
             />
           </div>
           <Label htmlFor="new-question-review" className="flex items-center gap-2 text-sm">
-            <input
+            <Checkbox
               id="new-question-review"
-              type="checkbox"
               checked={reviewRequired}
               onChange={(event) => setReviewRequired(event.target.checked)}
-              className="h-4 w-4"
             />
             Requiere revisión humana
           </Label>

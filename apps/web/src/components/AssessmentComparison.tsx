@@ -137,9 +137,9 @@ export function AssessmentComparison() {
         {loading ? "Comparando evaluaciones…" : null}
       </p>
       {error ? (
-        <p role="alert" className="rounded-sm border border-border p-3 text-sm">
+        <Card role="alert" className="p-3 text-sm">
           {error}
-        </p>
+        </Card>
       ) : null}
       {!comparison && !error && !loading ? (
         <p className="text-sm text-text-muted">

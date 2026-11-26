@@ -1,6 +1,7 @@
 "use client";
 
 import type { AgentEvent } from "../lib/types";
+import { Card } from "./ui/shadcn/card";
 import {
   Table,
   TableBody,
@@ -81,11 +82,11 @@ export function AgentEventTimeline({
       </div>
 
       {!loading && events.length === 0 ? (
-        <p className="rounded-sm border border-border bg-surface-muted p-3 text-sm text-text-muted">
+        <Card className="bg-secondary p-3 text-sm text-text-muted">
           Todavía no hay eventos para esta ejecución.
-        </p>
+        </Card>
       ) : (
-        <Table className="rounded-sm border border-border">
+        <Table className="rounded-md border border-border">
           <TableCaption className="sr-only">
             Eventos de la ejecución con metadatos saneados
           </TableCaption>
