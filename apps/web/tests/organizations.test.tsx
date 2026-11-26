@@ -226,6 +226,48 @@ describe("identidad y organizaciones", () => {
     );
   });
 
+  it("expone usuario y organización activa en el shell del panel", async () => {
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+        const url = String(input);
+        if (url.endsWith("/api/v1/auth/me")) {
+          return jsonResponse({ ...meBase, onboarding: { step: "complete" } });
+        }
+        if (url.endsWith("/api/v1/organizations")) return jsonResponse(organizations);
+        if (url.includes("/members")) return jsonResponse(members);
+        if (url.endsWith("/api/v1/auth/logout") && init?.method === "POST") {
+          return jsonResponse({ message: "Sesión cerrada." });
+        }
+        return jsonResponse({});
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DashboardPage />);
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Organización activa en la barra" }),
+    );
+    const orgSelect = (await screen.findByRole("combobox", {
+      name: "Organización activa en la barra",
+    })) as HTMLSelectElement;
+    expect(orgSelect.value).toBe("org-1");
+    expect(window.localStorage.getItem(ACTIVE_ORG_STORAGE_KEY)).toBe("org-1");
+
+    fireEvent.change(orgSelect, { target: { value: "org-2" } });
+    expect(window.localStorage.getItem(ACTIVE_ORG_STORAGE_KEY)).toBe("org-2");
+
+    const userButton = await screen.findByRole("button", { name: "Cuenta" });
+    fireEvent.click(userButton);
+    expect((await screen.findAllByText("user-a@example.test")).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: "Cerrar sesión" }));
+    expect(await screen.findByText("Sesión cerrada.")).toBeTruthy();
+    const logoutCall = fetchMock.mock.calls.find(
+      ([input, init]) =>
+        String(input).endsWith("/api/v1/auth/logout") && init?.method === "POST",
+    );
+    expect(logoutCall).toBeDefined();
+  });
+
   it("ofrece crear organización y vuelve al panel tras crearla", async () => {
     let meCalls = 0;
     const fetchMock = vi.fn(

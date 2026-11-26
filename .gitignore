@@ -34,3 +34,4 @@ junit.xml
 *.log
 
 .serena/
+.kombai/

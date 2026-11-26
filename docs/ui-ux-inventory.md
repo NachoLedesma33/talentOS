@@ -119,8 +119,8 @@ Alcance B según `TalentOS_UI_UX_IMPROVEMENT_PLAN.md:1243`: landing, login, regi
 |---|---|---|
 | Sidebar, header, breadcrumbs, responsive nav | Ya existían en A4; sin cambios en C | `apps/web/src/components/WorkspaceShell.tsx` |
 | Command menu | Implementado: diálogo controlado por React, `Ctrl/Cmd+K`, filtro por etiqueta, Escape y `aria-expanded` | `apps/web/src/components/CommandMenu.tsx` |
-| Organización activa | `OrganizationSelector` sigue sólo en `/dashboard:160`; no integrado en el shell | `apps/web/src/app/dashboard/page.tsx` |
-| Menú de usuario | Sin implementar | — |
+| Organización activa | Selector en el shell con carga diferida; `OrganizationSelector` sigue en `/dashboard` | `apps/web/src/components/WorkspaceShell.tsx:56`, `apps/web/src/components/OrganizationSelector.tsx:26` |
+| Menú de usuario | Implementado: `/api/v1/auth/me` bajo demanda, identidad y logout vía `/api/v1/auth/logout` | `apps/web/src/components/WorkspaceShell.tsx:38`, `apps/web/tests/organizations.test.tsx:229` |
 
 Evidencia C1/C2: `CommandMenu.tsx` + integración en `WorkspaceShell.tsx`; E2E añade `menú de comandos del workspace` con apertura por click y por `Control+k`, filtro y cierre con Escape. Gates locales typecheck/lint/unit 105/build/E2E 7 passed + 1 skipped OK. Nota: E2E sirve `next start` desde `.next`, por lo que todo cambio de componente exige `npm run build` antes de `npm run test:e2e`; en local con `reuseExistingServer` puede reutilizar servidores stale, mitigado con `CI=1` y `WEB_BASE_URL` en puerto libre.
 
@@ -136,4 +136,26 @@ Evidencia C1/C2: `CommandMenu.tsx` + integración en `WorkspaceShell.tsx`; E2E a
 
 Medición de renders (2026-11-26): `apps/web/tests/candidates.test.tsx:91` usa `Profiler` sobre `CandidatesPanel`; carga → escritura → búsqueda → paginación produce 5 commits sin duplicados, y `apps/web/tests/candidates.test.tsx:139` confirma 0 commits extra al resolver una respuesta obsoleta. Guard `active` + cleanup existentes: sin memoización nueva.
 
-Limitaciones: auditoría de estados estática con evidencia en código; medición de renders limitada a `CandidatesPanel`. Pruebas de usabilidad con tareas siguen pendientes.
+Limitaciones: auditoría de estados estática con evidencia en código; medición de renders limitada a `CandidatesPanel`. Pruebas de usabilidad por tareas automatizadas en `apps/web/e2e/smoke.spec.ts` (§12), sin participantes humanos.
+
+## 11. Shell: usuario y organización activa (Fase 13, 2026-11-26)
+
+| Elemento | Comportamiento | Evidencia |
+|---|---|---|
+| Cuenta | Botón `Cuenta` con `aria-expanded`/`aria-controls`; abre bajo demanda, carga `/api/v1/auth/me`, muestra nombre y correo, ofrece `Cerrar sesión` y enlace a `/login` si no hay sesión | `apps/web/src/components/WorkspaceShell.tsx:38`, `apps/web/src/components/WorkspaceShell.tsx:95` |
+| Organización activa | Botón inicial carga `/api/v1/organizations`; luego `select` sincronizado con `talentos:active-org`, con estados loading/error/empty y reintento | `apps/web/src/components/WorkspaceShell.tsx:56`, `apps/web/src/components/WorkspaceShell.tsx:87` |
+
+Carga diferida: el shell no dispara peticiones al montar. Analítica y otras vistas que no abren estos controles siguen sin fetch de sesión u organizaciones. Logout usa `POST /api/v1/auth/logout` y refleja el mensaje devuelto; el frontend no decide permisos ni cierra la sesión localmente. Gates: `tsc`, `lint`, `vitest` 18 files/118 tests, `build` y E2E 7 passed / 1 skipped.
+
+## 12. Pruebas de usabilidad por tareas (Fase 13, 2026-11-26)
+
+| Tarea | Recorrido observable | Evidencia |
+|---|---|---|
+| Recuperar contraseña | `/login` → `Recuperar contraseña` → correo → token demo → `/reset-password` con token precargado → contraseña nueva → enlace a `/login` | `apps/web/e2e/smoke.spec.ts:135` |
+| Aceptar invitación | `/invite/invite-token` → preview sin sesión (401) → `Iniciar sesión y aceptar` → `/dashboard` con `talentos:active-org=org-1` | `apps/web/e2e/smoke.spec.ts:166` |
+| Cambiar organización activa | `/dashboard` → botón de la barra → `select` con `org-1` → `org-2` persistido | `apps/web/e2e/smoke.spec.ts:224` |
+| Cerrar sesión | `/dashboard` → `Cuenta` → correo en el menú → `Cerrar sesión` → mensaje y `POST /api/v1/auth/logout` | `apps/web/e2e/smoke.spec.ts:238` |
+
+Cada tarea corre en los proyectos `desktop` y `mobile`. La API se sustituye con `page.route("**/api/v1/**")` y respuestas sintéticas; `test.use({ launchOptions: { args: ["--disable-web-security"] } })` evita que Chromium bloquee el preflight CORS hacia otro origen. Flag limitado al runner de Playwright: no afecta la aplicación ni la configuración de producción. Datos sintéticos, sin secretos ni correos reales.
+
+Limitación: son recorridos guionados automatizados, no sesiones con participantes humanos ni pruebas moderadas. Cubren completion de tareas y visibilidad de estados, no hallazgos cualitativos de comprensión. Gates: `tsc`, `lint`, `vitest` 18 files/118 tests, `build` y E2E 15 passed / 1 skipped.
