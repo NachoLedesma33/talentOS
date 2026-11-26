@@ -159,3 +159,22 @@ Carga diferida: el shell no dispara peticiones al montar. Analítica y otras vis
 Cada tarea corre en los proyectos `desktop` y `mobile`. La API se sustituye con `page.route("**/api/v1/**")` y respuestas sintéticas; `test.use({ launchOptions: { args: ["--disable-web-security"] } })` evita que Chromium bloquee el preflight CORS hacia otro origen. Flag limitado al runner de Playwright: no afecta la aplicación ni la configuración de producción. Datos sintéticos, sin secretos ni correos reales.
 
 Limitación: son recorridos guionados automatizados, no sesiones con participantes humanos ni pruebas moderadas. Cubren completion de tareas y visibilidad de estados, no hallazgos cualitativos de comprensión. Gates: `tsc`, `lint`, `vitest` 18 files/118 tests, `build` y E2E 15 passed / 1 skipped.
+
+## 13. Mejora estética para reclutador (2026-11-26)
+
+Referencias consultadas el 2026-11-26: `https://www.ashbyhq.com/`, `https://www.lever.co/` y `https://www.greenhouse.io/`. Patrón compartido: una sola promesa de valor, CTA principal único, cifras concretas, flujo de trabajo visible, lenguaje de confianza y bajo ruido visual. Se toma esa estructura; no se copian textos, marcas ni recursos.
+
+| Área | Cambio | Evidencia |
+|---|---|---|
+| Landing `/` | Hero con promesa, vista de pipeline sintético, métricas de producto, secciones Producto/Método/Evidencia, header propio con `Acceder`/`Empezar ahora` y footer real | `apps/web/src/app/page.tsx`, commit `6ed5c27` |
+| Shell | Marca con icono propio, acceso y organización activa en barra superior fija, navegación lateral con estado, footer con enlaces de entorno; se retira el header duplicado de `layout.tsx` | `apps/web/src/components/WorkspaceShell.tsx`, `apps/web/src/app/layout.tsx`, commit `bd9e321` |
+| 404/500 | Páginas con jerarquía, icono de marca, CTAs y estado legible; el mensaje crudo del error nunca se muestra | `apps/web/src/app/not-found.tsx`, `apps/web/src/app/error.tsx`, commit `c5b10d4` |
+| Dashboard | Hero de workspace, indicadores reales de sesión, checklist de primeros pasos y módulos como tarjetas accionables; se conservan `h1=Panel`, anclas y enlaces de tests | `apps/web/src/app/dashboard/page.tsx`, commit `269cd0c` |
+| Links y botones | Sin subrayado global ni en variante `link`; enlaces de auth, recuperación y traza usan peso de fuente + opacidad en hover | `apps/web/src/app/globals.css`, `apps/web/src/components/ui/shadcn/button.tsx`, `e8b9f35`, `cd2c2d0`, `e3c7267`, `24dd155` |
+| Regresiones | Tests de 404/error y E2E de landing, CTA sin subrayado y ruta inexistente | `apps/web/tests/error-pages.test.tsx`, `apps/web/e2e/smoke.spec.ts`, commit `99ba817` |
+
+Decisiones visuales: paleta sobria B2B con `--color-accent` como único acento, superficies `surface`/`surface-muted`, una sola acción principal por vista, tipografía del sistema, iconos SVG livianos propios, animación discreta y `prefers-reduced-motion` intacta. Sin gradientes, glassmorphism ni dependencias nuevas. Las cifras del hero son comportamiento documentado (`0` acciones externas automáticas) o estado real de sesión; no se inventan métricas de negocio.
+
+API: ya devuelve `404` con envelope consistente (`code: not_found`, `message`, `request_id`) desde `apps/api/app/main.py:93-109`, cubierto en `apps/api/tests/test_health.py:119`. No se creó un endpoint nuevo.
+
+Gates: `tsc`, `lint`, `vitest` 19 files/120 tests, `npm run build`, E2E `17 passed / 1 skipped` (`CI=1`, `WEB_BASE_URL=http://localhost:4317`). CI success en `45884767966`, `45886118424`, `45887173457`, `45888447286`, `45889695071`, `45890614433`, `45891796180`, `45892657549`, `45893865031`. Sin participantes humanos: la elegancia se verificó por referencias estructurales, revisión de código y recorridos automatizados; queda limitación cualitativa documentada.

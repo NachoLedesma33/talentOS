@@ -690,6 +690,8 @@ Los flujos principales pueden completarse sin ayuda externa, en desktop y mobile
 
 **Usabilidad por tareas (2026-11-26):** cuatro recorridos en `apps/web/e2e/smoke.spec.ts:135` — recuperación de contraseña con token demo, aceptación de invitación, cambio de organización activa y cierre de sesión — ejecutados en `desktop` y `mobile` con API mockeada y datos sintéticos. `--disable-web-security` queda limitado al runner de Playwright para el preflight CORS hacia otro origen; no afecta producción. Sin participantes humanos: evidencia de completion, no de comprensión cualitativa. Tabla en `docs/ui-ux-inventory.md:150`. Gates: `tsc`, `lint`, `vitest` 18 files/118 tests, `build` y E2E 15 passed / 1 skipped.
 
+**Mejora estética para reclutador (2026-11-26):** cierre posterior a Fase 13, documentado en `docs/ui-ux-inventory.md:163`. Referencias: Ashby, Lever y Greenhouse; patrón adoptado de una promesa, CTA único, cifras concretas, flujo visible y lenguaje de confianza. Landing, shell con acceso superior, 404/500, dashboard y links sin subrayado rediseñados. API ya cubre `404` con envelope consistente (`apps/api/tests/test_health.py:119`); sin endpoints ni dependencias nuevas. Gates: `tsc`, `lint`, `vitest` 19 files/120 tests, `build`, E2E 17 passed / 1 skipped; commits `6ed5c27`, `bd9e321`, `c5b10d4`, `269cd0c`, `e8b9f35`, `cd2c2d0`, `e3c7267`, `24dd155`, `99ba817`; CI `45884767966`–`45893865031` success. Limitación: revisión cualitativa sin participantes humanos.
+
 ---
 
 # 17. Fase 14 — Security & privacy hardening
