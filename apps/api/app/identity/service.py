@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session as DBSession
 from app.audit.service import record_audit
 from app.core import config
 from app.identity.models import (
+    Invitation,
     Membership,
     MembershipRole,
     Organization,
@@ -19,7 +20,11 @@ from app.identity.models import (
 )
 from app.identity.models import Session as UserSession
 from app.identity.repositories import get_membership, list_organization_members
-from app.identity.schemas import MemberResponse
+from app.identity.schemas import (
+    InvitationAcceptResponse,
+    InvitationDetailResponse,
+    MemberResponse,
+)
 from app.identity.security import hash_password, hash_token, new_session_token, verify_password
 
 
@@ -200,6 +205,14 @@ class RoleUnchangedError(Exception):
     """El miembro ya tiene el rol solicitado."""
 
 
+class InvitationTokenError(Exception):
+    """Invitación inexistente, expirada o ya aceptada."""
+
+
+class InvitationEmailMismatchError(Exception):
+    """El email autenticado no coincide con el invitado."""
+
+
 def _assert_active_organization(
     active_organization_id: uuid.UUID, requested_organization_id: uuid.UUID
 ) -> None:
@@ -377,4 +390,126 @@ def change_member_role(
     if user is None:
         raise MemberNotFoundError
     return _member_response(target, user)
+
+
+INVITATION_TTL_SECONDS = 7 * 24 * 3600
+
+
+def create_invitation(
+    db: DBSession,
+    *,
+    actor: User,
+    active_organization_id: uuid.UUID,
+    requested_organization_id: uuid.UUID,
+    email: str,
+    role: MembershipRole,
+) -> str:
+    """Emite un token de invitación; solo owner/admin y sin escalado a owner."""
+    _assert_active_organization(active_organization_id, requested_organization_id)
+    actor_membership = _require_actor_role(
+        db, actor, active_organization_id, frozenset({MembershipRole.OWNER, MembershipRole.ADMIN})
+    )
+    if role is MembershipRole.OWNER and actor_membership.role is not MembershipRole.OWNER:
+        raise RoleAssignmentForbiddenError
+
+    normalized_email = email.strip().lower()
+    invited_user = _find_user_by_email(db, normalized_email)
+    if invited_user is not None and get_membership(
+        db, invited_user.id, active_organization_id
+    ) is not None:
+        raise MemberAlreadyExistsError
+
+    token = new_session_token()
+    now = datetime.now(UTC)
+    db.execute(
+        update(Invitation)
+        .where(
+            Invitation.organization_id == active_organization_id,
+            Invitation.email == normalized_email,
+            Invitation.accepted_at.is_(None),
+        )
+        .values(accepted_at=now)
+    )
+    invitation = Invitation(
+        organization_id=active_organization_id,
+        email=normalized_email,
+        role=role,
+        token_hash=hash_token(token),
+        invited_by=actor.id,
+        expires_at=now + timedelta(seconds=INVITATION_TTL_SECONDS),
+    )
+    db.add(invitation)
+    db.flush()
+    record_audit(
+        db,
+        organization_id=active_organization_id,
+        actor_id=actor.id,
+        action="invitation.created",
+        resource_type="invitation",
+        resource_id=invitation.id,
+    )
+    db.commit()
+    return token
+
+
+def _find_pending_invitation(db: DBSession, token: str) -> Invitation:
+    invitation = db.execute(
+        select(Invitation).where(
+            Invitation.token_hash == hash_token(token),
+            Invitation.accepted_at.is_(None),
+            Invitation.expires_at > datetime.now(UTC),
+        )
+    ).scalar_one_or_none()
+    if invitation is None:
+        raise InvitationTokenError
+    return invitation
+
+
+def get_invitation_details(db: DBSession, *, token: str) -> InvitationDetailResponse:
+    """Vista pública del token: organization_name, email, rol y expiración."""
+    invitation = _find_pending_invitation(db, token)
+    organization = db.get(Organization, invitation.organization_id)
+    if organization is None:
+        raise InvitationTokenError
+    return InvitationDetailResponse(
+        organization_name=organization.name,
+        email=invitation.email,
+        role=invitation.role,
+        expires_at=invitation.expires_at,
+    )
+
+
+def accept_invitation(db: DBSession, *, token: str, user: User) -> InvitationAcceptResponse:
+    """Acepta la invitación solo si el email autenticado coincide; crea la membresía."""
+    invitation = _find_pending_invitation(db, token)
+    if user.email.strip().lower() != invitation.email:
+        raise InvitationEmailMismatchError
+    if get_membership(db, user.id, invitation.organization_id) is not None:
+        raise MemberAlreadyExistsError
+
+    membership = Membership(
+        organization_id=invitation.organization_id,
+        user_id=user.id,
+        role=invitation.role,
+    )
+    db.add(membership)
+    db.flush()
+    invitation.accepted_at = datetime.now(UTC)
+    record_audit(
+        db,
+        organization_id=invitation.organization_id,
+        actor_id=user.id,
+        action="invitation.accepted",
+        resource_type="membership",
+        resource_id=membership.id,
+    )
+    db.commit()
+    organization = db.get(Organization, invitation.organization_id)
+    if organization is None:
+        raise InvitationTokenError
+    return InvitationAcceptResponse(
+        organization_id=organization.id,
+        organization_name=organization.name,
+        role=membership.role,
+    )
 

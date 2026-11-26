@@ -181,3 +181,48 @@ class PasswordResetToken(Base):
         CheckConstraint("length(token_hash) = 64", name="token_hash_length"),
         Index("ix_password_reset_tokens_token_hash", "token_hash"),
     )
+
+
+class Invitation(Base):
+    """Invitación por token: pertenece a una organización, no al email del cliente."""
+
+    __tablename__ = "invitations"
+
+    id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, ForeignKey("organizations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    email: Mapped[str] = mapped_column(String(320), nullable=False)
+    role: Mapped[MembershipRole] = mapped_column(
+        SAEnum(
+            MembershipRole,
+            name="membership_role",
+            native_enum=False,
+            values_callable=_enum_values,
+            validate_strings=True,
+        ),
+        nullable=False,
+    )
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    invited_by: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=_utcnow, onupdate=_utcnow
+    )
+
+    __table_args__ = (
+        CheckConstraint("email = lower(email)", name="email_lowercase"),
+        CheckConstraint("length(token_hash) = 64", name="token_hash_length"),
+        Index("ix_invitations_token_hash", "token_hash"),
+        Index("ix_invitations_organization_id_email", "organization_id", "email"),
+    )
+
+    @validates("email")
+    def _normalize_email(self, key: str, value: str) -> str:
+        return value.strip().lower()

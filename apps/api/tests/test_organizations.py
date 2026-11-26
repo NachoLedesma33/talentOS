@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 import email_validator
@@ -16,7 +17,8 @@ from app.audit.models import AuditLog
 from app.core.config import get_settings
 from app.db.base import Base
 from app.db.session import get_db
-from app.identity.models import Membership, MembershipRole, User
+from app.identity.models import Invitation, Membership, MembershipRole, User
+from app.identity.security import hash_token
 from app.main import app
 
 _PASSWORD = "SyntheticPass123"
@@ -302,3 +304,175 @@ def test_duplicate_slug_and_duplicate_member_return_409(client: TestClient) -> N
     assert client.post(
         f"{_ORG_URL}{org['id']}/members", json=invite_payload, headers=headers
     ).status_code == 409
+
+
+def _invite(
+    client: TestClient,
+    org_id: object,
+    email: str,
+    role: str = "viewer",
+    headers: dict[str, str] | None = None,
+):
+    return client.post(
+        f"{_ORG_URL}{org_id}/invitations",
+        json={"email": email, "role": role},
+        headers=headers if headers is not None else _org_headers(org_id),
+    )
+
+
+def test_invitation_creation_returns_demo_token_and_audits(
+    client: TestClient, db: DBSession
+) -> None:
+    owner_email = "owner-invite@example.test"
+    invitee_email = "invitee-invite@example.test"
+    _register(client, owner_email, "Owner")
+    _register(client, invitee_email, "Invitee")
+    _login(client, owner_email)
+    org = _create_org(client, "Invite Org", "invite-org")
+
+    response = _invite(client, org["id"], invitee_email)
+
+    assert response.status_code == 201
+    token = response.json()["dev_token"]
+    assert token
+    stored = db.scalar(select(Invitation.token_hash))
+    assert stored == hash_token(token)
+    assert stored != token
+    invitation = db.scalar(select(Invitation))
+    assert invitation is not None
+    assert invitation.email == invitee_email
+    assert invitation.role is MembershipRole.VIEWER
+    assert invitation.organization_id == UUID(str(org["id"]))
+    assert db.scalars(select(AuditLog.action).order_by(AuditLog.timestamp)).all() == [
+        "organization.created",
+        "invitation.created",
+    ]
+
+
+def test_invitation_preview_is_public_and_hides_unknown_tokens(client: TestClient) -> None:
+    owner_email = "owner-preview@example.test"
+    invitee_email = "invitee-preview@example.test"
+    _register(client, owner_email, "Owner")
+    _register(client, invitee_email, "Invitee")
+    _login(client, owner_email)
+    org = _create_org(client, "Preview Org", "preview-org")
+    token = _invite(client, org["id"], invitee_email).json()["dev_token"]
+    client.cookies.clear()
+
+    preview = client.get(f"{_ORG_URL}invitations/{token}")
+    missing = client.get(f"{_ORG_URL}invitations/not-a-real-token")
+
+    assert preview.status_code == 200
+    body = preview.json()
+    assert body["organization_name"] == "Preview Org"
+    assert body["email"] == invitee_email
+    assert body["role"] == "viewer"
+    assert "token" not in body
+    assert missing.status_code == 404
+
+
+def test_invitation_accept_creates_membership_and_consumes_token(
+    client: TestClient, db: DBSession
+) -> None:
+    owner_email = "owner-accept@example.test"
+    invitee_email = "invitee-accept@example.test"
+    _register(client, owner_email, "Owner")
+    invitee_id = _register(client, invitee_email, "Invitee")
+    _login(client, owner_email)
+    org = _create_org(client, "Accept Org", "accept-org")
+    token = _invite(client, org["id"], invitee_email).json()["dev_token"]
+
+    _login(client, invitee_email)
+    response = client.post(f"{_ORG_URL}invitations/{token}/accept")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "organization_id": org["id"],
+        "organization_name": "Accept Org",
+        "role": "viewer",
+    }
+    invitation = db.scalar(select(Invitation))
+    assert invitation is not None
+    assert invitation.accepted_at is not None
+    membership = db.scalar(
+        select(Membership).where(Membership.user_id == UUID(invitee_id))
+    )
+    assert membership is not None
+    assert db.scalars(select(AuditLog.action).order_by(AuditLog.timestamp)).all() == [
+        "organization.created",
+        "invitation.created",
+        "invitation.accepted",
+    ]
+    assert client.get(f"{_ORG_URL}invitations/{token}").status_code == 404
+    assert client.post(f"{_ORG_URL}invitations/{token}/accept").status_code == 404
+
+
+def test_invitation_accept_rejects_email_mismatch(client: TestClient, db: DBSession) -> None:
+    owner_email = "owner-mismatch@example.test"
+    invitee_email = "invitee-mismatch@example.test"
+    other_email = "other-mismatch@example.test"
+    _register(client, owner_email, "Owner")
+    _register(client, invitee_email, "Invitee")
+    _register(client, other_email, "Other")
+    _login(client, owner_email)
+    org = _create_org(client, "Mismatch Org", "mismatch-org")
+    token = _invite(client, org["id"], invitee_email).json()["dev_token"]
+
+    _login(client, other_email)
+    response = client.post(f"{_ORG_URL}invitations/{token}/accept")
+
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "forbidden"
+    assert len(db.scalars(select(Membership)).all()) == 1
+
+
+def test_invitation_expired_and_replayed_tokens_are_rejected(
+    client: TestClient, db: DBSession
+) -> None:
+    owner_email = "owner-expired@example.test"
+    invitee_email = "invitee-expired@example.test"
+    _register(client, owner_email, "Owner")
+    _register(client, invitee_email, "Invitee")
+    _login(client, owner_email)
+    org = _create_org(client, "Expired Org", "expired-org")
+    expired_token = _invite(client, org["id"], invitee_email).json()["dev_token"]
+    invitation = db.scalar(select(Invitation))
+    assert invitation is not None
+    invitation.expires_at = datetime.now(UTC) - timedelta(seconds=1)
+    db.commit()
+    valid_token = _invite(client, org["id"], invitee_email).json()["dev_token"]
+
+    _login(client, invitee_email)
+    expired = client.post(f"{_ORG_URL}invitations/{expired_token}/accept")
+    accepted = client.post(f"{_ORG_URL}invitations/{valid_token}/accept")
+    replayed = client.post(f"{_ORG_URL}invitations/{valid_token}/accept")
+
+    assert expired.status_code == 404
+    assert accepted.status_code == 200
+    assert replayed.status_code == 404
+
+
+def test_invitation_creation_is_scoped_to_active_organization(client: TestClient) -> None:
+    email_a = "owner-invite-a@example.test"
+    email_b = "owner-invite-b@example.test"
+    invitee_email = "invitee-scoped@example.test"
+    _register(client, email_a, "Owner A")
+    _login(client, email_a)
+    org_a = _create_org(client, "Org A", "invite-a")
+    _register(client, email_b, "Owner B")
+    _register(client, invitee_email, "Invitee")
+    _login(client, email_b)
+    org_b = _create_org(client, "Org B", "invite-b")
+    _login(client, email_a)
+
+    foreign_header = _invite(
+        client, org_a["id"], invitee_email, headers=_org_headers(org_b["id"])
+    )
+    foreign_path = _invite(
+        client, org_b["id"], invitee_email, headers=_org_headers(org_a["id"])
+    )
+    own = _invite(client, org_a["id"], invitee_email)
+
+    assert foreign_header.status_code == 403
+    assert foreign_path.status_code == 404
+    assert own.status_code == 201

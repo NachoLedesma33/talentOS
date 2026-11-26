@@ -114,3 +114,25 @@ class PasswordResetConfirm(_InputModel):
 class PasswordResetRequestResponse(MessageResponse):
     # Demo sin SMTP: el token viaja solo en entornos no productivos.
     dev_token: str | None = None
+
+
+class InvitationCreateResponse(MessageResponse):
+    # Demo sin SMTP: el token viaja solo en entornos no productivos.
+    dev_token: str | None = None
+
+
+class InvitationDetailResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    organization_name: str
+    email: EmailStr
+    role: MembershipRole
+    expires_at: datetime
+
+
+class InvitationAcceptResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    organization_id: uuid.UUID
+    organization_name: str
+    role: MembershipRole
