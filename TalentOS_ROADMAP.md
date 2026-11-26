@@ -1066,4 +1066,3 @@ TalentOS está listo para presentarse como portfolio cuando:
 | Fecha | Lote | Commit | CI run | Resultado |
 |---|---|---|---|---|
 | 2026-11-26 | 16-01 | — | — | Roadmap escrito; sin código aún. |
-
