@@ -924,6 +924,7 @@ Actualizar esta tabla durante el desarrollo.
 | 13 — UX & Accessibility | DONE | 2026-11-25 | 2026-11-26 | Commits locales `7f20ccb` `eecf39c` `c5c9c75` `bcb0d0b` `ffaaca4` `5e9b801` `bed67e1` `bf8ef48` `0745a29` `08d0c1a` `78f1278` `d860647` `cc51a61` `51524b5` `1e47f45` `6121fbc` `a1b8625`; skip link y landmark `nav`, test de primera parada de tabulación; errores de formularios con prefijo `Error:`; bordes con contraste 3.67:1 / 3.36:1; errores de login y registro con prefijo `Error:` y `aria-live` assertivo; todas las tablas con scroll horizontal y nombre accesible; estados de evidencia con etiqueta y marca; tokens semánticos de foco y contraste verificado; tsc/lint/vitest 105 passed/build/E2E OK; shadcn A6–A11 cerrado; push `09f23679fb55cd968fc5461842d4b52768d417da`, CI `45738753726` success. Entrega B cerrada con push `97bd342c67e3612da462212ceaeb565b35716efd`, CI `45742414595` success; command menu implementado en Entrega C. Menú de usuario, organización activa, re-renders, auditoría de estados y usabilidad por tareas (`apps/web/e2e/smoke.spec.ts:135`) cerrados; push `cfaa950f7fc5842d961af1448575bd7e67975b6c`, CI `45871700981` success (compose/backend/frontend). |
 | 14 — Security & Privacy | DONE | 2026-11-26 | 2026-11-26 | Commits `6be89f4`, `21277e3`, `567f3d2`. Revisión en `docs/security-review.md`: threat model, 18 ítems y riesgos `RM-01`–`RM-05` aceptados para demo/local. `npm audit` y `pip-audit` en CI con venv aislada; `cryptography>=50,<51`. Gates: `ruff=0`, `mypy=0`, `pytest` 515 passed, `npm audit=0`. CI runs `45875729010`, `45880065546`, `45881352978` success. Antes de producción: cerrar riesgos residuales o firmar nueva aceptación. |
 | 15 — Release | NOT_STARTED | — | — | — |
+| 16 — Hardening, demo e i18n | IN_PROGRESS | 2026-11-26 | — | Backlog en §26; lotes ≤2 archivos con gates y CI verde por lote. |
 
 ---
 
@@ -984,3 +985,85 @@ TalentOS está listo para presentarse como portfolio cuando:
 - El desarrollador puede explicar qué construyó, por qué y cómo verificó que funciona.
 
 **Regla final:** priorizar una cadena vertical completa —vacante → candidato → CV → extracción → matching → revisión → automatización aprobada → auditoría— antes de ampliar el producto con funcionalidades secundarias.
+
+---
+
+# 26. Fase 16 — Hardening, demo e i18n (2026-11-26)
+
+**Estado:** `IN_PROGRESS`. **Origen:** petición del usuario 2026-11-26. **Dependencia:** Fases 0–15; Fase 15 sigue `NOT_STARTED` salvo los ítems que esta fase cierra explícitamente.
+
+## 26.1 Reglas del loop
+
+1. Cada lote toca **≤2 archivos**; si un cambio necesita más, se divide.
+2. Antes de editar: leer archivos, comprobar estado real y elegir el lote siguiente del roadmap.
+3. Gates del lote: backend `ruff` + `mypy` + `pytest`; frontend `typecheck` + `lint` + `vitest`; si cambia UI, `build` y E2E con `CI=1` + `WEB_BASE_URL` en puerto libre; si cambia esquema, `alembic check`.
+4. Commit + push solo con gates verdes; vigilar CI hasta `success`. Si falla, corregir causa real en el mismo lote o siguiente antes de continuar. Nunca desactivar checks.
+5. Registrar evidencia real (commit, CI run, comando, test) en la tabla 26.3 y en §23. Sin evidencia, el lote queda `IN_REVIEW`.
+6. Supuestos conservadores documentados aquí; no inventar endpoints, tablas ni variables de entorno sin documentarlas.
+7. Datos sintéticos y secretos fuera del repo; ningún dato personal real en fixtures, docs ni logs.
+
+## 26.2 Supuestos
+
+- **Localización:** se entregan dos paquetes, `es` e `en`, con selector persistente; traducción de strings de producto, no traducción automática de contenido de candidatos. `lang` del documento sigue al selector.
+- **"Hashear endpoints":** se interpreta como IDs públicos no enumerables (UUID ya vigente), URLs firmadas HMAC con `exp` y firma de webhooks. No se cambia el formato de las rutas REST documentadas.
+- **"Registrar la base de datos":** ya existe Alembic con migraciones versionadas y auditoría de dominio. No se crea un registro nuevo; se documenta su estado y se comprueba `alembic check`.
+- **RLS:** no se habilita mientras todo acceso pase por la API con `organization_id` de sesión; se documenta la decisión y el punto de revisión si aparece acceso directo a PostgreSQL.
+- **Google login:** se implementa con configuración por entorno y modo demo sin credenciales; queda deshabilitado si faltan variables. Requiere ADR antes de tocar autenticación.
+- **Imagen hero y favicon:** se generan como SVG propios en el repo, sin recursos de terceros; por eso no hay licencia de foto que revisar.
+
+## 26.3 Backlog y estado
+
+| Lote | Pedido | Unidad prevista | Estado | Evidencia |
+|---|---|---|---|---|
+| 16-01 | Roadmap y loop | `TalentOS_ROADMAP.md` | `IN_PROGRESS` | — |
+| 16-02 | Logout vuelve a landing | logout en shell + test E2E/unit | `NOT_STARTED` | — |
+| 16-03 | Imagen hero propia | SVG propio + `apps/web/src/app/page.tsx` | `NOT_STARTED` | — |
+| 16-04 | Favicon característico | icon SVG + metadata | `NOT_STARTED` | — |
+| 16-05 | Sitemap y `robots` | rutas Next `sitemap.ts`/`robots.ts` | `NOT_STARTED` | — |
+| 16-06 | Idioma `es`/`en` + botón | módulo de textos + selector + `lang` | `NOT_STARTED` | — |
+| 16-07 | Política de privacidad | `docs/privacy-policy.md` | `NOT_STARTED` | — |
+| 16-08 | Términos y condiciones | `docs/terms-of-service.md` | `NOT_STARTED` | — |
+| 16-09 | Consentimiento informado | formularios de alta y recuperación | `NOT_STARTED` | — |
+| 16-10 | Borrado de datos de usuario | endpoint tenant-scoped + test + auditoría | `NOT_STARTED` | — |
+| 16-11 | Audit de vulnerabilidades | revisión de hallazgos y correcciones | `NOT_STARTED` | — |
+| 16-12 | Claves expuestas y secretos en git | escaneo + `.gitignore`/docs | `NOT_STARTED` | — |
+| 16-13 | Cifrado de datos sensibles | verificar Fernet + ampliar campos si aplica | `NOT_STARTED` | — |
+| 16-14 | Autorización del lado del servidor | revisión de endpoints y tests negativos | `NOT_STARTED` | — |
+| 16-15 | Acceso a registros restringido | roles + tenant en cada recurso | `NOT_STARTED` | — |
+| 16-16 | Google login | ADR + configuración + endpoint + UI | `NOT_STARTED` | — |
+| 16-17 | Campos manipulables | schemas estrictos y `extra=forbid` | `NOT_STARTED` | — |
+| 16-18 | Cookies de sesión | `HttpOnly`/`Secure`/`SameSite`/expiry | `NOT_STARTED` | — |
+| 16-19 | Hash de contraseñas | verificar bcrypt + coste | `NOT_STARTED` | — |
+| 16-20 | Límite de login y bots | rate limit por IP/usuario + eventos | `NOT_STARTED` | — |
+| 16-21 | Consultas DB parametrizadas/monitorizadas | ORM + logging sin PII | `NOT_STARTED` | — |
+| 16-22 | Validación y saneado de entradas | Pydantic + escapes antes de persistir | `NOT_STARTED` | — |
+| 16-23 | Límite de respuestas de API | paginación y cotas de salida | `NOT_STARTED` | — |
+| 16-24 | Cabeceras de seguridad, HTTPS y HSTS | middleware + tests | `NOT_STARTED` | — |
+| 16-25 | CSRF | tokens/origen según estrategia | `NOT_STARTED` | — |
+| 16-26 | Sesiones al cambiar contraseña | invalidación + test | `NOT_STARTED` | — |
+| 16-27 | Caducidad de enlaces | URLs firmadas con TTL y test | `NOT_STARTED` | — |
+| 16-28 | Sin numeración de usuarios | UUID y respuestas uniformes | `NOT_STARTED` | — |
+| 16-29 | Webhooks verificados | firma, replay y dedupe con tests | `NOT_STARTED` | — |
+| 16-30 | Prompt injection y límite de IA | defensas + cuotas + tests | `NOT_STARTED` | — |
+| 16-31 | Tamaño de solicitudes | límite global y por upload | `NOT_STARTED` | — |
+| 16-32 | Límite de recuperación de contraseña | rate limit + auditoría | `NOT_STARTED` | — |
+| 16-33 | CORS restrictivo | orígenes por entorno + tests | `NOT_STARTED` | — |
+| 16-34 | Rutas de administrador por defecto | revisión de rutas y cierre | `NOT_STARTED` | — |
+| 16-35 | Eventos de seguridad | logging de fallos y correlación | `NOT_STARTED` | — |
+| 16-36 | Datos estructurados | JSON-LD y metadatos | `NOT_STARTED` | — |
+| 16-37 | Escaneo de dependencias | `npm audit` + `pip-audit` | `NOT_STARTED` | — |
+| 16-38 | Sin sourcemaps | configuración de build + verificación | `NOT_STARTED` | — |
+| 16-39 | APIs y secretos en servidor | revisión de cliente y servidor | `NOT_STARTED` | — |
+| 16-40 | Demo completa | seed sintético reproducible + reset | `NOT_STARTED` | — |
+| 16-41 | Empty states | pantallas con lista vacía | `NOT_STARTED` | — |
+| 16-42 | Loading states | pantallas con carga | `NOT_STARTED` | — |
+| 16-43 | Hover states | controles interactivos | `NOT_STARTED` | — |
+| 16-44 | Licencias de imágenes | verificación documentada | `NOT_STARTED` | — |
+| 16-45 | Cierre y evidencia final | docs + CI final verde | `NOT_STARTED` | — |
+
+## 26.4 Progreso del loop
+
+| Fecha | Lote | Commit | CI run | Resultado |
+|---|---|---|---|---|
+| 2026-11-26 | 16-01 | — | — | Roadmap escrito; sin código aún. |
+
