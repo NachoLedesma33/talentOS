@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Button } from "../components/ui/shadcn/button";
 import { Card } from "../components/ui/shadcn/card";
@@ -154,34 +155,44 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="rounded-[1.75rem] bg-surface-muted p-2">
-            <div className="rounded-[1.4rem] bg-surface p-5 sm:p-6">
-              <div className="mb-5 flex items-baseline justify-between gap-3">
-                <h2 className="text-sm font-semibold text-text">Pipeline · vista de producto</h2>
-                <span className="text-[11px] uppercase tracking-wider text-text-muted">
-                  Datos sintéticos
-                </span>
+          <div className="space-y-4">
+            <Image
+              src="/hero-talentos.svg"
+              alt="Ilustración original: etapas de selección conectadas con evidencia y aprobación humana."
+              width={720}
+              height={420}
+              className="h-auto w-full rounded-[1.75rem] border border-border-subtle bg-surface-muted"
+              priority
+            />
+            <div className="rounded-[1.5rem] bg-surface-muted p-2">
+              <div className="rounded-[1.25rem] bg-surface p-5 sm:p-6">
+                <div className="mb-5 flex items-baseline justify-between gap-3">
+                  <h2 className="text-sm font-semibold text-text">Pipeline · vista de producto</h2>
+                  <span className="text-[11px] uppercase tracking-wider text-text-muted">
+                    Datos sintéticos
+                  </span>
+                </div>
+                <ol className="space-y-3">
+                  {pipeline.map((item) => (
+                    <li
+                      key={item.title}
+                      className="flex items-center gap-4 rounded-xl bg-surface-muted px-4 py-3"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-medium text-text">{item.title}</span>
+                        <span className="block text-xs text-text-muted">{item.detail}</span>
+                      </span>
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${item.tone}`}>
+                        {item.count}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+                <p className="mt-5 text-xs leading-relaxed text-text-muted">
+                  Cada tarjeta abre criterios, evidencia con página y fragmento, y la acción
+                  pendiente de aprobación.
+                </p>
               </div>
-              <ol className="space-y-3">
-                {pipeline.map((item) => (
-                  <li
-                    key={item.title}
-                    className="flex items-center gap-4 rounded-xl bg-surface-muted px-4 py-3"
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-medium text-text">{item.title}</span>
-                      <span className="block text-xs text-text-muted">{item.detail}</span>
-                    </span>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${item.tone}`}>
-                      {item.count}
-                    </span>
-                  </li>
-                ))}
-              </ol>
-              <p className="mt-5 text-xs leading-relaxed text-text-muted">
-                Cada tarjeta abre criterios, evidencia con página y fragmento, y la acción
-                pendiente de aprobación.
-              </p>
             </div>
           </div>
         </section>
