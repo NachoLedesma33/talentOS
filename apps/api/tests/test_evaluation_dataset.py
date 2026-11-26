@@ -85,7 +85,7 @@ def test_rendered_pdf_cases_preserve_synthetic_text() -> None:
         data = render_case(case)
         assert data.startswith(b"%PDF-")
         extracted = PdfReader(io.BytesIO(data)).pages[0].extract_text() or ""
-        assert case.text in extracted
+        assert case.text.rstrip("\n") in extracted
 
 
 def test_rendered_docx_cases_preserve_synthetic_text() -> None:
