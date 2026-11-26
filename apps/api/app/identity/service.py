@@ -24,6 +24,8 @@ from app.identity.schemas import (
     InvitationAcceptResponse,
     InvitationDetailResponse,
     MemberResponse,
+    OnboardingStatus,
+    OnboardingStep,
 )
 from app.identity.security import hash_password, hash_token, new_session_token, verify_password
 
@@ -512,4 +514,29 @@ def accept_invitation(db: DBSession, *, token: str, user: User) -> InvitationAcc
         organization_name=organization.name,
         role=membership.role,
     )
+
+
+def get_onboarding_status(db: DBSession, *, user: User) -> OnboardingStatus:
+    """Decide el siguiente paso: memberships, invitaciones vigentes o crear organización."""
+    has_membership = db.scalar(
+        select(Membership.id).where(Membership.user_id == user.id).limit(1)
+    )
+    if has_membership is not None:
+        return OnboardingStatus(step=OnboardingStep.COMPLETE)
+
+    has_invitation = db.scalar(
+        select(Invitation.id)
+        .where(
+            Invitation.email == user.email.strip().lower(),
+            Invitation.accepted_at.is_(None),
+            Invitation.expires_at > datetime.now(UTC),
+        )
+        .limit(1)
+    )
+    step = (
+        OnboardingStep.ACCEPT_INVITATION
+        if has_invitation is not None
+        else OnboardingStep.CREATE_ORGANIZATION
+    )
+    return OnboardingStatus(step=step)
 

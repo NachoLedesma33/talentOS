@@ -106,12 +106,12 @@ Cada lote se cierra con `npx tsc --noEmit`, `npm run lint`, `npm test -- --run` 
 | Landing `/` | Implementada: hero con propuesta y CTAs jerarquizados (`Crear cuenta`, `Ir al panel`), secciones Producto/Flujo/Accesos, tarjetas de capacidades y pasos, footer con `/health` y `/ready` | `apps/web/src/app/page.tsx` |
 | `/login`, `/register` | Páginas públicas sin `WorkspaceShell`: `Card` + formularios shadcn, enlaces cruzados y metadata por ruta | `apps/web/src/app/login/page.tsx`, `apps/web/src/app/register/page.tsx` |
 | API de autenticación | `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/me` | `apps/api/app/api/routes/auth.py` |
-| Recuperación de contraseña | Sin endpoint ni ruta; no implementar sin contrato backend | `apps/api/app/api/routes/auth.py` |
-| Invitaciones | `POST /api/v1/organizations/{org_id}/members` invita usuario existente por email; UI en `MembersPanel`; no es onboarding | `apps/api/app/api/routes/organizations.py`, `apps/web/src/components/MembersPanel.tsx` |
-| Onboarding | Sin ruta ni endpoint dedicado | — |
+| Recuperación de contraseña | Backend listo: `POST /api/v1/auth/forgot-password` y `POST /api/v1/auth/reset-password`; token hasheado, TTL 900 s, un solo uso, revoca sesiones; `dev_token` solo fuera de producción; sin ruta frontend | `apps/api/app/api/routes/auth.py`, `docs/decisions/ADR-017.md` |
+| Invitaciones | Backend listo: `POST /api/v1/organizations/{org_id}/invitations`, `GET /api/v1/organizations/invitations/{token}` y `POST /api/v1/organizations/invitations/{token}/accept`; token hasheado, TTL 7 días, email verificado; `POST .../members` sigue invitando usuarios existentes | `apps/api/app/api/routes/organizations.py`, `docs/decisions/ADR-017.md` |
+| Onboarding | `GET /api/v1/auth/me` expone `onboarding.step`: `create_organization`, `accept_invitation` o `complete`; sin ruta frontend ni checklist de primeros pasos | `apps/api/app/identity/schemas.py`, `docs/decisions/ADR-017.md` |
 | Metadata | Global en `layout.tsx` y por ruta en `/`, `/login`, `/register` | `apps/web/src/app/layout.tsx`, rutas citadas |
 
-Alcance B según `TalentOS_UI_UX_IMPROVEMENT_PLAN.md:1243`: landing, login, registro, recuperación, invitaciones, onboarding y metadata/estados. Sólo se implementó sobre contratos backend existentes; recuperación, invitaciones y onboarding quedan documentados como gaps sin endpoint, no inventados. B cerrado en `97bd342` (`97bd342c67e3612da462212ceaeb565b35716efd`), CI `45742414595` success: typecheck/lint/unit 105/build/E2E 5 passed + 1 skipped.
+Alcance B según `TalentOS_UI_UX_IMPROVEMENT_PLAN.md:1243`: landing, login, registro, recuperación, invitaciones, onboarding y metadata/estados. B cerrado en `97bd342` (`97bd342c67e3612da462212ceaeb565b35716efd`), CI `45742414595` success: typecheck/lint/unit 105/build/E2E 5 passed + 1 skipped. Los gaps de recuperación, invitaciones y onboarding se cerraron en backend con ADR-017: `f4ea14e` (CI `45748701506` success), `a81218e` (CI `45751724094` success); frontend y checklist siguen pendientes.
 
 ## 9. Entrega C — Workspace (2026-11-25)
 

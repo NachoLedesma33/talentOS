@@ -16,7 +16,14 @@ from app.core.config import get_settings
 from app.db import base as base_module
 from app.db.base import Base
 from app.db.session import get_db
-from app.identity.models import PasswordResetToken, User
+from app.identity.models import (
+    Invitation,
+    Membership,
+    MembershipRole,
+    Organization,
+    PasswordResetToken,
+    User,
+)
 from app.identity.models import Session as UserSession
 from app.identity.security import hash_token
 from app.main import app
@@ -173,6 +180,87 @@ def test_me_with_valid_cookie_returns_user_and_empty_organizations(client: TestC
     assert body["name"] == _NAME
     assert body["status"] == "active"
     assert body["organizations"] == []
+    assert body["onboarding"] == {"step": "create_organization"}
+
+
+def test_me_reports_complete_step_for_user_with_organization(
+    client: TestClient, db: DBSession
+) -> None:
+    assert _register(client).status_code == 201
+    user = db.scalar(select(User))
+    assert user is not None
+    organization = Organization(name="Synthetic Org", slug="synthetic-org")
+    db.add(organization)
+    db.flush()
+    db.add(
+        Membership(
+            organization_id=organization.id,
+            user_id=user.id,
+            role=MembershipRole.OWNER,
+        )
+    )
+    db.commit()
+    assert _login(client).status_code == 200
+
+    response = client.get("/api/v1/auth/me")
+
+    assert response.status_code == 200
+    assert response.json()["onboarding"] == {"step": "complete"}
+
+
+def test_me_reports_accept_invitation_step_for_pending_invitation(
+    client: TestClient, db: DBSession
+) -> None:
+    assert _register(client).status_code == 201
+    user = db.scalar(select(User))
+    assert user is not None
+    organization = Organization(name="Inviting Org", slug="inviting-org")
+    db.add(organization)
+    db.flush()
+    db.add(
+        Invitation(
+            organization_id=organization.id,
+            email=_EMAIL,
+            role=MembershipRole.VIEWER,
+            token_hash="a" * 64,
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
+        )
+    )
+    db.commit()
+    assert _login(client).status_code == 200
+
+    response = client.get("/api/v1/auth/me")
+
+    assert response.status_code == 200
+    assert response.json()["onboarding"] == {"step": "accept_invitation"}
+
+
+def test_me_ignores_expired_and_accepted_invitations(
+    client: TestClient, db: DBSession
+) -> None:
+    assert _register(client).status_code == 201
+    user = db.scalar(select(User))
+    assert user is not None
+    organization = Organization(name="Closed Org", slug="closed-org")
+    db.add(organization)
+    db.flush()
+    db.add(
+        Invitation(
+            organization_id=organization.id,
+            email=_EMAIL,
+            role=MembershipRole.VIEWER,
+            token_hash="b" * 64,
+            expires_at=datetime.now(UTC) - timedelta(seconds=1),
+            accepted_at=datetime.now(UTC),
+        )
+    )
+    db.commit()
+    assert _login(client).status_code == 200
+
+    response = client.get("/api/v1/auth/me")
+
+    assert response.status_code == 200
+    assert response.json()["onboarding"] == {"step": "create_organization"}
 
 
 def test_expired_session_is_rejected(client: TestClient, db: DBSession) -> None:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
@@ -48,9 +49,19 @@ class UserResponse(BaseModel):
     status: UserStatus
 
 
+class OnboardingStep(StrEnum):
+    CREATE_ORGANIZATION = "create_organization"
+    ACCEPT_INVITATION = "accept_invitation"
+    COMPLETE = "complete"
+
+
+class OnboardingStatus(BaseModel):
+    step: OnboardingStep
+
+
 class MeResponse(UserResponse):
-    # Contrato de la unidad 2: /auth/me no cambia en esta unidad.
     organizations: list[dict[str, str]] = Field(default_factory=list)
+    onboarding: OnboardingStatus
 
 
 class OrganizationCreate(BaseModel):

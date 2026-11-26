@@ -24,6 +24,7 @@ from app.identity.service import (
     InvalidCredentialsError,
     PasswordResetTokenError,
     authenticate_user,
+    get_onboarding_status,
     register_user,
     request_password_reset,
     revoke_session,
@@ -133,10 +134,11 @@ def logout(
 
 
 @router.get("/me", response_model=MeResponse)
-def me(current_user: CurrentUser) -> MeResponse:
+def me(current_user: CurrentUser, db: DbDependency) -> MeResponse:
     return MeResponse(
         id=current_user.id,
         email=current_user.email,
         name=current_user.name,
         status=current_user.status,
+        onboarding=get_onboarding_status(db, user=current_user),
     )
