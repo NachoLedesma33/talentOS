@@ -291,7 +291,7 @@ export function AgentRunPanel() {
                     <Button
                       type="button"
                       variant="link"
-                      className="h-auto p-0 text-accent underline"
+                      className="h-auto p-0 text-accent hover:opacity-80"
                       onClick={() => void selectRun(item.id)}
                     >
                       {item.id}
