@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type ChangeEvent, type ReactNode } from "react";
 import { ACTIVE_ORG_STORAGE_KEY, ApiError, apiFetch } from "../lib/api";
 import type { MeResponse, Organization } from "../lib/types";
@@ -108,26 +109,44 @@ export function WorkspaceShell({
   }
 
   return (
-    <div className="flex flex-col gap-6 md:flex-row">
-      <aside
-        aria-label="Navegación del workspace"
-        className="hidden w-48 shrink-0 border-r border-border-subtle pr-4 md:block"
-      >
-        <nav aria-label="Secciones del workspace">
-          <ul className="space-y-2 text-sm">
-            {workspaceLinks.map((link) => (
-              <li key={link.href}>
-                <a href={link.href}>{link.label}</a>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      </aside>
+    <div className="flex min-h-screen flex-col bg-surface">
+      <header className="sticky top-0 z-20 border-b border-border-subtle bg-surface">
+        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-x-4 gap-y-3 px-4 py-3 sm:px-6">
+          <a
+            href="/dashboard"
+            className="flex items-center gap-3 rounded-md text-text"
+          >
+            <span
+              aria-hidden="true"
+              className="grid h-8 w-8 place-items-center rounded-lg bg-accent text-on-accent"
+            >
+              <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
+                <path
+                  d="M5 6h14M12 6v12M8 18h8"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </span>
+            <span className="text-sm font-semibold tracking-tight">TalentOS</span>
+            <span className="hidden text-[11px] uppercase tracking-widest text-text-muted sm:inline">
+              Workspace
+            </span>
+          </a>
 
-      <div className="min-w-0 flex-1">
-        <header className="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-border-subtle pb-3">
-          <p className="text-sm font-semibold tracking-tight">Workspace</p>
-          <div className="flex flex-wrap items-center gap-3">
+          <nav aria-label="Ruta de navegación" className="order-3 w-full md:order-none md:w-auto md:flex-1">
+            <ol className="flex gap-2 text-xs text-text-muted">
+              <li>
+                <a href="/dashboard">Inicio</a>
+              </li>
+              <li aria-current="page" className="font-medium text-text">
+                {section}
+              </li>
+            </ol>
+          </nav>
+
+          <div className="ml-auto flex flex-wrap items-center gap-2">
             <div className="flex items-center gap-2">
               {orgStatus === "idle" ? (
                 <Button
@@ -185,14 +204,6 @@ export function WorkspaceShell({
               ) : null}
             </div>
             <CommandMenu />
-            <nav aria-label="Ruta de navegación">
-              <ol className="flex gap-2 text-xs text-text-muted">
-                <li>
-                  <a href="/dashboard">Inicio</a>
-                </li>
-                <li aria-current="page">{section}</li>
-              </ol>
-            </nav>
             <div className="relative">
               <Button
                 type="button"
@@ -212,7 +223,7 @@ export function WorkspaceShell({
               {userMenuOpen ? (
                 <div
                   id="workspace-user-menu"
-                  className="absolute right-0 z-10 mt-2 w-64 space-y-2 rounded-md border border-border-subtle bg-background p-3 text-sm shadow-md"
+                  className="absolute right-0 z-10 mt-2 w-64 space-y-2 rounded-md border border-border-subtle bg-surface p-3 text-sm shadow-md"
                 >
                   {sessionStatus === "loading" ? (
                     <p role="status" className="text-text-muted">
@@ -235,7 +246,7 @@ export function WorkspaceShell({
                     </>
                   ) : null}
                   {sessionStatus === "error" || (sessionStatus === "ready" && !user) ? (
-                    <a href="/login" className="block underline">
+                    <a href="/login" className="block font-medium text-accent">
                       Iniciar sesión
                     </a>
                   ) : null}
@@ -253,35 +264,75 @@ export function WorkspaceShell({
               ) : null}
             </div>
           </div>
-        </header>
+        </div>
+      </header>
 
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          aria-expanded={mobileNavOpen}
-          aria-controls="workspace-mobile-nav"
-          onClick={() => setMobileNavOpen((open) => !open)}
-          className="mb-4 md:hidden"
+      <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 py-8 sm:px-6 md:flex-row">
+        <aside
+          aria-label="Navegación del workspace"
+          className="hidden w-52 shrink-0 md:block"
         >
-          {mobileNavOpen ? "Ocultar menú" : "Mostrar menú"}
-        </Button>
-        <nav
-          id="workspace-mobile-nav"
-          aria-label="Navegación móvil del workspace"
-          className={`${mobileNavOpen ? "block" : "hidden"} mb-4 md:hidden`}
-        >
-          <ul className="flex flex-wrap gap-3 text-sm">
-            {workspaceLinks.map((link) => (
-              <li key={link.href}>
-                <a href={link.href}>{link.label}</a>
-              </li>
-            ))}
-          </ul>
-        </nav>
+          <div className="sticky top-24 space-y-4">
+            <p className="px-2 text-[11px] font-semibold uppercase tracking-widest text-text-muted">
+              Espacio de trabajo
+            </p>
+            <nav aria-label="Secciones del workspace">
+              <ul className="space-y-1 text-sm">
+                {workspaceLinks.map((link) => (
+                  <li key={link.href}>
+                    <a
+                      href={link.href}
+                      className="block rounded-md px-2 py-2 text-text-muted transition-colors hover:bg-surface-muted hover:text-text"
+                    >
+                      {link.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          </div>
+        </aside>
 
-        {children}
+        <div className="min-w-0 flex-1 space-y-6">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-expanded={mobileNavOpen}
+            aria-controls="workspace-mobile-nav"
+            onClick={() => setMobileNavOpen((open) => !open)}
+            className="md:hidden"
+          >
+            {mobileNavOpen ? "Ocultar menú" : "Mostrar menú"}
+          </Button>
+          <nav
+            id="workspace-mobile-nav"
+            aria-label="Navegación móvil del workspace"
+            className={`${mobileNavOpen ? "block" : "hidden"} md:hidden`}
+          >
+            <ul className="flex flex-wrap gap-3 rounded-lg bg-surface-muted p-3 text-sm">
+              {workspaceLinks.map((link) => (
+                <li key={link.href}>
+                  <a href={link.href}>{link.label}</a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+
+          {children}
+        </div>
       </div>
+
+      <footer className="border-t border-border-subtle bg-surface-muted">
+        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-xs text-text-muted sm:px-6">
+          <p>TalentOS · reclutamiento asistido, trazable y supervisado.</p>
+          <nav aria-label="Enlaces del workspace" className="flex flex-wrap gap-4">
+            <Link href="/">Portada</Link>
+            <a href="http://localhost:8000/health">/health</a>
+            <a href="http://localhost:8000/ready">/ready</a>
+          </nav>
+        </div>
+      </footer>
     </div>
   );
 }

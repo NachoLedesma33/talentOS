@@ -19,15 +19,10 @@ export default function RootLayout({
         >
           Saltar al contenido principal
         </a>
-        <header className="border-b border-border bg-surface">
-          <div className="mx-auto flex max-w-4xl items-center px-4 py-4">
-            <span className="text-sm font-semibold tracking-tight">TalentOS</span>
-          </div>
-        </header>
         <main
           id="main-content"
           tabIndex={-1}
-          className="mx-auto w-full max-w-4xl px-4 py-8"
+          className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6"
         >
           {children}
         </main>
