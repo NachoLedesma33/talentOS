@@ -8,6 +8,11 @@ import type {
   RequirementEvaluationStatus,
   ReviewDecision,
 } from "../lib/types";
+import { Button } from "./ui/shadcn/button";
+import { Card } from "./ui/shadcn/card";
+import { Label } from "./ui/shadcn/label";
+import { Select } from "./ui/shadcn/select";
+import { Textarea } from "./ui/shadcn/textarea";
 
 const STATUS_LABELS: Record<RequirementEvaluationStatus, string> = {
   supported: "Respaldado",
@@ -43,16 +48,18 @@ function truncateQuote(quote: string, limit = 160): string {
 
 function Evidence({ item }: { item: AssessmentEvidenceRef }) {
   return (
-    <li className="rounded-sm border border-border bg-surface-muted p-2">
-      <p className="text-xs text-text-muted">
-        Documento {item.document_id} · Campo {item.field_name} · Página {item.page}
-      </p>
-      <blockquote
-        title={item.quote}
-        className="mt-1 border-l-2 border-border pl-2 text-sm text-text"
-      >
-        «{truncateQuote(item.quote)}»
-      </blockquote>
+    <li>
+      <Card className="bg-secondary p-2">
+        <p className="text-xs text-text-muted">
+          Documento {item.document_id} · Campo {item.field_name} · Página {item.page}
+        </p>
+        <blockquote
+          title={item.quote}
+          className="mt-1 border-l-2 border-border pl-2 text-sm text-text"
+        >
+          «{truncateQuote(item.quote)}»
+        </blockquote>
+      </Card>
     </li>
   );
 }
@@ -108,9 +115,10 @@ export function RequirementEvaluationCard({
   }
 
   return (
-    <article
+    <Card
+      role="article"
       aria-labelledby={`evaluation-${evaluation.id}`}
-      className="space-y-3 rounded-md border border-border p-3"
+      className="space-y-3 p-3"
     >
       <div className="space-y-1">
         <h4 id={`evaluation-${evaluation.id}`} className="text-sm font-semibold">
@@ -173,40 +181,34 @@ export function RequirementEvaluationCard({
       </div>
 
       <form onSubmit={(event) => void submitReview(event)} className="space-y-2">
-        <label htmlFor={statusId} className="block text-xs font-semibold">
+        <Label htmlFor={statusId} className="block text-xs">
           Estado corregido
-        </label>
-        <select
+        </Label>
+        <Select
           id={statusId}
           value={status}
           onChange={(event) =>
             setStatus(event.target.value as RequirementEvaluationStatus)
           }
-          className="w-full rounded-sm border border-border bg-surface px-2 py-1 text-sm"
         >
           {STATUS_OPTIONS.map((option) => (
             <option key={option} value={option}>
               {STATUS_LABELS[option]}
             </option>
           ))}
-        </select>
-        <label htmlFor={explanationId} className="block text-xs font-semibold">
+        </Select>
+        <Label htmlFor={explanationId} className="block text-xs">
           Explicación (opcional)
-        </label>
-        <textarea
+        </Label>
+        <Textarea
           id={explanationId}
           value={explanation}
           onChange={(event) => setExplanation(event.target.value)}
           rows={2}
-          className="w-full rounded-sm border border-border bg-surface px-2 py-1 text-sm"
         />
-        <button
-          type="submit"
-          disabled={busy}
-          className="rounded-sm bg-accent px-3 py-1 text-sm font-semibold text-on-accent disabled:opacity-60"
-        >
+        <Button type="submit" size="sm" disabled={busy}>
           {busy ? "Guardando revisión…" : "Corregir revisión"}
-        </button>
+        </Button>
       </form>
 
       <p aria-live="polite" className="min-h-5 text-xs text-text-muted">
@@ -218,6 +220,6 @@ export function RequirementEvaluationCard({
           message
         )}
       </p>
-    </article>
+    </Card>
   );
 }

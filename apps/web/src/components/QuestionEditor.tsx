@@ -11,6 +11,12 @@ import type {
   PolicyErrorEnvelope,
 } from "../lib/types";
 import { FeedbackForm } from "./FeedbackForm";
+import { Button } from "./ui/shadcn/button";
+import { Card } from "./ui/shadcn/card";
+import { Input } from "./ui/shadcn/input";
+import { Label } from "./ui/shadcn/label";
+import { Select } from "./ui/shadcn/select";
+import { Textarea } from "./ui/shadcn/textarea";
 
 const CATEGORY_LABELS: Record<InterviewQuestionCategory, string> = {
   technical: "Técnica",
@@ -115,12 +121,12 @@ function describeError(error: unknown): { text: string; reasonCode?: string } {
 
 function ErrorNotice({ error }: { error: { text: string; reasonCode?: string } }) {
   return (
-    <section role="alert" className="space-y-1 rounded-sm border border-border p-2">
+    <Card role="alert" className="space-y-1 p-2">
       <p className="text-sm">{error.text}</p>
       {error.reasonCode ? (
         <p className="text-sm">Motivo de política: {error.reasonCode}</p>
       ) : null}
-    </section>
+    </Card>
   );
 }
 
@@ -199,9 +205,10 @@ function QuestionRow({ question, onChanged }: QuestionRowProps) {
   }
 
   return (
-    <article
+    <Card
+      role="article"
       aria-labelledby={`interview-question-${question.id}`}
-      className="space-y-3 rounded-md border border-border p-3"
+      className="space-y-3 p-3"
     >
       <div className="space-y-1">
         <h4 id={`interview-question-${question.id}`} className="text-sm font-semibold">
@@ -238,120 +245,116 @@ function QuestionRow({ question, onChanged }: QuestionRowProps) {
       </dl>
 
       <div className="flex flex-wrap gap-2">
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           disabled={busy}
           onClick={() => {
             setEditing((current) => !current);
             setError(null);
             setNotice(null);
           }}
-          className="rounded-sm border border-border px-3 py-1 text-sm font-semibold disabled:opacity-60"
         >
           {editing ? "Cerrar edición" : "Editar pregunta"}
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           disabled={busy || question.status === "archived"}
           onClick={() => void archive()}
-          className="rounded-sm border border-border px-3 py-1 text-sm font-semibold disabled:opacity-60"
         >
           Archivar pregunta
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => setFeedbackOpen((current) => !current)}
-          className="rounded-sm border border-border px-3 py-1 text-sm font-semibold"
         >
           {feedbackOpen ? "Cerrar feedback" : "Registrar feedback"}
-        </button>
+        </Button>
       </div>
 
       {editing ? (
         <form onSubmit={(event) => void save(event)} className="space-y-2">
-          <label htmlFor={`question-text-${question.id}`} className="block text-xs font-semibold">
+          <Label htmlFor={`question-text-${question.id}`} className="block text-xs">
             Pregunta {question.id}
-          </label>
-          <textarea
+          </Label>
+          <Textarea
             id={`question-text-${question.id}`}
             value={questionText}
             onChange={(event) => setQuestionText(event.target.value)}
             required
             rows={2}
-            className="w-full rounded-sm border border-border bg-surface px-2 py-1 text-sm"
           />
-          <label
+          <Label
             htmlFor={`question-focus-${question.id}`}
-            className="block text-xs font-semibold"
+            className="block text-xs"
           >
             Foco de evidencia {question.id}
-          </label>
-          <input
+          </Label>
+          <Input
             id={`question-focus-${question.id}`}
             value={evidenceFocus}
             onChange={(event) => setEvidenceFocus(event.target.value)}
             required
-            className="w-full rounded-sm border border-border bg-surface px-2 py-1 text-sm"
           />
-          <label
+          <Label
             htmlFor={`question-competency-${question.id}`}
-            className="block text-xs font-semibold"
+            className="block text-xs"
           >
             Competencia {question.id}
-          </label>
-          <input
+          </Label>
+          <Input
             id={`question-competency-${question.id}`}
             value={competency}
             onChange={(event) => setCompetency(event.target.value)}
             required
-            className="w-full rounded-sm border border-border bg-surface px-2 py-1 text-sm"
           />
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1">
-              <label
+              <Label
                 htmlFor={`question-position-${question.id}`}
-                className="block text-xs font-semibold"
+                className="block text-xs"
               >
                 Posición {question.id}
-              </label>
-              <input
+              </Label>
+              <Input
                 id={`question-position-${question.id}`}
                 type="number"
                 min={1}
                 value={position}
                 onChange={(event) => setPosition(event.target.value)}
                 required
-                className="w-24 rounded-sm border border-border bg-surface px-2 py-1 text-sm"
+                className="w-24"
               />
             </div>
             <div className="space-y-1">
-              <label
+              <Label
                 htmlFor={`question-status-${question.id}`}
-                className="block text-xs font-semibold"
+                className="block text-xs"
               >
                 Estado {question.id}
-              </label>
-              <select
+              </Label>
+              <Select
                 id={`question-status-${question.id}`}
                 value={status}
                 onChange={(event) => setStatus(event.target.value as InterviewQuestionStatus)}
-                className="rounded-sm border border-border bg-surface px-2 py-1 text-sm"
+                className="w-auto"
               >
                 {EDITABLE_STATUSES.map((option) => (
                   <option key={option} value={option}>
                     {STATUS_LABELS[option]}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
           </div>
-          <button
-            type="submit"
-            disabled={busy}
-            className="rounded-sm bg-accent px-3 py-1 text-sm font-semibold text-on-accent disabled:opacity-60"
-          >
+          <Button type="submit" size="sm" disabled={busy}>
             {busy ? "Guardando…" : "Guardar pregunta"}
-          </button>
+          </Button>
         </form>
       ) : null}
 
@@ -363,7 +366,7 @@ function QuestionRow({ question, onChanged }: QuestionRowProps) {
         {notice}
       </p>
       {error ? <ErrorNotice error={error} /> : null}
-    </article>
+    </Card>
   );
 }
 
@@ -452,136 +455,126 @@ export function QuestionEditor({
           ))}
         </ul>
       ) : (
-        <p className="rounded-sm border border-border bg-surface-muted p-3 text-sm text-text-muted">
+        <Card className="bg-secondary p-3 text-sm text-text-muted">
           La guía todavía no tiene preguntas registradas.
-        </p>
+        </Card>
       )}
 
-      <form onSubmit={(event) => void create(event)} className="space-y-2 rounded-md border border-border p-3">
-        <h4 className="text-sm font-semibold">Agregar pregunta</h4>
-        <div className="grid gap-3 md:grid-cols-2">
+      <form onSubmit={(event) => void create(event)} className="space-y-2">
+        <Card className="space-y-2 p-3">
+          <h4 className="text-sm font-semibold">Agregar pregunta</h4>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-1">
+              <Label htmlFor="new-question-requirement" className="block text-xs">
+                ID de requisito
+              </Label>
+              <Input
+                id="new-question-requirement"
+                value={requirementId}
+                onChange={(event) => setRequirementId(event.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="new-question-position" className="block text-xs">
+                Posición
+              </Label>
+              <Input
+                id="new-question-position"
+                type="number"
+                min={1}
+                value={position}
+                onChange={(event) => setPosition(event.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="new-question-category" className="block text-xs">
+                Categoría
+              </Label>
+              <Select
+                id="new-question-category"
+                value={category}
+                onChange={(event) => setCategory(event.target.value as InterviewQuestionCategory)}
+              >
+                {(Object.keys(CATEGORY_LABELS) as InterviewQuestionCategory[]).map((option) => (
+                  <option key={option} value={option}>
+                    {CATEGORY_LABELS[option]}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="new-question-competency" className="block text-xs">
+                Competencia
+              </Label>
+              <Input
+                id="new-question-competency"
+                value={competency}
+                onChange={(event) => setCompetency(event.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="new-question-model" className="block text-xs">
+                Versión del modelo
+              </Label>
+              <Input
+                id="new-question-model"
+                value={newModelVersion}
+                onChange={(event) => setNewModelVersion(event.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="new-question-prompt" className="block text-xs">
+                Versión del prompt
+              </Label>
+              <Input
+                id="new-question-prompt"
+                value={newPromptVersion}
+                onChange={(event) => setNewPromptVersion(event.target.value)}
+                required
+              />
+            </div>
+          </div>
           <div className="space-y-1">
-            <label htmlFor="new-question-requirement" className="block text-xs font-semibold">
-              ID de requisito
-            </label>
-            <input
-              id="new-question-requirement"
-              value={requirementId}
-              onChange={(event) => setRequirementId(event.target.value)}
+            <Label htmlFor="new-question-text" className="block text-xs">
+              Pregunta
+            </Label>
+            <Textarea
+              id="new-question-text"
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
               required
-              className="w-full rounded-sm border border-border bg-surface px-2 py-1 text-sm"
+              rows={2}
             />
           </div>
           <div className="space-y-1">
-            <label htmlFor="new-question-position" className="block text-xs font-semibold">
-              Posición
-            </label>
-            <input
-              id="new-question-position"
-              type="number"
-              min={1}
-              value={position}
-              onChange={(event) => setPosition(event.target.value)}
+            <Label htmlFor="new-question-focus" className="block text-xs">
+              Foco de evidencia
+            </Label>
+            <Input
+              id="new-question-focus"
+              value={evidenceFocus}
+              onChange={(event) => setEvidenceFocus(event.target.value)}
               required
-              className="w-full rounded-sm border border-border bg-surface px-2 py-1 text-sm"
             />
           </div>
-          <div className="space-y-1">
-            <label htmlFor="new-question-category" className="block text-xs font-semibold">
-              Categoría
-            </label>
-            <select
-              id="new-question-category"
-              value={category}
-              onChange={(event) => setCategory(event.target.value as InterviewQuestionCategory)}
-              className="w-full rounded-sm border border-border bg-surface px-2 py-1 text-sm"
-            >
-              {(Object.keys(CATEGORY_LABELS) as InterviewQuestionCategory[]).map((option) => (
-                <option key={option} value={option}>
-                  {CATEGORY_LABELS[option]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="new-question-competency" className="block text-xs font-semibold">
-              Competencia
-            </label>
+          <Label htmlFor="new-question-review" className="flex items-center gap-2 text-sm">
             <input
-              id="new-question-competency"
-              value={competency}
-              onChange={(event) => setCompetency(event.target.value)}
-              required
-              className="w-full rounded-sm border border-border bg-surface px-2 py-1 text-sm"
+              id="new-question-review"
+              type="checkbox"
+              checked={reviewRequired}
+              onChange={(event) => setReviewRequired(event.target.checked)}
+              className="h-4 w-4"
             />
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="new-question-model" className="block text-xs font-semibold">
-              Versión del modelo
-            </label>
-            <input
-              id="new-question-model"
-              value={newModelVersion}
-              onChange={(event) => setNewModelVersion(event.target.value)}
-              required
-              className="w-full rounded-sm border border-border bg-surface px-2 py-1 text-sm"
-            />
-          </div>
-          <div className="space-y-1">
-            <label htmlFor="new-question-prompt" className="block text-xs font-semibold">
-              Versión del prompt
-            </label>
-            <input
-              id="new-question-prompt"
-              value={newPromptVersion}
-              onChange={(event) => setNewPromptVersion(event.target.value)}
-              required
-              className="w-full rounded-sm border border-border bg-surface px-2 py-1 text-sm"
-            />
-          </div>
-        </div>
-        <div className="space-y-1">
-          <label htmlFor="new-question-text" className="block text-xs font-semibold">
-            Pregunta
-          </label>
-          <textarea
-            id="new-question-text"
-            value={question}
-            onChange={(event) => setQuestion(event.target.value)}
-            required
-            rows={2}
-            className="w-full rounded-sm border border-border bg-surface px-2 py-1 text-sm"
-          />
-        </div>
-        <div className="space-y-1">
-          <label htmlFor="new-question-focus" className="block text-xs font-semibold">
-            Foco de evidencia
-          </label>
-          <input
-            id="new-question-focus"
-            value={evidenceFocus}
-            onChange={(event) => setEvidenceFocus(event.target.value)}
-            required
-            className="w-full rounded-sm border border-border bg-surface px-2 py-1 text-sm"
-          />
-        </div>
-        <label htmlFor="new-question-review" className="flex items-center gap-2 text-sm">
-          <input
-            id="new-question-review"
-            type="checkbox"
-            checked={reviewRequired}
-            onChange={(event) => setReviewRequired(event.target.checked)}
-            className="h-4 w-4"
-          />
-          Requiere revisión humana
-        </label>
-        <button
-          type="submit"
-          disabled={busy}
-          className="rounded-sm bg-accent px-3 py-1 text-sm font-semibold text-on-accent disabled:opacity-60"
-        >
-          {busy ? "Guardando…" : "Agregar pregunta"}
-        </button>
+            Requiere revisión humana
+          </Label>
+          <Button type="submit" size="sm" disabled={busy}>
+            {busy ? "Guardando…" : "Agregar pregunta"}
+          </Button>
+        </Card>
       </form>
 
       <p aria-live="polite" className="min-h-5 text-sm text-text-muted">

@@ -3,6 +3,11 @@
 import { useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
 import type { Job, JobCreate } from "../lib/types";
+import { Button } from "./ui/shadcn/button";
+import { Card } from "./ui/shadcn/card";
+import { Input } from "./ui/shadcn/input";
+import { Label } from "./ui/shadcn/label";
+import { Textarea } from "./ui/shadcn/textarea";
 
 function describeError(error: unknown, fallback: string): string {
   if (error instanceof ApiError) {
@@ -49,101 +54,93 @@ export function JobForm({ onCreated }: { onCreated?: (job: Job) => void }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} aria-busy={submitting} className="space-y-3">
-      <h3 className="text-sm font-semibold">Nueva vacante</h3>
-      <div className="space-y-1">
-        <label htmlFor="job-title" className="block text-sm font-semibold">
-          Título
-        </label>
-        <input
-          id="job-title"
-          name="title"
-          type="text"
-          required
-          maxLength={200}
-          disabled={submitting}
-          className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm"
-        />
-      </div>
-      <div className="space-y-1">
-        <label htmlFor="job-description" className="block text-sm font-semibold">
-          Descripción
-        </label>
-        <textarea
-          id="job-description"
-          name="description"
-          rows={3}
-          disabled={submitting}
-          className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm"
-        />
-      </div>
-      <div className="grid gap-3 sm:grid-cols-3">
+    <form onSubmit={handleSubmit} aria-busy={submitting}>
+      <Card className="space-y-3 p-4">
+        <h3 className="text-sm font-semibold">Nueva vacante</h3>
         <div className="space-y-1">
-          <label htmlFor="job-modality" className="block text-sm font-semibold">
-            Modalidad
-          </label>
-          <input
-            id="job-modality"
-            name="modality"
+          <Label htmlFor="job-title" className="block">
+            Título
+          </Label>
+          <Input
+            id="job-title"
+            name="title"
             type="text"
+            required
+            maxLength={200}
             disabled={submitting}
-            className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm"
           />
         </div>
         <div className="space-y-1">
-          <label htmlFor="job-location" className="block text-sm font-semibold">
-            Ubicación
-          </label>
-          <input
-            id="job-location"
-            name="location"
-            type="text"
+          <Label htmlFor="job-description" className="block">
+            Descripción
+          </Label>
+          <Textarea
+            id="job-description"
+            name="description"
+            rows={3}
             disabled={submitting}
-            className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm"
           />
+        </div>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="space-y-1">
+            <Label htmlFor="job-modality" className="block">
+              Modalidad
+            </Label>
+            <Input
+              id="job-modality"
+              name="modality"
+              type="text"
+              disabled={submitting}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="job-location" className="block">
+              Ubicación
+            </Label>
+            <Input
+              id="job-location"
+              name="location"
+              type="text"
+              disabled={submitting}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="job-seniority" className="block">
+              Seniority
+            </Label>
+            <Input
+              id="job-seniority"
+              name="seniority"
+              type="text"
+              disabled={submitting}
+            />
+          </div>
         </div>
         <div className="space-y-1">
-          <label htmlFor="job-seniority" className="block text-sm font-semibold">
-            Seniority
-          </label>
-          <input
-            id="job-seniority"
-            name="seniority"
+          <Label htmlFor="job-owner" className="block">
+            ID del responsable (UUID)
+          </Label>
+          <Input
+            id="job-owner"
+            name="owner_id"
             type="text"
+            required
             disabled={submitting}
-            className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm"
           />
         </div>
-      </div>
-      <div className="space-y-1">
-        <label htmlFor="job-owner" className="block text-sm font-semibold">
-          ID del responsable (UUID)
-        </label>
-        <input
-          id="job-owner"
-          name="owner_id"
-          type="text"
-          required
-          disabled={submitting}
-          className="w-full rounded-sm border border-border bg-surface px-3 py-2 text-sm"
-        />
-      </div>
-      <button
-        type="submit"
-        disabled={submitting}
-        className="rounded-sm bg-accent px-4 py-2 text-sm font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {submitting ? "Creando vacante…" : "Crear vacante"}
-      </button>
-      <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
-        {error ? (
-          <span role="alert" className="text-text">
-            {error}
-          </span>
-        ) : (
-          message
-        )}
-      </p>
+        <Button type="submit" disabled={submitting}>
+          {submitting ? "Creando vacante…" : "Crear vacante"}
+        </Button>
+        <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
+          {error ? (
+            <span role="alert" className="text-text">
+              {error}
+            </span>
+          ) : (
+            message
+          )}
+        </p>
+      </Card>
     </form>
   );
 }
