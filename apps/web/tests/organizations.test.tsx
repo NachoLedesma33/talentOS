@@ -261,6 +261,7 @@ describe("identidad y organizaciones", () => {
     expect((await screen.findAllByText("user-a@example.test")).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: "Cerrar sesión" }));
     expect(await screen.findByText("Sesión cerrada.")).toBeTruthy();
+    expect(window.localStorage.getItem(ACTIVE_ORG_STORAGE_KEY)).toBeNull();
     const logoutCall = fetchMock.mock.calls.find(
       ([input, init]) =>
         String(input).endsWith("/api/v1/auth/logout") && init?.method === "POST",

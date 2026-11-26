@@ -101,6 +101,8 @@ export function WorkspaceShell({
       await apiFetch<{ message: string }>("/api/v1/auth/logout", { method: "POST" });
       setUser(null);
       setNotice("Sesión cerrada.");
+      window.localStorage.removeItem(ACTIVE_ORG_STORAGE_KEY);
+      window.setTimeout(() => window.location.replace("/"), 600);
     } catch (cause) {
       setHeaderError(describeError(cause, "No se pudo cerrar la sesión."));
     } finally {
