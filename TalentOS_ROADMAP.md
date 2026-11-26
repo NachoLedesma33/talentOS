@@ -668,7 +668,7 @@ Se puede ejecutar el mismo experimento nuevamente y comparar resultados con mét
 - [x] Revisar focus states.
 - [x] Revisar mensajes de error.
 - [x] Revisar loading, empty, disabled y success states.
-- [ ] Reducir renders innecesarios.
+- [x] Reducir renders innecesarios.
 - [x] Revisar tablas con grandes volúmenes.
 - [ ] Realizar pruebas de usabilidad con tareas concretas.
 
@@ -678,11 +678,13 @@ Los flujos principales pueden completarse sin ayuda externa, en desktop y mobile
 
 **Evidencia Fase 13 (2026-11-25):** skip link con test de primera parada de tabulación; `nav` con nombre accesible; todas las tablas con `caption` y `overflow-x-auto`; estados de evidencia con etiqueta y marca; mensajes de error de login, registro y feedback con prefijo `Error:`; contraste de texto 15.65/7.56/6.91, acento 6.67 y bordes 3.67/3.36 (WCAG 1.4.11); tokens semánticos de foco; `tsc`, `lint`, `vitest` 18 files/105 tests, `build` y E2E OK (3 passed / 1 skipped); A6–A11 migran la UI a primitivas shadcn bajo ADR-016; CI `45737722649` y `45738753726` success.
 
-**Pendiente / limitaciones:** command menu implementado en `CommandMenu.tsx` (`Ctrl/Cmd+K`, filtro, Escape); menú de usuario y organización activa en el shell sin implementar; recuperación de contraseña, invitaciones y estado de onboarding cerrados en backend con ADR-017 (`f4ea14e`, `a81218e`) y consumidos en frontend el 2026-11-26; `dev_token` solo en no producción, sin SMTP; renders revisados en `CandidatesPanel` y `IntegrationsPanel` (guards de `active` y cleanup presentes) sin evidencia de re-render medible; estados loading/empty/disabled/success auditados el 2026-11-26 (`docs/ui-ux-inventory.md:127`); pruebas de usabilidad con tareas concretas pendientes. Fase sigue `IN_PROGRESS` hasta cerrar estos puntos.
+**Pendiente / limitaciones:** command menu implementado en `CommandMenu.tsx` (`Ctrl/Cmd+K`, filtro, Escape); menú de usuario y organización activa en el shell sin implementar; recuperación de contraseña, invitaciones y estado de onboarding cerrados en backend con ADR-017 (`f4ea14e`, `a81218e`) y consumidos en frontend el 2026-11-26; `dev_token` solo en no producción, sin SMTP; renders medidos en `CandidatesPanel` con `Profiler` (`apps/web/tests/candidates.test.tsx:91`): 5 commits por ciclo carga/búsqueda/paginación y 0 commits extra al resolver respuesta obsoleta; sin optimización adicional necesaria; estados loading/empty/disabled/success auditados el 2026-11-26 (`docs/ui-ux-inventory.md:127`); pruebas de usabilidad con tareas concretas pendientes. Fase sigue `IN_PROGRESS` hasta cerrar estos puntos.
 
 **Evidencia cierre frontend (2026-11-26):** `/forgot-password` y `/reset-password` consumen recuperación con `dev_token` demo; `/invite/[token]` muestra preview público, login/registro y aceptación autenticada; `/dashboard` decide por `onboarding.step` (crear organización, aceptar invitación, completo) y muestra checklist de primeros pasos con enlaces reales. Gates: `tsc`, `lint`, `vitest` 18 files/115 tests, `build` y E2E 7 passed / 1 skipped. Pendiente: adaptador SMTP para producción.
 
-**Auditoría de estados (2026-11-26):** tabla por estado (loading/empty/disabled/success/error de ruta) con evidencia en `docs/ui-ux-inventory.md:127`; convenciones `aria-busy`, `role="status"`, `role="alert"` con prefijo `Error:`, textos vacíos explícitos y botones inhabilitados durante envío. No incluye medición de re-render ni pruebas de usabilidad: siguen pendientes.
+**Auditoría de estados (2026-11-26):** tabla por estado (loading/empty/disabled/success/error de ruta) con evidencia en `docs/ui-ux-inventory.md:127`; convenciones `aria-busy`, `role="status"`, `role="alert"` con prefijo `Error:`, textos vacíos explícitos y botones inhabilitados durante envío. No incluye pruebas de usabilidad: siguen pendientes.
+
+**Medición de renders (2026-11-26):** `apps/web/tests/candidates.test.tsx:91` cuenta commits con `Profiler`: carga → escritura → búsqueda → paginación = 5 commits, sin renders duplicados; `apps/web/tests/candidates.test.tsx:139` resuelve una respuesta obsoleta después de cambiar la búsqueda y confirma 0 commits extra y ningún dato viejo en pantalla. Los guards `active` + cleanup ya existentes bastan; no se añadió memoización. Gates: `tsc`, `lint`, `vitest` 18 files/117 tests, `build` y E2E 7 passed / 1 skipped.
 
 ---
 

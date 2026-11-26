@@ -1,9 +1,10 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { Profiler, type ProfilerOnRenderCallback } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CandidatesPanel } from "../src/components/CandidatesPanel";
 import type { Candidate } from "../src/lib/types";
 
-type FetchHandler = (url: URL, init?: RequestInit) => Response;
+type FetchHandler = (url: URL, init?: RequestInit) => Response | Promise<Response>;
 
 function jsonResponse(payload: unknown, status = 200): Response {
   return {
@@ -85,6 +86,106 @@ describe("CandidatesPanel", () => {
       expect(listCalls()).toHaveLength(3);
     });
     expect(new URL(String(listCalls()[2]?.[0])).searchParams.get("offset")).toBe("20");
+  });
+
+  it("mantiene commits acotados al escribir, buscar y paginar", async () => {
+    const fetchMock = mockFetch((url) => {
+      if (url.pathname === "/api/v1/candidates") {
+        return jsonResponse({
+          items: [makeCandidate("cand-1", "Candidato Uno")],
+          total: 30,
+          limit: 20,
+          offset: Number(url.searchParams.get("offset") ?? 0),
+        });
+      }
+      return jsonResponse([]);
+    });
+    const listCalls = () =>
+      fetchMock.mock.calls.filter(
+        ([input]) => new URL(String(input)).pathname === "/api/v1/candidates",
+      );
+    let commits = 0;
+    const countRender: ProfilerOnRenderCallback = () => {
+      commits += 1;
+    };
+
+    render(
+      <Profiler id="candidates-panel" onRender={countRender}>
+        <CandidatesPanel />
+      </Profiler>,
+    );
+    expect(await screen.findByText("Sin notas registradas.")).toBeTruthy();
+    expect(await screen.findByText("Sin actividad registrada.")).toBeTruthy();
+    const afterLoad = commits;
+
+    fireEvent.change(screen.getByLabelText("Búsqueda (nombre o correo)"), {
+      target: { value: "Uno" },
+    });
+    expect(commits).toBe(afterLoad + 1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Buscar" }));
+    await waitFor(() => {
+      expect(listCalls()).toHaveLength(2);
+      expect(commits).toBe(afterLoad + 3);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Siguiente" }));
+    await waitFor(() => {
+      expect(listCalls()).toHaveLength(3);
+      expect(commits).toBe(afterLoad + 5);
+    });
+  });
+
+  it("descarta respuestas obsoletas sin commits extra al cambiar la búsqueda", async () => {
+    let resolveFirst: ((value: Response) => void) | undefined;
+    mockFetch((url) => {
+      if (url.pathname !== "/api/v1/candidates") {
+        return jsonResponse([]);
+      }
+      if (!url.searchParams.get("q") && !resolveFirst) {
+        return new Promise<Response>((resolve) => {
+          resolveFirst = resolve;
+        });
+      }
+      return jsonResponse({
+        items: [makeCandidate("cand-2", "Candidato Dos")],
+        total: 1,
+        limit: 20,
+        offset: 0,
+      });
+    });
+    let commits = 0;
+    const countRender: ProfilerOnRenderCallback = () => {
+      commits += 1;
+    };
+
+    render(
+      <Profiler id="candidates-panel" onRender={countRender}>
+        <CandidatesPanel />
+      </Profiler>,
+    );
+    fireEvent.change(screen.getByLabelText("Búsqueda (nombre o correo)"), {
+      target: { value: "Dos" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Buscar" }));
+    expect((await screen.findAllByText("Candidato Dos")).length).toBeGreaterThan(0);
+    expect(await screen.findByText("Sin notas registradas.")).toBeTruthy();
+    expect(await screen.findByText("Sin actividad registrada.")).toBeTruthy();
+    const afterCurrent = commits;
+
+    await act(async () => {
+      resolveFirst?.(
+        jsonResponse({
+          items: [makeCandidate("cand-1", "Candidato Uno")],
+          total: 1,
+          limit: 20,
+          offset: 0,
+        }),
+      );
+    });
+
+    expect(commits).toBe(afterCurrent);
+    expect(screen.queryByText("Candidato Uno")).toBeNull();
   });
 
   it("crea candidato sin campos de atributos protegidos", async () => {

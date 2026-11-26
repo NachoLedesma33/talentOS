@@ -134,4 +134,6 @@ Evidencia C1/C2: `CommandMenu.tsx` + integración en `WorkspaceShell.tsx`; E2E a
 | Success | Mensaje persistente con `role="status"` / `aria-live`; errores separados con prefijo `Error:` y `role="alert"` | `apps/web/src/components/CandidateForm.tsx:42`, `apps/web/src/components/MembersPanel.tsx:193`, `apps/web/src/components/AutomationRulePanel.tsx:319`, `apps/web/src/components/AgentApprovalControls.tsx:144`, `apps/web/src/components/DocumentReview.tsx:173` |
 | Error de ruta | `error.tsx`, `loading.tsx` y `not-found.tsx` globales; estados 401/403/404/500 explícitos en `/dashboard` | `apps/web/src/app/error.tsx`, `apps/web/src/app/loading.tsx`, `apps/web/src/app/not-found.tsx`, `apps/web/src/app/dashboard/page.tsx:120` |
 
-Limitaciones: auditoría estática con evidencia en código. No hay medición de re-render ni pruebas de usabilidad con tareas; siguen como pendientes separados de Fase 13.
+Medición de renders (2026-11-26): `apps/web/tests/candidates.test.tsx:91` usa `Profiler` sobre `CandidatesPanel`; carga → escritura → búsqueda → paginación produce 5 commits sin duplicados, y `apps/web/tests/candidates.test.tsx:139` confirma 0 commits extra al resolver una respuesta obsoleta. Guard `active` + cleanup existentes: sin memoización nueva.
+
+Limitaciones: auditoría de estados estática con evidencia en código; medición de renders limitada a `CandidatesPanel`. Pruebas de usabilidad con tareas siguen pendientes.
