@@ -13,6 +13,10 @@ import type {
   AutomationVersionCreate,
   JobStatus,
 } from "../lib/types";
+import { Button } from "./ui/shadcn/button";
+import { Card } from "./ui/shadcn/card";
+import { Label } from "./ui/shadcn/label";
+import { Select } from "./ui/shadcn/select";
 
 export const MAX_CONDITIONS = 10;
 export const MAX_ACTIONS = 10;
@@ -52,11 +56,6 @@ export const AUTOMATION_EMPTY_ACTION_PAYLOAD: AutomationActionPayload = {
   note: null,
   target_stage: null,
 };
-
-const NODE_CARD_CLASS = "h-full w-full rounded-sm border border-border bg-surface p-3";
-const SELECT_CLASS = "min-w-0 rounded-sm border border-border bg-surface px-2 py-2 text-sm";
-const BUTTON_CLASS =
-  "rounded-sm border border-border px-2 py-1 text-sm font-semibold disabled:opacity-60";
 
 export function automationConditionValues(field: AutomationConditionField): string[] {
   return field === "job_status" ? AUTOMATION_JOB_STATUS_VALUES : AUTOMATION_STAGE_VALUES;
@@ -228,28 +227,28 @@ export function AutomationNodeEditor({
     {
       key: "trigger",
       content: (
-        <div role="group" aria-label="Disparador" className={NODE_CARD_CLASS}>
+        <Card role="group" aria-label="Disparador" className="h-full w-full p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
             Disparador
           </p>
           <div className="mt-2 space-y-1">
-            <label
+            <Label
               htmlFor={`${idBase}-trigger`}
-              className="block text-sm font-semibold"
+              className="block"
             >
               Evento del disparador
-            </label>
-            <select
+            </Label>
+            <Select
               id={`${idBase}-trigger`}
               value={value.trigger.event_type}
               onChange={() => undefined}
               disabled={disabled}
-              className={`${SELECT_CLASS} w-full bg-surface-muted`}
+              className="bg-secondary"
             >
               <option value="application.stage_changed">application.stage_changed</option>
-            </select>
+            </Select>
           </div>
-        </div>
+        </Card>
       ),
     },
     ...value.conditions.map((condition, index) => {
@@ -258,34 +257,35 @@ export function AutomationNodeEditor({
       return {
         key: `condition-${index}`,
         content: (
-          <div
+          <Card
             role="group"
             aria-label={`Condición ${index + 1} de ${value.conditions.length}`}
-            className={NODE_CARD_CLASS}
+            className="h-full w-full p-3"
           >
             <div className="flex items-center justify-between gap-2">
               <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
                 {`Condición ${index + 1}`}
               </p>
-              <button
+              <Button
                 type="button"
                 aria-label={`Eliminar condición ${index + 1}`}
                 onClick={() => removeCondition(index)}
                 disabled={disabled}
-                className={BUTTON_CLASS}
+                variant="outline"
+                size="sm"
               >
                 Eliminar
-              </button>
+              </Button>
             </div>
             <div className="mt-2 grid gap-2">
               <div className="space-y-1">
-                <label
+                <Label
                   htmlFor={`${idBase}-condition-field-${index}`}
-                  className="block text-sm font-semibold"
+                  className="block"
                 >
                   {`Campo ${index + 1}`}
-                </label>
-                <select
+                </Label>
+                <Select
                   id={`${idBase}-condition-field-${index}`}
                   value={condition.field}
                   onChange={(event) => {
@@ -297,23 +297,23 @@ export function AutomationNodeEditor({
                     });
                   }}
                   disabled={disabled}
-                  className={`${SELECT_CLASS} w-full`}
+                  className="w-full"
                 >
                   {AUTOMATION_CONDITION_FIELDS.map((field) => (
                     <option key={field} value={field}>
                       {field}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div className="space-y-1">
-                <label
+                <Label
                   htmlFor={`${idBase}-condition-operator-${index}`}
-                  className="block text-sm font-semibold"
+                  className="block"
                 >
                   {`Operador ${index + 1}`}
-                </label>
-                <select
+                </Label>
+                <Select
                   id={`${idBase}-condition-operator-${index}`}
                   value={condition.operator}
                   onChange={(event) => {
@@ -325,23 +325,23 @@ export function AutomationNodeEditor({
                     });
                   }}
                   disabled={disabled}
-                  className={`${SELECT_CLASS} w-full`}
+                  className="w-full"
                 >
                   {AUTOMATION_CONDITION_OPERATORS.map((operator) => (
                     <option key={operator} value={operator}>
                       {operator}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div className="space-y-1">
-                <label
+                <Label
                   htmlFor={`${idBase}-condition-value-${index}`}
-                  className="block text-sm font-semibold"
+                  className="block"
                 >
                   {`${isList ? "Valores" : "Valor"} ${index + 1}`}
-                </label>
-                <select
+                </Label>
+                <Select
                   id={`${idBase}-condition-value-${index}`}
                   multiple={isList}
                   required
@@ -364,71 +364,74 @@ export function AutomationNodeEditor({
                     });
                   }}
                   disabled={disabled}
-                  className={`${SELECT_CLASS} w-full ${isList ? "min-h-20" : ""}`}
+                  className={isList ? "min-h-20" : undefined}
                 >
                   {choices.map((choice) => (
                     <option key={choice} value={choice}>
                       {choice}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
             </div>
-          </div>
+          </Card>
         ),
       };
     }),
     ...value.actions.map((action, index) => ({
       key: `action-${index}`,
       content: (
-        <div
+        <Card
           role="group"
           aria-label={`Acción ${index + 1} de ${value.actions.length}`}
-          className={NODE_CARD_CLASS}
+          className="h-full w-full p-3"
         >
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">
               {`Acción ${index + 1}`}
             </p>
             <div className="flex flex-wrap gap-1">
-              <button
+              <Button
                 type="button"
                 aria-label={`Subir acción ${index + 1}`}
                 onClick={() => moveAction(index, -1)}
                 disabled={disabled || index === 0}
-                className={BUTTON_CLASS}
+                variant="outline"
+                size="sm"
               >
                 ↑
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 aria-label={`Bajar acción ${index + 1}`}
                 onClick={() => moveAction(index, 1)}
                 disabled={disabled || index === value.actions.length - 1}
-                className={BUTTON_CLASS}
+                variant="outline"
+                size="sm"
               >
                 ↓
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 aria-label={`Eliminar acción ${index + 1}`}
                 onClick={() => removeAction(index)}
                 disabled={disabled}
-                className={BUTTON_CLASS}
+                variant="outline"
+                size="sm"
               >
                 Eliminar
-              </button>
+              </Button>
             </div>
           </div>
           <div className="mt-2 grid gap-2">
             <div className="space-y-1">
-              <label
+              <Label
                 htmlFor={`${idBase}-action-type-${index}`}
-                className="block text-sm font-semibold"
+                className="block"
               >
                 {`Tipo de acción ${index + 1}`}
-              </label>
-              <select
+              </Label>
+              <Select
                 id={`${idBase}-action-type-${index}`}
                 value={action.type}
                 onChange={(event) => {
@@ -439,24 +442,24 @@ export function AutomationNodeEditor({
                   });
                 }}
                 disabled={disabled}
-                className={`${SELECT_CLASS} w-full`}
+                className="w-full"
               >
                 {AUTOMATION_ACTION_TYPES.map((type) => (
                   <option key={type} value={type}>
                     {type}
                   </option>
                 ))}
-              </select>
+              </Select>
             </div>
             {action.type === "propose_stage_change" ? (
               <div className="space-y-1">
-                <label
+                <Label
                   htmlFor={`${idBase}-action-stage-${index}`}
-                  className="block text-sm font-semibold"
+                  className="block"
                 >
                   {`Etapa propuesta ${index + 1}`}
-                </label>
-                <select
+                </Label>
+                <Select
                   id={`${idBase}-action-stage-${index}`}
                   value={action.payload.target_stage ?? ""}
                   onChange={(event) =>
@@ -470,7 +473,7 @@ export function AutomationNodeEditor({
                   }
                   required
                   disabled={disabled}
-                  className={`${SELECT_CLASS} w-full`}
+                  className="w-full"
                 >
                   <option value="">Selecciona etapa</option>
                   {AUTOMATION_STAGE_VALUES.map((stage) => (
@@ -478,23 +481,23 @@ export function AutomationNodeEditor({
                       {stage}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
             ) : null}
           </div>
-        </div>
+        </Card>
       ),
     })),
     {
       key: "result",
       content: (
-        <div role="group" aria-label="Resultado" className={NODE_CARD_CLASS}>
+        <Card role="group" aria-label="Resultado" className="h-full w-full p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-text-muted">Resultado</p>
           <p className="mt-2 text-sm text-text-muted">
             El servidor valida la versión, la ejecuta en modo controlado y registra la traza. Sin
             efectos externos automáticos.
           </p>
-        </div>
+        </Card>
       ),
     },
   ];
@@ -519,42 +522,44 @@ export function AutomationNodeEditor({
         ))}
       </ol>
       <div className="flex flex-wrap items-center gap-2">
-        <button
+        <Button
           type="button"
           aria-label="Añadir condición"
           onClick={addCondition}
           disabled={disabled || value.conditions.length >= MAX_CONDITIONS}
-          className={BUTTON_CLASS}
+          variant="outline"
+                size="sm"
         >
           Añadir condición
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
           aria-label="Añadir acción"
           onClick={addAction}
           disabled={disabled || value.actions.length >= MAX_ACTIONS}
-          className={BUTTON_CLASS}
+          variant="outline"
+                size="sm"
         >
           Añadir acción
-        </button>
+        </Button>
         <span className="self-center text-xs text-text-muted">
           {`Límites: ${MAX_CONDITIONS} condiciones y ${MAX_ACTIONS} acciones.`}
         </span>
       </div>
       {value.conditions.length === 0 ? (
-        <p role="note" className="rounded-sm bg-surface-muted p-2 text-sm text-text-muted">
+        <Card role="note" className="bg-secondary p-2 text-sm text-text-muted">
           Sin condiciones: el disparo se evalúa sin filtros adicionales.
-        </p>
+        </Card>
       ) : null}
       {value.actions.length === 0 ? (
-        <p role="note" className="rounded-sm bg-surface-muted p-2 text-sm text-text-muted">
+        <Card role="note" className="bg-secondary p-2 text-sm text-text-muted">
           Sin acciones: añade al menos una antes de guardar.
-        </p>
+        </Card>
       ) : null}
       {error ? (
-        <p role="alert" className="rounded-sm border border-border bg-surface-muted p-2 text-sm">
+        <Card role="alert" className="bg-secondary p-2 text-sm">
           {error}
-        </p>
+        </Card>
       ) : null}
       <p role="status" aria-live="polite" className="min-h-5 text-sm text-text-muted">
         {announcement}

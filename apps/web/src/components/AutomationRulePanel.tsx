@@ -43,6 +43,11 @@ import {
   createAutomationCondition,
 } from "./AutomationNodeEditor";
 import { AutomationRunTimeline } from "./AutomationRunTimeline";
+import { Button } from "./ui/shadcn/button";
+import { Card } from "./ui/shadcn/card";
+import { Input } from "./ui/shadcn/input";
+import { Label } from "./ui/shadcn/label";
+import { Select } from "./ui/shadcn/select";
 
 const PAGE_SIZE = 20;
 
@@ -90,12 +95,6 @@ function describeError(cause: unknown, fallback: string): string {
     return `${cause.status}: ${cause.message}`;
   }
   return fallback;
-}
-
-function editorModeButtonClass(active: boolean): string {
-  return `rounded-sm border px-3 py-1 text-sm font-semibold ${
-    active ? "border-accent bg-surface-muted text-accent" : "border-border bg-surface text-text"
-  }`;
 }
 
 function requestAutomationList(status: AutomationStatus | "all", pageOffset: number): Promise<AutomationList> {
@@ -411,35 +410,35 @@ export function AutomationRulePanel() {
 
       <form onSubmit={(event) => void createAutomation(event)} className="flex flex-wrap items-end gap-3">
         <div className="min-w-64 flex-1 space-y-1">
-          <label htmlFor="automation-name" className="block text-sm font-semibold">
+          <Label htmlFor="automation-name" className="block">
             Nombre de la automatización
-          </label>
-          <input
+          </Label>
+          <Input
             id="automation-name"
             value={name}
             onChange={(event) => setName(event.target.value)}
             required
             maxLength={200}
             placeholder="Regla sintética de etapa"
-            className="w-full rounded-sm border border-border bg-surface px-2 py-2 text-sm"
+            className="w-full"
           />
         </div>
-        <button
+        <Button
           type="submit"
           disabled={working}
-          className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-on-accent disabled:opacity-60"
+          variant="default"
         >
           {busy === "create" ? "Creando…" : "Crear automatización"}
-        </button>
+        </Button>
       </form>
 
       <div className="space-y-2">
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
-            <label htmlFor="automation-status-filter" className="block text-sm font-semibold">
+            <Label htmlFor="automation-status-filter" className="block">
               Filtrar por estado
-            </label>
-            <select
+            </Label>
+            <Select
               id="automation-status-filter"
               value={statusFilter}
               onChange={(event) => {
@@ -449,7 +448,7 @@ export function AutomationRulePanel() {
                 void loadList(next, 0);
               }}
               disabled={working}
-              className="rounded-sm border border-border bg-surface px-2 py-2 text-sm"
+              className="w-full"
             >
               <option value="all">Todos</option>
               {ALL_STATUSES.filter((item) => item !== "all").map((item) => (
@@ -457,16 +456,16 @@ export function AutomationRulePanel() {
                   {AUTOMATION_STATUS_LABELS[item]}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
-          <button
+          <Button
             type="button"
             onClick={() => void loadList()}
             disabled={working}
-            className="rounded-sm border border-border px-3 py-2 text-sm font-semibold disabled:opacity-60"
+            variant="outline"
           >
             Actualizar listado
-          </button>
+          </Button>
         </div>
 
         <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
@@ -487,48 +486,51 @@ export function AutomationRulePanel() {
                         : notice}
         </p>
         {error ? (
-          <section role="alert" className="space-y-2 rounded-sm border border-border p-3">
+          <Card role="alert" className="space-y-2 p-3">
             <p className="text-sm">{error}</p>
-            <button
+            <Button
               type="button"
               onClick={() => {
                 setError(null);
                 setNotice(null);
               }}
-              className="rounded-sm border border-border px-3 py-1 text-sm font-semibold"
+              variant="outline"
+              size="sm"
             >
               Revisar y reintentar
-            </button>
-          </section>
+            </Button>
+          </Card>
         ) : null}
 
         {list && list.items.length > 0 ? (
           <ul className="flex flex-wrap gap-2">
             {list.items.map((item) => (
               <li key={item.id}>
-                <button
+                <Button
                   type="button"
                   disabled={working}
                   onClick={() => void openAutomation(item.id)}
                   aria-current={item.id === detail?.id ? "true" : undefined}
                   aria-label={`Abrir ${item.name} versión ${item.current_version}`}
-                  className="rounded-sm border border-border bg-surface px-3 py-1 text-sm font-semibold disabled:opacity-60"
+                  variant="outline"
+                  size="sm"
+                  className={item.id === detail?.id ? "bg-secondary" : undefined}
                 >
                   {item.name} · v{item.current_version} · {AUTOMATION_STATUS_LABELS[item.status]}
-                </button>
+                </Button>
               </li>
             ))}
           </ul>
         ) : list && !listLoading && !error ? (
-          <p className="rounded-sm border border-border bg-surface-muted p-3 text-sm text-text-muted">
+          <Card className="bg-secondary p-3 text-sm text-text-muted">
             No hay automatizaciones registradas.
-          </p>
+          </Card>
         ) : null}
 
         {list ? (
           <div className="flex flex-wrap items-center gap-3 text-sm text-text-muted">
             <span>{`Página ${currentPage} de ${totalPages} · ${list.total} registros`}</span>
-            <button
+            <Button
               type="button"
               disabled={working || offset === 0}
               onClick={() => {
@@ -536,11 +538,12 @@ export function AutomationRulePanel() {
                 setOffset(next);
                 void loadList(statusFilter, next);
               }}
-              className="rounded-sm border border-border px-3 py-1 font-semibold disabled:opacity-60"
+              variant="outline"
+              size="sm"
             >
               Página anterior
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               disabled={working || offset + PAGE_SIZE >= list.total}
               onClick={() => {
@@ -548,10 +551,11 @@ export function AutomationRulePanel() {
                 setOffset(next);
                 void loadList(statusFilter, next);
               }}
-              className="rounded-sm border border-border px-3 py-1 font-semibold disabled:opacity-60"
+              variant="outline"
+              size="sm"
             >
               Página siguiente
-            </button>
+            </Button>
           </div>
         ) : null}
       </div>
@@ -562,7 +566,8 @@ export function AutomationRulePanel() {
             <h3 id="automation-detail-heading" className="text-base font-semibold">
               {detail.name}
             </h3>
-            <dl className="flex flex-wrap gap-x-6 gap-y-1 rounded-sm border border-border p-3 text-sm">
+            <Card className="p-3 text-sm">
+            <dl className="flex flex-wrap gap-x-6 gap-y-1">
               <div>
                 <dt className="text-xs font-semibold text-text-muted">Estado: </dt>
                 <dd className="inline">{AUTOMATION_STATUS_LABELS[detail.status]}</dd>
@@ -580,37 +585,38 @@ export function AutomationRulePanel() {
                 <dd className="inline">{detail.updated_at}</dd>
               </div>
             </dl>
+            </Card>
             <div className="space-y-1">
               <h4 className="text-sm font-semibold">Configuración de la versión activa</h4>
-              <code className="block break-all rounded-sm bg-surface-muted p-3 text-xs">
+              <code className="block break-all bg-secondary p-3 text-xs">
                 {snapshotText(detail)}
               </code>
             </div>
             <div className="flex flex-wrap gap-3">
-              <button
+              <Button
                 type="button"
                 disabled={working || detail.status === "active"}
                 onClick={() => void patchStatus("active")}
-                className="rounded-sm border border-border px-3 py-2 text-sm font-semibold disabled:opacity-60"
+                variant="outline"
               >
                 Activar
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 disabled={working || detail.status === "inactive"}
                 onClick={() => void patchStatus("inactive")}
-                className="rounded-sm border border-border px-3 py-2 text-sm font-semibold disabled:opacity-60"
+                variant="outline"
               >
                 Desactivar
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 disabled={working || detail.status === "archived"}
                 onClick={() => void patchStatus("archived")}
-                className="rounded-sm border border-border px-3 py-2 text-sm font-semibold disabled:opacity-60"
+                variant="outline"
               >
                 Archivar
-              </button>
+              </Button>
               {detail.status === "archived" ? (
                 <p className="text-sm text-text-muted">Archivada es terminal.</p>
               ) : null}
@@ -618,22 +624,24 @@ export function AutomationRulePanel() {
           </section>
 
           <div role="group" aria-label="Modo de edición de la versión" className="flex flex-wrap gap-2">
-            <button
+            <Button
               type="button"
               aria-pressed={editorMode === "form"}
               onClick={() => setEditorMode("form")}
-              className={editorModeButtonClass(editorMode === "form")}
+              variant={editorMode === "form" ? "secondary" : "outline"}
+              size="sm"
             >
               Formulario
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               aria-pressed={editorMode === "visual"}
               onClick={() => setEditorMode("visual")}
-              className={editorModeButtonClass(editorMode === "visual")}
+              variant={editorMode === "visual" ? "secondary" : "outline"}
+              size="sm"
             >
               Editor visual
-            </button>
+            </Button>
           </div>
 
           <form onSubmit={(event) => void saveVersion(event)} className="space-y-3">
@@ -644,17 +652,17 @@ export function AutomationRulePanel() {
               </p>
             </div>
             <div className="space-y-1">
-              <label htmlFor="automation-trigger" className="block text-sm font-semibold">
+              <Label htmlFor="automation-trigger" className="block">
                 Disparador
-              </label>
-              <select
+              </Label>
+              <Select
                 id="automation-trigger"
                 value="application.stage_changed"
                 onChange={() => undefined}
-                className="w-full max-w-md rounded-sm border border-border bg-surface-muted px-2 py-2 text-sm"
+                className="w-full max-w-md bg-secondary"
               >
                 <option value="application.stage_changed">Cambio de etapa de postulación</option>
-              </select>
+              </Select>
             </div>
 
             {editorMode === "visual" ? (
@@ -668,7 +676,8 @@ export function AutomationRulePanel() {
               />
             ) : (
               <div className="space-y-2">
-            <fieldset disabled={working} className="space-y-2 rounded-sm border border-border p-3">
+            <Card className="p-3">
+            <fieldset disabled={working} className="space-y-2">
               <legend className="px-1 text-sm font-semibold">Condiciones</legend>
               <ol className="space-y-3">
                 {conditions.map((condition, index) => {
@@ -678,13 +687,13 @@ export function AutomationRulePanel() {
                   return (
                     <li key={index} className="flex flex-wrap items-end gap-3">
                       <div className="space-y-1">
-                        <label
+                        <Label
                           htmlFor={`automation-condition-field-${index}`}
-                          className="block text-sm font-semibold"
+                          className="block"
                         >
                           Campo {index + 1}
-                        </label>
-                        <select
+                        </Label>
+                        <Select
                           id={`automation-condition-field-${index}`}
                           value={condition.field}
                           onChange={(event) => {
@@ -695,21 +704,21 @@ export function AutomationRulePanel() {
                               value: automationConditionValues(field)[0],
                             });
                           }}
-                          className="rounded-sm border border-border bg-surface px-2 py-2 text-sm"
+                          className="w-full"
                         >
                           {CONDITION_FIELDS.map((field) => (
                             <option key={field} value={field}>{field}</option>
                           ))}
-                        </select>
+                        </Select>
                       </div>
                       <div className="space-y-1">
-                        <label
+                        <Label
                           htmlFor={`automation-condition-operator-${index}`}
-                          className="block text-sm font-semibold"
+                          className="block"
                         >
                           Operador {index + 1}
-                        </label>
-                        <select
+                        </Label>
+                        <Select
                           id={`automation-condition-operator-${index}`}
                           value={condition.operator}
                           onChange={(event) => {
@@ -720,21 +729,21 @@ export function AutomationRulePanel() {
                               value: operator === "in" ? [choices[0]] : choices[0],
                             });
                           }}
-                          className="rounded-sm border border-border bg-surface px-2 py-2 text-sm"
+                          className="w-full"
                         >
                           {CONDITION_OPERATORS.map((operator) => (
                             <option key={operator} value={operator}>{operator}</option>
                           ))}
-                        </select>
+                        </Select>
                       </div>
                       <div className="space-y-1">
-                        <label
+                        <Label
                           htmlFor={`automation-condition-value-${index}`}
-                          className="block text-sm font-semibold"
+                          className="block"
                         >
                           {valueKey} {index + 1}
-                        </label>
-                        <select
+                        </Label>
+                        <Select
                           id={`automation-condition-value-${index}`}
                           multiple={isList}
                           required
@@ -750,48 +759,52 @@ export function AutomationRulePanel() {
                               value: isList ? selected : (selected[0] ?? choices[0]),
                             });
                           }}
-                          className="min-w-40 rounded-sm border border-border bg-surface px-2 py-2 text-sm"
+                          className="min-w-40"
                         >
                           {choices.map((choice) => (
                             <option key={choice} value={choice}>{choice}</option>
                           ))}
-                        </select>
+                        </Select>
                       </div>
-                      <button
+                      <Button
                         type="button"
                         onClick={() => setConditions((current) => current.filter((_, i) => i !== index))}
                         disabled={working}
-                        className="rounded-sm border border-border px-2 py-2 text-sm font-semibold disabled:opacity-60"
+                        variant="outline"
+                        size="sm"
                       >
                         {`Quitar condición ${index + 1}`}
-                      </button>
+                      </Button>
                     </li>
                   );
                 })}
               </ol>
-              <button
+              <Button
                 type="button"
                 onClick={() => setConditions((current) => [...current, createAutomationCondition()])}
                 disabled={working || conditions.length >= MAX_CONDITIONS}
-                className="rounded-sm border border-border px-3 py-1 text-sm font-semibold disabled:opacity-60"
+                variant="outline"
+            size="sm"
               >
                 Agregar condición
-              </button>
+              </Button>
             </fieldset>
+            </Card>
 
-            <fieldset disabled={working} className="space-y-2 rounded-sm border border-border p-3">
+            <Card className="p-3">
+            <fieldset disabled={working} className="space-y-2">
               <legend className="px-1 text-sm font-semibold">Acciones</legend>
               <ol className="space-y-3">
                 {actions.map((action, index) => (
                   <li key={index} className="flex flex-wrap items-end gap-3">
                     <div className="space-y-1">
-                      <label
+                      <Label
                         htmlFor={`automation-action-type-${index}`}
-                        className="block text-sm font-semibold"
+                        className="block"
                       >
                         Tipo de acción {index + 1}
-                      </label>
-                      <select
+                      </Label>
+                      <Select
                         id={`automation-action-type-${index}`}
                         value={action.type}
                         onChange={(event) => {
@@ -801,22 +814,22 @@ export function AutomationRulePanel() {
                             payload: { ...AUTOMATION_EMPTY_ACTION_PAYLOAD },
                           });
                         }}
-                        className="rounded-sm border border-border bg-surface px-2 py-2 text-sm"
+                        className="w-full"
                       >
                         {ACTION_TYPES.map((type) => (
                           <option key={type} value={type}>{type}</option>
                         ))}
-                      </select>
+                      </Select>
                     </div>
                     {action.type === "propose_stage_change" ? (
                       <div className="space-y-1">
-                        <label
+                        <Label
                           htmlFor={`automation-action-stage-${index}`}
-                          className="block text-sm font-semibold"
+                          className="block"
                         >
                           Etapa propuesta {index + 1}
-                        </label>
-                        <select
+                        </Label>
+                        <Select
                           id={`automation-action-stage-${index}`}
                           value={action.payload.target_stage ?? ""}
                           onChange={(event) =>
@@ -829,45 +842,48 @@ export function AutomationRulePanel() {
                             })
                           }
                           required
-                          className="rounded-sm border border-border bg-surface px-2 py-2 text-sm"
+                          className="w-full"
                         >
                           <option value="">Selecciona etapa</option>
                           {STAGE_VALUES.map((stage) => (
                             <option key={stage} value={stage}>{stage}</option>
                           ))}
-                        </select>
+                        </Select>
                       </div>
                     ) : null}
-                    <button
+                    <Button
                       type="button"
                       onClick={() => setActions((current) => current.filter((_, i) => i !== index))}
                       disabled={working}
-                      className="rounded-sm border border-border px-2 py-2 text-sm font-semibold disabled:opacity-60"
+                      variant="outline"
+                        size="sm"
                     >
                       {`Quitar acción ${index + 1}`}
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ol>
-              <button
+              <Button
                 type="button"
                 onClick={() => setActions((current) => [...current, createAutomationAction()])}
                 disabled={working || actions.length >= MAX_ACTIONS}
-                className="rounded-sm border border-border px-3 py-1 text-sm font-semibold disabled:opacity-60"
+                variant="outline"
+            size="sm"
               >
                 Agregar acción
-              </button>
+              </Button>
             </fieldset>
+            </Card>
               </div>
             )}
 
-            <button
+            <Button
               type="submit"
               disabled={working}
-              className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-on-accent disabled:opacity-60"
+              variant="default"
             >
               {busy === "version" ? "Guardando versión…" : "Guardar versión"}
-            </button>
+            </Button>
           </form>
 
           <section aria-labelledby="automation-execution-heading" className="space-y-3">
@@ -880,49 +896,50 @@ export function AutomationRulePanel() {
             </p>
             <div className="flex flex-wrap items-end gap-3">
               <div className="min-w-64 flex-1 space-y-1">
-                <label htmlFor="automation-execution-application" className="block text-sm font-semibold">
+                <Label htmlFor="automation-execution-application" className="block">
                   ID de postulación
-                </label>
-                <input
+                </Label>
+                <Input
                   id="automation-execution-application"
                   value={applicationId}
                   onChange={(event) => setApplicationId(event.target.value)}
                   placeholder="00000000-0000-4000-8000-000000000000"
-                  className="w-full rounded-sm border border-border bg-surface px-2 py-2 text-sm"
+                  className="w-full"
                 />
               </div>
               <div className="min-w-48 flex-1 space-y-1">
-                <label htmlFor="automation-execution-key" className="block text-sm font-semibold">
+                <Label htmlFor="automation-execution-key" className="block">
                   Clave de idempotencia
-                </label>
-                <input
+                </Label>
+                <Input
                   id="automation-execution-key"
                   value={idempotencyKey}
                   onChange={(event) => setIdempotencyKey(event.target.value)}
                   maxLength={100}
-                  className="w-full rounded-sm border border-border bg-surface px-2 py-2 text-sm"
+                  className="w-full"
                 />
               </div>
-              <button
+              <Button
                 type="button"
                 disabled={working}
                 onClick={() => void execute("test")}
-                className="rounded-sm border border-border px-3 py-2 text-sm font-semibold disabled:opacity-60"
+                variant="outline"
               >
                 {busy === "execution:test" ? "Probando…" : "Test (dry-run)"}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
                 disabled={working}
                 onClick={() => void execute("live")}
-                className="rounded-sm bg-accent px-3 py-2 text-sm font-semibold text-on-accent disabled:opacity-60"
+                variant="default"
               >
                 {busy === "execution:live" ? "Encolando…" : "Run (live)"}
-              </button>
+              </Button>
             </div>
 
             {execution ? (
-              <dl className="flex flex-wrap gap-x-6 gap-y-1 rounded-sm border border-border p-3 text-sm">
+              <Card className="p-3 text-sm">
+            <dl className="flex flex-wrap gap-x-6 gap-y-1">
                 <div>
                   <dt className="text-xs font-semibold text-text-muted">Modo: </dt>
                   <dd className="inline">{execution.kind === "test" ? "Prueba" : "Real"}</dd>
@@ -946,6 +963,7 @@ export function AutomationRulePanel() {
                   </dd>
                 </div>
               </dl>
+            </Card>
             ) : null}
 
             <AutomationRunTimeline

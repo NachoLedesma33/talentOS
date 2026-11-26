@@ -8,7 +8,7 @@ import type {
   RequirementEvaluationStatus,
   ReviewDecision,
 } from "../lib/types";
-import { Button } from "./ui/shadcn/button";
+import { Button, buttonVariants } from "./ui/shadcn/button";
 import { Card } from "./ui/shadcn/card";
 import { Label } from "./ui/shadcn/label";
 import { Select } from "./ui/shadcn/select";
@@ -125,7 +125,10 @@ export function RequirementEvaluationCard({
           Estado:{" "}
           <span
             data-status={current.status}
-            className="inline-flex items-center gap-1 rounded-sm border border-border px-2 py-0.5"
+            className={buttonVariants({
+              variant: "outline",
+              className: "h-auto gap-1 px-2 py-0.5 text-xs",
+            })}
           >
             <span aria-hidden="true">{STATUS_MARKS[current.status]}</span>
             {STATUS_LABELS[current.status]}
