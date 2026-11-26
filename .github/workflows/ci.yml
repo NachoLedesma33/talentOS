@@ -38,21 +38,33 @@ jobs:
           cache: pip
           cache-dependency-path: apps/api/pyproject.toml
       - name: Install
-        run: pip install -e "apps/api[dev]"
+        run: |
+          python -m venv "$RUNNER_TEMP/app-venv"
+          "$RUNNER_TEMP/app-venv/bin/python" -m pip install --quiet --upgrade pip setuptools
+          "$RUNNER_TEMP/app-venv/bin/python" -m pip install --quiet -e "apps/api[dev]"
+      - name: Dependency audit
+        run: |
+          python -m venv "$RUNNER_TEMP/audit-venv"
+          "$RUNNER_TEMP/audit-venv/bin/python" -m pip install --quiet pip-audit
+          "$RUNNER_TEMP/app-venv/bin/python" -m pip freeze | grep -v '^-e' > "$RUNNER_TEMP/requirements.txt"
+          "$RUNNER_TEMP/audit-venv/bin/python" -m pip_audit --requirement "$RUNNER_TEMP/requirements.txt"
       - name: Ruff
         working-directory: apps/api
-        run: python -m ruff check .
+        run: >-
+          "$RUNNER_TEMP/app-venv/bin/python" -m ruff check .
       - name: Mypy
         working-directory: apps/api
-        run: python -m mypy app
+        run: >-
+          "$RUNNER_TEMP/app-venv/bin/python" -m mypy app
       - name: Pytest
         working-directory: apps/api
-        run: python -m pytest -q
+        run: >-
+          "$RUNNER_TEMP/app-venv/bin/python" -m pytest -q
       - name: Alembic
         working-directory: apps/api
         run: |
-          alembic upgrade head
-          alembic check
+          "$RUNNER_TEMP/app-venv/bin/alembic" upgrade head
+          "$RUNNER_TEMP/app-venv/bin/alembic" check
 
   frontend:
     runs-on: ubuntu-latest
