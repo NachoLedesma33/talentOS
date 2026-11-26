@@ -6,27 +6,25 @@ afterEach(() => {
   cleanup();
 });
 
-describe("página inicial de Fase 1", () => {
-  it("muestra identidad, estado y enlaces de la API sin llamadas de red", () => {
+describe("portada pública", () => {
+  it("muestra propuesta, CTAs jerarquizados y enlaces de estado sin llamadas de red", () => {
     render(<Home />);
 
     expect(
-      screen.getByRole("heading", { level: 1, name: "TalentOS" }),
+      screen.getByRole("heading", {
+        level: 1,
+        name: /Decisiones de contratación con evidencia/,
+      }),
     ).toBeTruthy();
-    expect(
-      screen.getByText("Reclutamiento asistido, trazable y supervisado."),
-    ).toBeTruthy();
-    expect(
-      screen.getByText("Fase 1 — Fundación del monorepo"),
-    ).toBeTruthy();
+    expect(screen.getByRole("navigation", { name: "Navegación de la portada" })).toBeTruthy();
 
-    const healthLink = screen.getByRole("link", {
-      name: "http://localhost:8000/health",
-    });
-    const readyLink = screen.getByRole("link", {
-      name: "http://localhost:8000/ready",
-    });
+    const registerLink = screen.getByRole("link", { name: "Crear cuenta" });
+    const dashboardLink = screen.getByRole("link", { name: "Ir al panel" });
+    expect(registerLink.getAttribute("href")).toBe("/register");
+    expect(dashboardLink.getAttribute("href")).toBe("/dashboard");
 
+    const healthLink = screen.getByRole("link", { name: "/health" });
+    const readyLink = screen.getByRole("link", { name: "/ready" });
     expect(healthLink.getAttribute("href")).toBe("http://localhost:8000/health");
     expect(readyLink.getAttribute("href")).toBe("http://localhost:8000/ready");
   });

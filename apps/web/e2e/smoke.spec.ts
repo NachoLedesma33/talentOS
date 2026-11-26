@@ -1,10 +1,20 @@
 import { expect, test } from "@playwright/test";
 
-test("ruta de navegación principal", async ({ page }, testInfo) => {
+test("portada pública", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByRole("navigation", { name: "Ruta de navegación" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Navegación de la portada" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /Decisiones de contratación con evidencia/ }),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Crear cuenta" })).toHaveAttribute("href", "/register");
   await expect(page.getByRole("link", { name: "Ir al panel" })).toHaveAttribute("href", "/dashboard");
+});
+
+test("ruta de navegación principal del workspace", async ({ page }, testInfo) => {
+  await page.goto("/jobs");
+
+  await expect(page.getByRole("navigation", { name: "Ruta de navegación" })).toBeVisible();
 
   if (testInfo.project.name === "desktop") {
     await expect(page.getByRole("complementary", { name: "Navegación del workspace" })).toBeVisible();
@@ -15,7 +25,7 @@ test("ruta de navegación principal", async ({ page }, testInfo) => {
 test("menú móvil del workspace", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "mobile", "solo móvil");
 
-  await page.goto("/");
+  await page.goto("/jobs");
 
   await expect(page.getByRole("button", { name: "Mostrar menú" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Navegación móvil del workspace" })).toBeHidden();
