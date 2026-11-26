@@ -123,3 +123,15 @@ Alcance B según `TalentOS_UI_UX_IMPROVEMENT_PLAN.md:1243`: landing, login, regi
 | Menú de usuario | Sin implementar | — |
 
 Evidencia C1/C2: `CommandMenu.tsx` + integración en `WorkspaceShell.tsx`; E2E añade `menú de comandos del workspace` con apertura por click y por `Control+k`, filtro y cierre con Escape. Gates locales typecheck/lint/unit 105/build/E2E 7 passed + 1 skipped OK. Nota: E2E sirve `next start` desde `.next`, por lo que todo cambio de componente exige `npm run build` antes de `npm run test:e2e`; en local con `reuseExistingServer` puede reutilizar servidores stale, mitigado con `CI=1` y `WEB_BASE_URL` en puerto libre.
+
+## 10. Auditoría sistemática de estados (Fase 13, 2026-11-26)
+
+| Estado | Convención verificada | Evidencia |
+|---|---|---|
+| Loading | `aria-busy` en contenedor/form; mensaje con `role="status"` y `aria-live="polite"` | `apps/web/src/app/loading.tsx:4`, `apps/web/src/app/dashboard/page.tsx:114`, `apps/web/src/components/CandidatesPanel.tsx:206`, `apps/web/src/components/OrganizationSelector.tsx:101`, `apps/web/src/components/IntegrationsPanel.tsx:270`, `apps/web/src/app/analytics/page.tsx:210`, `apps/web/src/components/LoginForm.tsx:45` |
+| Empty | Texto explícito, sin tabla ni lista vacía; acciones reales cuando aplica | `apps/web/src/components/CandidatesPanel.tsx:216`, `apps/web/src/components/AssessmentPanel.tsx:183`, `apps/web/src/components/AutomationRulePanel.tsx:526`, `apps/web/src/components/AutomationRunTimeline.tsx:134`, `apps/web/src/components/AgentApprovalControls.tsx:154`, `apps/web/src/app/analytics/page.tsx:228`, `apps/web/src/components/CommandMenu.tsx:97`, `apps/web/src/app/dashboard/page.tsx:260` |
+| Disabled | Botón inhabilitado durante envío/carga o cuando la acción no aplica; sin desactivar validación ni ocultar checks | `apps/web/src/components/CandidateForm.tsx:64`, `apps/web/src/components/AutomationRulePanel.tsx:535`, `apps/web/src/components/AgentApprovalControls.tsx:201`, `apps/web/src/components/CandidatesPanel.tsx:257`, `apps/web/src/app/dashboard/page.tsx:217`, `apps/web/src/app/analytics/page.tsx:203` |
+| Success | Mensaje persistente con `role="status"` / `aria-live`; errores separados con prefijo `Error:` y `role="alert"` | `apps/web/src/components/CandidateForm.tsx:42`, `apps/web/src/components/MembersPanel.tsx:193`, `apps/web/src/components/AutomationRulePanel.tsx:319`, `apps/web/src/components/AgentApprovalControls.tsx:144`, `apps/web/src/components/DocumentReview.tsx:173` |
+| Error de ruta | `error.tsx`, `loading.tsx` y `not-found.tsx` globales; estados 401/403/404/500 explícitos en `/dashboard` | `apps/web/src/app/error.tsx`, `apps/web/src/app/loading.tsx`, `apps/web/src/app/not-found.tsx`, `apps/web/src/app/dashboard/page.tsx:120` |
+
+Limitaciones: auditoría estática con evidencia en código. No hay medición de re-render ni pruebas de usabilidad con tareas; siguen como pendientes separados de Fase 13.
