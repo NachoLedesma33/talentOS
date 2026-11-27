@@ -1045,7 +1045,7 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 16-28 | Sin numeración de usuarios | UUID y respuestas uniformes | `NOT_STARTED` | — |
 | 16-29 | Webhooks verificados | firma, replay y dedupe con tests | `NOT_STARTED` | — |
 | 16-30 | Prompt injection y límite de IA | defensas + cuotas + tests | `NOT_STARTED` | — |
-| 16-31 | Tamaño de solicitudes | límite global y por upload | `NOT_STARTED` | — |
+| 16-31 | Tamaño de solicitudes | límite global y por upload | `DONE` | Commit `f9ba3da`; CI `45925962276` success; 2 MiB global para `POST`/`PUT`/`PATCH` no multipart, 413 con envelope; uploads siguen limitados a 10 MiB; 527 tests. |
 | 16-32 | Límite de recuperación de contraseña | rate limit + auditoría | `NOT_STARTED` | — |
 | 16-33 | CORS restrictivo | orígenes por entorno + tests | `NOT_STARTED` | — |
 | 16-34 | Rutas de administrador por defecto | revisión de rutas y cierre | `NOT_STARTED` | — |
@@ -1076,3 +1076,4 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 2026-11-26 | 16-24 | `edb42db` | `45915102956` | Cabeceras de seguridad, CSP, redirect HTTPS y HSTS en producción. |
 | 2026-11-26 | 16-20 | `0b2bac3` | `45919600293` | Rate limit de 60/min por IP en endpoints de autenticación desplegada. |
 | 2026-11-26 | 16-17 | `82a9a58` | `45922837838` | Rechazo de campos desconocidos en esquemas de identidad. |
+| 2026-11-26 | 16-31 | `f9ba3da` | `45925962276` | Límite global de 2 MiB por solicitud con 413 uniforme. |
