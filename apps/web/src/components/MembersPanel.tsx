@@ -8,6 +8,7 @@ import {
   type FormEvent,
 } from "react";
 import { ApiError, apiFetch } from "../lib/api";
+import { useI18n, type MessageKey } from "../lib/i18n";
 import type {
   Member,
   MemberInvite,
@@ -28,11 +29,13 @@ const ROLES: readonly MembershipRole[] = [
   "viewer",
 ];
 
-const INSUFFICIENT_MESSAGE = "Permisos insuficientes.";
-const UNAUTHORIZED_MESSAGE = "Sesión caducada.";
-const NOT_FOUND_MESSAGE = "No encontrado.";
-const SERVER_ERROR_MESSAGE = "Error del servidor.";
-const ACTION_IN_PROGRESS_MESSAGE = "Acción en curso…";
+type Translate = (key: MessageKey) => string;
+
+const INSUFFICIENT_KEY: MessageKey = "members.insufficient";
+const UNAUTHORIZED_KEY: MessageKey = "members.unauthorized";
+const NOT_FOUND_KEY: MessageKey = "members.notFound";
+const SERVER_ERROR_KEY: MessageKey = "members.serverError";
+const ACTION_IN_PROGRESS_KEY: MessageKey = "members.busy";
 
 type LoadStatus =
   | "idle"
@@ -67,9 +70,9 @@ function loadStatusFromError(error: unknown): LoadStatus {
   return "error";
 }
 
-function messageFromError(error: unknown, fallback: string): string {
+function messageFromError(error: unknown, fallback: string, t: Translate): string {
   if (error instanceof ApiError && error.status === 403) {
-    return INSUFFICIENT_MESSAGE;
+    return t(INSUFFICIENT_KEY);
   }
   return error instanceof ApiError ? error.message : fallback;
 }
@@ -83,6 +86,7 @@ function requestMembers(organizationId: string): Promise<Member[]> {
 }
 
 export function MembersPanel({ organizationId }: { organizationId: string | null }) {
+  const { t } = useI18n();
   const [members, setMembers] = useState<Member[]>([]);
   const [loadStatus, setLoadStatus] = useState<LoadStatus>("idle");
   const [loadMessage, setLoadMessage] = useState<string | null>(null);
@@ -97,9 +101,9 @@ export function MembersPanel({ organizationId }: { organizationId: string | null
       setLoadedOrganizationId(organizationId);
       setMembers(items);
       setLoadStatus("ready");
-      setLoadMessage(items.length === 0 ? "Sin miembros en esta organización." : null);
+      setLoadMessage(items.length === 0 ? t("members.empty") : null);
     },
-    [organizationId],
+    [organizationId, t],
   );
 
   const applyMembersError = useCallback(
@@ -107,9 +111,9 @@ export function MembersPanel({ organizationId }: { organizationId: string | null
       setLoadedOrganizationId(organizationId);
       setMembers([]);
       setLoadStatus(loadStatusFromError(error));
-      setLoadMessage(messageFromError(error, "No se pudieron cargar los miembros."));
+      setLoadMessage(messageFromError(error, t("members.loadError"), t));
     },
-    [organizationId],
+    [organizationId, t],
   );
 
   useEffect(() => {
@@ -144,7 +148,7 @@ export function MembersPanel({ organizationId }: { organizationId: string | null
     const role = parseRole(String(data.get("role") ?? ""));
     if (!role) {
       setActionStatus("error");
-      setActionMessage("Selecciona un rol válido.");
+      setActionMessage(t("members.invalidRole"));
       return;
     }
     const payload: MemberInvite = {
@@ -162,11 +166,11 @@ export function MembersPanel({ organizationId }: { organizationId: string | null
       });
       form.reset();
       setActionStatus("success");
-      setActionMessage("Miembro invitado.");
+      setActionMessage(t("members.invited"));
       await requestMembers(organizationId).then(applyMembersSuccess, applyMembersError);
     } catch (error) {
       setActionStatus(statusFromError(error));
-      setActionMessage(messageFromError(error, "No se pudo invitar al miembro."));
+      setActionMessage(messageFromError(error, t("members.inviteError"), t));
     }
   }
 
@@ -190,11 +194,11 @@ export function MembersPanel({ organizationId }: { organizationId: string | null
         { method: "PATCH", body: JSON.stringify(payload) },
       );
       setActionStatus("success");
-      setActionMessage("Rol actualizado.");
+      setActionMessage(t("members.roleUpdated"));
       await requestMembers(organizationId).then(applyMembersSuccess, applyMembersError);
     } catch (error) {
       setActionStatus(statusFromError(error));
-      setActionMessage(messageFromError(error, "No se pudo actualizar el rol."));
+      setActionMessage(messageFromError(error, t("members.roleUpdateError"), t));
       await requestMembers(organizationId).then(applyMembersSuccess, applyMembersError);
     } finally {
       setUpdatingMemberId(null);
@@ -205,10 +209,10 @@ export function MembersPanel({ organizationId }: { organizationId: string | null
     return (
       <section aria-labelledby="members-heading" className="space-y-2">
         <h2 id="members-heading" className="text-lg font-semibold">
-          Miembros
+          {t("members.title")}
         </h2>
         <p className="text-sm text-text-muted">
-          Selecciona una organización para ver sus miembros.
+          {t("members.selectOrg")}
         </p>
       </section>
     );
@@ -231,33 +235,33 @@ export function MembersPanel({ organizationId }: { organizationId: string | null
   return (
     <section aria-labelledby="members-heading" className="space-y-3">
       <h2 id="members-heading" className="text-lg font-semibold">
-        Miembros
+        {t("members.title")}
       </h2>
 
       <div aria-live="polite">
         {visibleLoadStatus === "loading" ? (
           <p role="status" className="text-sm text-text-muted">
-            Cargando miembros…
+            {t("members.loading")}
           </p>
         ) : null}
         {visibleLoadStatus === "forbidden" ? (
           <p role="alert" className="text-sm text-text-muted">
-            {INSUFFICIENT_MESSAGE}
+            {t(INSUFFICIENT_KEY)}
           </p>
         ) : null}
         {visibleLoadStatus === "unauthorized" ? (
           <p role="alert" className="text-sm text-text-muted">
-            {UNAUTHORIZED_MESSAGE}
+            {t(UNAUTHORIZED_KEY)}
           </p>
         ) : null}
         {visibleLoadStatus === "notFound" ? (
           <p role="alert" className="text-sm text-text-muted">
-            {NOT_FOUND_MESSAGE}
+            {t(NOT_FOUND_KEY)}
           </p>
         ) : null}
         {visibleLoadStatus === "serverError" ? (
           <p role="alert" className="text-sm text-text-muted">
-            {SERVER_ERROR_MESSAGE}
+            {t(SERVER_ERROR_KEY)}
           </p>
         ) : null}
         {visibleLoadStatus === "error" ? (
@@ -284,11 +288,11 @@ export function MembersPanel({ organizationId }: { organizationId: string | null
                     htmlFor={`member-role-${member.user_id}`}
                     className="block text-xs text-text-muted"
                   >
-                    Rol
+                    {t("members.role")}
                   </Label>
                   <Select
                     id={`member-role-${member.user_id}`}
-                    aria-label={`Rol de ${member.name}`}
+                    aria-label={`${t("members.roleFor")}${member.name}`}
                     value={member.role}
                     disabled={busy}
                     onChange={(event) => {
@@ -314,10 +318,10 @@ export function MembersPanel({ organizationId }: { organizationId: string | null
         aria-busy={visibleActionStatus === "loading"}
         className="space-y-3"
       >
-        <h3 className="text-sm font-semibold">Invitar miembro</h3>
+        <h3 className="text-sm font-semibold">{t("members.inviteTitle")}</h3>
         <div className="space-y-1">
           <Label htmlFor="invite-email" className="block">
-            Correo electrónico
+            {t("members.email")}
           </Label>
           <Input
             id="invite-email"
@@ -329,7 +333,7 @@ export function MembersPanel({ organizationId }: { organizationId: string | null
         </div>
         <div className="space-y-1">
           <Label htmlFor="invite-role" className="block">
-            Rol
+            {t("members.role")}
           </Label>
           <Select
             id="invite-role"
@@ -346,15 +350,15 @@ export function MembersPanel({ organizationId }: { organizationId: string | null
         </div>
         <Button type="submit" disabled={busy}>
           {visibleActionStatus === "loading" && updatingMemberId === null
-            ? "Invitando…"
-            : "Invitar miembro"}
+            ? t("members.inviting")
+            : t("members.inviteTitle")}
         </Button>
         <p
           aria-live="polite"
           role={actionAnnouncementRole}
           className="min-h-5 text-sm text-text-muted"
         >
-          {visibleActionMessage ?? (busy ? ACTION_IN_PROGRESS_MESSAGE : null)}
+          {visibleActionMessage ?? (busy ? t(ACTION_IN_PROGRESS_KEY) : null)}
         </p>
       </form>
     </section>
