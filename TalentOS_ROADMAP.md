@@ -1034,7 +1034,7 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 16-17 | Campos manipulables | schemas estrictos y `extra=forbid` | `NOT_STARTED` | — |
 | 16-18 | Cookies de sesión | `HttpOnly`/`Secure`/`SameSite`/expiry | `NOT_STARTED` | — |
 | 16-19 | Hash de contraseñas | verificar bcrypt + coste | `NOT_STARTED` | — |
-| 16-20 | Límite de login y bots | rate limit por IP/usuario + eventos | `NOT_STARTED` | — |
+| 16-20 | Límite de login y bots | rate limit por IP/usuario + eventos | `DONE` | Commit `0b2bac3`; CI `45919600293` success; 60 intentos/minuto por IP en `login`/`forgot-password`/`reset-password` solo en `staging`/`production`; 429 con `Retry-After`; 519 tests. |
 | 16-21 | Consultas DB parametrizadas/monitorizadas | ORM + logging sin PII | `NOT_STARTED` | — |
 | 16-22 | Validación y saneado de entradas | Pydantic + escapes antes de persistir | `NOT_STARTED` | — |
 | 16-23 | Límite de respuestas de API | paginación y cotas de salida | `NOT_STARTED` | — |
@@ -1074,3 +1074,4 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 2026-11-26 | 16-07 | `4a8a850` | `45911085332` | Política de privacidad enlazada desde el workspace. |
 | 2026-11-26 | 16-08 | `4a8a850` | `45911085332` | Términos enlazados desde el workspace. |
 | 2026-11-26 | 16-24 | `edb42db` | `45915102956` | Cabeceras de seguridad, CSP, redirect HTTPS y HSTS en producción. |
+| 2026-11-26 | 16-20 | `0b2bac3` | `45919600293` | Rate limit de 60/min por IP en endpoints de autenticación desplegada. |

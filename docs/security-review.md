@@ -1,6 +1,6 @@
 # TalentOS — Revisión de seguridad y privacidad (Fase 14)
 
-Estado: 2026-11-26. Alcance evaluado: repositorio en modo `local`/`test` con datos sintéticos. No constituye asesoramiento legal. Evidencia de CI para los gates de dependencias: run `45880065546` success; cabeceras y HTTPS: run `45915102956` success.
+Estado: 2026-11-26. Alcance evaluado: repositorio en modo `local`/`test` con datos sintéticos. No constituye asesoramiento legal. Evidencia de CI: dependencias `45880065546`, cabeceras y HTTPS `45915102956`, rate limit de autenticación `45919600293`; todos success.
 
 ## Threat model mínimo
 
@@ -22,11 +22,11 @@ Flujo crítico: `cookie + X-Organization-ID` → sesión → membresía → rol 
 |---|---|---|
 | Threat model actualizado | Revisado | Sección anterior; decisiones en `docs/decisions/ADR-017.md`. |
 | Matriz de roles y permisos revisada | Revisado | `apps/api/app/identity/dependencies.py:1-12,104-118`; tests en `apps/api/tests/test_authorization.py`. |
-| Tests cross-tenant completos | Revisado | `apps/api/tests/test_authorization.py` y `test_*_api.py` con dos organizaciones sintéticas; 518 tests en verde. |
+| Tests cross-tenant completos | Revisado | `apps/api/tests/test_authorization.py` y `test_*_api.py` con dos organizaciones sintéticas; 519 tests en verde. |
 | Autenticación y sesiones | Revisado | bcrypt + límite 72 bytes (`identity/security.py`); token opaco con hash SHA-256; `HttpOnly`, `SameSite=lax`, `Secure` en producción (`api/routes/auth.py:72-80`). |
-| CORS y CSRF | Revisado | Origen web explícito sin comodín (`app/main.py:44-51`); `verify_origin` para métodos mutantes (`identity/dependencies.py:133-149`); `SameSite=lax`. |
-| Cabeceras y transporte | Revisado | `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` en toda respuesta (`app/main.py:85-115`); CSP y HSTS en producción; redirect 307 HTTP→HTTPS con `X-Forwarded-Proto`; docs deshabilitados en producción (`app/main.py:35-42`); tests en `test_health.py`. |
-| Rate limiting | Parcial | Límite por tool de agente (`agents/tools.py:641`). Sin límite global HTTP: riesgo `RM-01`. |
+| CORS y CSRF | Revisado | Origen web explícito sin comodín (`app/main.py:46-53`); `verify_origin` para métodos mutantes (`identity/dependencies.py:133-149`); `SameSite=lax`. |
+| Cabeceras y transporte | Revisado | `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` en toda respuesta (`app/main.py:104-109`); CSP y HSTS en producción; redirect 307 HTTP→HTTPS con `X-Forwarded-Proto` (`app/main.py:111-127`); docs deshabilitados en producción (`app/main.py:37-44`); tests en `test_health.py`. |
+| Rate limiting | Parcial | Límite por tool de agente (`agents/tools.py:641`) y 60 intentos/minuto por IP en `login`, `forgot-password` y `reset-password` bajo `staging`/`production` (`app/main.py:67-77,131-154`); 429 con `Retry-After`. Sin límite global HTTP: riesgo `RM-01`. |
 | Upload y parsing | Revisado | Extensión, MIME declarado, firma real, 10 MiB y 50 páginas (`documents/validation.py:8-14,50-71`); parseo determinista sin servicio externo. |
 | Storage y URLs firmadas | Revisado | Storage privado por UUID (`documents/storage.py`); token HMAC-SHA256 con `exp` y tenant, TTL 60 s (`documents/tokens.py`). Clave efímera por proceso: riesgo `RM-02`. |
 | Secretos y cifrado | Revisado | Configuración solo desde entorno (`core/config.py`); Fernet por organización (ADR-013); `.env.example` sin valores secretos. HTTPS/HSTS aplicados por API en producción; cifrado de reposo gestionado en despliegue: riesgo `RM-03`. |
@@ -44,9 +44,9 @@ Flujo crítico: `cookie + X-Organization-ID` → sesión → membresía → rol 
 
 | ID | Riesgo | Mitigación actual | Condición antes de producción |
 |---|---|---|---|
-| `RM-01` | Sin rate limiting global HTTP. | Sesión cookie, CSRF por `Origin`, límites en tools. | Limiter por IP/usuario/organización respaldado por Redis en endpoints sensibles. |
+| `RM-01` | Sin rate limiting global HTTP. | Sesión cookie, CSRF por `Origin`, límites en tools y en autenticación desplegada. | Limiter por IP/usuario/organización respaldado por Redis en el resto de endpoints sensibles. |
 | `RM-02` | Clave de URLs firmadas efímera por proceso. | TTL 60 s y firma tenant-scoped. | Clave estable por despliegue desde gestor de secretos para múltiples réplicas. |
-| `RM-03` | Cifrado de reposo depende de infraestructura. | Fernet para secretos de integración; sin secretos en repo; HTTPS 307 + HSTS en producción (`app/main.py:91-108`). | Verificar cifrado gestionado de PostgreSQL/storage en staging. |
+| `RM-03` | Cifrado de reposo depende de infraestructura. | Fernet para secretos de integración; sin secretos en repo; HTTPS 307 + HSTS en producción (`app/main.py:111-127`). | Verificar cifrado gestionado de PostgreSQL/storage en staging. |
 | `RM-04` | Sin exportación/eliminación configurable de datos de candidato. | Datos sintéticos en `local`/`test`; acceso por rol y tenant. | Política de retención, consentimiento y flujo de borrado/exportación con registro. |
 | `RM-05` | Backup y restauración no probados. | Migraciones versionadas con Alembic. | Backup programado y restauración verificada en staging con plan de rollback. |
 
