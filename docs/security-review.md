@@ -52,7 +52,7 @@ Flujo crítico: `cookie + X-Organization-ID` → sesión → membresía → rol 
 | `RM-01` | Sin rate limiting global HTTP. | Sesión cookie, CSRF por `Origin`, límites en tools y en autenticación desplegada. | Limiter por IP/usuario/organización respaldado por Redis en el resto de endpoints sensibles. |
 | `RM-02` | Clave de URLs firmadas efímera por proceso. | TTL 60 s y firma tenant-scoped. | Clave estable por despliegue desde gestor de secretos para múltiples réplicas. |
 | `RM-03` | Cifrado de reposo depende de infraestructura. | Fernet para secretos de integración; sin secretos en repo; HTTPS 307 + HSTS en producción (`app/main.py:111-127`). | Verificar cifrado gestionado de PostgreSQL/storage en staging. |
-| `RM-04` | Sin exportación/eliminación configurable de datos de candidato. | Datos sintéticos en `local`/`test`; acceso por rol y tenant. | Política de retención, consentimiento y flujo de borrado/exportación con registro. |
+| `RM-04` | Consentimiento y retención de candidatos aún no configurables. | Exportación/eliminación tenant-scoped con auditoría en `apps/api/app/candidates/service.py`; datos sintéticos en `local`/`test`. | Consentimiento en formularios y política de retención firmada antes de tratar datos reales. |
 | `RM-05` | Backup y restauración no probados. | Migraciones versionadas con Alembic. | Backup programado y restauración verificada en staging con plan de rollback. |
 
 Aceptación: riesgos `RM-01`–`RM-05` se aceptan explícitamente para el alcance demo/local de Fase 14 porque no hay datos personales reales ni despliegue público. Fase 15 debe cerrarlos o documentar una aceptación nueva firmada antes de manejar candidatos reales.

@@ -42,7 +42,7 @@ El tratamiento se limita a la relación contractual con la organización usuaria
 
 ## 6. Conservación y eliminación
 
-La demo usa datos sintéticos. La retención de candidatos reales y el borrado o exportación autoservicio quedan pendientes de los lotes 16-10 y 16-11 del roadmap; mientras tanto, no se introducen datos personales reales. La purga automática existente cubre solo eventos de agente. Los backups y su restauración están pendientes (`RM-05`).
+La demo usa datos sintéticos. La retención de candidatos reales sigue pendiente de definición. La exportación y el borrado están disponibles para miembros con rol de escritura mediante `GET /api/v1/candidates/export` y `DELETE /api/v1/candidates/{id}`, con filtro por `organization_id`, comprobación de roles y auditoría (`candidate.exported` y `candidate.deleted`). Los bytes de documentos se borran antes que la fila del candidato. La purga automática existente cubre solo eventos de agente. Los backups y su restauración están pendientes (`RM-05`).
 
 ## 7. Cookies y tecnologías locales
 
@@ -63,11 +63,11 @@ El modo demo usa `LLM_PROVIDER=mock` y no envía datos a proveedores externos. S
 - Logs estructurados sin datos personales innecesarios.
 - Escaneo de dependencias en CI.
 
-Pendiente para producción: rate limit global HTTP, clave estable para URLs firmadas, HTTPS/HSTS verificados, exportación y borrado de candidatos, backup/restauración y escaneo de secretos en CI.
+Pendiente para producción: rate limit global HTTP, clave estable para URLs firmadas, HTTPS/HSTS verificados, consentimiento en formularios, política de retención de candidatos, backup/restauración y cierre de riesgos `RM-01`–`RM-05`.
 
 ## 10. Derechos y solicitudes
 
-La organización usuaria gestiona las solicitudes de acceso, corrección, exportación o eliminación a través de su administrador y del canal de contacto que defina para sus candidatos. TalentOS no expone un correlativo de usuarios: los identificadores públicos son UUID.
+El administrador de la organización puede exportar y borrar datos de candidatos mediante los endpoints anteriores. El resto de solicitudes de acceso o corrección se gestiona por el canal de contacto que la organización defina para sus candidatos. TalentOS no expone un correlativo de usuarios: los identificadores públicos son UUID.
 
 ## 11. Cambios
 
