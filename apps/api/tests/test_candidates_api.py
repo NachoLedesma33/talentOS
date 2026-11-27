@@ -476,3 +476,62 @@ def test_export_is_tenant_scoped_limited_by_role_and_audited(
     denied = client.get(f"{_CANDIDATES_URL}/export", headers=headers)
     assert denied.status_code == 403
     assert denied.json()["error"]["code"] == "forbidden"
+
+
+def test_delete_is_tenant_scoped_role_gated_and_audited(
+    client: TestClient, seeded: dict[str, str], db: DBSession
+) -> None:
+    headers = _org_headers(seeded["org_a"])
+    own = _create_candidate(client, headers, email="delete.candidates@example.test")
+    protected = _create_candidate(
+        client, headers, email="protected.delete.candidates@example.test"
+    )
+    client.post(
+        f"{_CANDIDATES_URL}/{own['id']}/notes",
+        json={"body": "Synthetic note to delete"},
+        headers=headers,
+    )
+
+    _login(client, _OWNER_B)
+    foreign = _create_candidate(
+        client, _org_headers(seeded["org_b"]), email="foreign.delete@example.test"
+    )
+    _login(client, _RECRUITER)
+
+    cross_tenant = client.delete(f"{_CANDIDATES_URL}/{foreign['id']}", headers=headers)
+    assert cross_tenant.status_code == 404
+    assert cross_tenant.json()["error"]["code"] == "not_found"
+
+    deleted = client.delete(f"{_CANDIDATES_URL}/{own['id']}", headers=headers)
+    assert deleted.status_code == 204, deleted.text
+    assert deleted.content == b""
+
+    detail = client.get(f"{_CANDIDATES_URL}/{own['id']}", headers=headers)
+    assert detail.status_code == 404
+    listing = client.get(_CANDIDATES_URL, headers=headers)
+    assert [item["id"] for item in listing.json()["items"]] == [protected["id"]]
+    notes = db.scalars(
+        select(CandidateNote).where(CandidateNote.candidate_id == UUID(str(own["id"])))
+    ).all()
+    assert notes == []
+
+    event = db.scalar(
+        select(AuditLog).where(
+            AuditLog.organization_id == UUID(seeded["org_a"]),
+            AuditLog.action == "candidate.deleted",
+            AuditLog.resource_id == UUID(str(own["id"])),
+        )
+    )
+    assert event is not None
+    assert event.actor_id == UUID(seeded["recruiter_id"])
+
+    _login(client, _VIEWER)
+    denied = client.delete(f"{_CANDIDATES_URL}/{protected['id']}", headers=headers)
+    assert denied.status_code == 403
+    assert denied.json()["error"]["code"] == "forbidden"
+
+    _login(client, _OWNER_B)
+    foreign_detail = client.get(
+        f"{_CANDIDATES_URL}/{foreign['id']}", headers=_org_headers(seeded["org_b"])
+    )
+    assert foreign_detail.status_code == 200
