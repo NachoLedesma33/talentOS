@@ -58,7 +58,7 @@ export default function RootLayout({
 }: Readonly<{ children: ReactNode }>) {
   return (
     <html lang="es">
-      <body className="min-h-screen bg-surface font-sans text-text antialiased">
+      <body className="paper-texture min-h-screen bg-surface font-sans text-text antialiased">
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: structuredData }}
@@ -73,7 +73,7 @@ export default function RootLayout({
           <main
             id="main-content"
             tabIndex={-1}
-            className="paper-texture mx-auto w-full max-w-[1440px] px-4 py-8 sm:px-6 lg:px-10"
+            className="mx-auto w-full max-w-[1440px] px-4 py-8 sm:px-6 lg:px-10"
           >
             {children}
           </main>
