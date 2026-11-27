@@ -42,7 +42,40 @@ export function RegisterForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} aria-busy={status === "loading"} className="space-y-4">
+    <form onSubmit={handleSubmit} aria-busy={status === "loading"} className="space-y-5">
+      <div className="space-y-3">
+        <div className="grid gap-2 sm:grid-cols-2">
+          <Button
+            type="button"
+            variant="outline"
+            disabled
+            aria-describedby="register-social-note"
+            className="gap-2"
+          >
+            <span aria-hidden="true" className="font-semibold">G</span>
+            {t("auth.socialGoogle")}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled
+            aria-describedby="register-social-note"
+            className="gap-2"
+          >
+            <span aria-hidden="true" className="font-semibold">⊞</span>
+            {t("auth.socialMicrosoft")}
+          </Button>
+        </div>
+        <p id="register-social-note" className="text-xs text-text-muted">
+          {t("auth.socialUnavailable")}
+        </p>
+        <div className="flex items-center gap-3 text-xs text-text-muted">
+          <span aria-hidden="true" className="h-px flex-1 bg-border-subtle" />
+          {t("auth.socialDivider")}
+          <span aria-hidden="true" className="h-px flex-1 bg-border-subtle" />
+        </div>
+      </div>
+
       <div className="space-y-1">
         <Label htmlFor="register-name" className="block">
           {t("register.name")}
@@ -116,7 +149,7 @@ export function RegisterForm() {
         </p>
       </div>
 
-      <Button type="submit" disabled={status === "loading"}>
+      <Button type="submit" disabled={status === "loading"} className="w-full">
         {status === "loading" ? t("register.submitting") : t("register.submit")}
       </Button>
 
