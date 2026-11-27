@@ -1,6 +1,6 @@
 # TalentOS — Revisión de seguridad y privacidad (Fase 14)
 
-Estado: 2026-11-26. Alcance evaluado: repositorio en modo `local`/`test` con datos sintéticos. No constituye asesoramiento legal. Evidencia de CI: dependencias `45880065546`, cabeceras y HTTPS `45915102956`, rate limit de autenticación `45919600293`; todos success.
+Estado: 2026-11-26. Alcance evaluado: repositorio en modo `local`/`test` con datos sintéticos. No constituye asesoramiento legal. Evidencia de CI: dependencias `45880065546`, cabeceras y HTTPS `45915102956`, rate limit de autenticación `45919600293`, esquemas estrictos `45922837838`; todos success.
 
 ## Threat model mínimo
 
@@ -22,8 +22,9 @@ Flujo crítico: `cookie + X-Organization-ID` → sesión → membresía → rol 
 |---|---|---|
 | Threat model actualizado | Revisado | Sección anterior; decisiones en `docs/decisions/ADR-017.md`. |
 | Matriz de roles y permisos revisada | Revisado | `apps/api/app/identity/dependencies.py:1-12,104-118`; tests en `apps/api/tests/test_authorization.py`. |
-| Tests cross-tenant completos | Revisado | `apps/api/tests/test_authorization.py` y `test_*_api.py` con dos organizaciones sintéticas; 519 tests en verde. |
+| Tests cross-tenant completos | Revisado | `apps/api/tests/test_authorization.py` y `test_*_api.py` con dos organizaciones sintéticas; 525 tests en verde. |
 | Autenticación y sesiones | Revisado | bcrypt + límite 72 bytes (`identity/security.py`); token opaco con hash SHA-256; `HttpOnly`, `SameSite=lax`, `Secure` en producción (`api/routes/auth.py:72-80`). |
+| Esquemas de entrada | Revisado | `extra=forbid` en `identity/schemas.py:13-14,67-69,90-92` para registro, login, organización, invitación y reset; tests en `tests/test_auth.py`. |
 | CORS y CSRF | Revisado | Origen web explícito sin comodín (`app/main.py:46-53`); `verify_origin` para métodos mutantes (`identity/dependencies.py:133-149`); `SameSite=lax`. |
 | Cabeceras y transporte | Revisado | `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` en toda respuesta (`app/main.py:104-109`); CSP y HSTS en producción; redirect 307 HTTP→HTTPS con `X-Forwarded-Proto` (`app/main.py:111-127`); docs deshabilitados en producción (`app/main.py:37-44`); tests en `test_health.py`. |
 | Rate limiting | Parcial | Límite por tool de agente (`agents/tools.py:641`) y 60 intentos/minuto por IP en `login`, `forgot-password` y `reset-password` bajo `staging`/`production` (`app/main.py:67-77,131-154`); 429 con `Retry-After`. Sin límite global HTTP: riesgo `RM-01`. |
