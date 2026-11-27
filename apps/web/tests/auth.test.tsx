@@ -160,6 +160,9 @@ describe("formularios de identidad", () => {
     fireEvent.change(screen.getByLabelText("Correo electrónico"), {
       target: { value: authenticatedUser.email },
     });
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /Acepto la política de privacidad/i }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Enviar instrucciones" }));
 
     expect(await screen.findByText("Revisá tu correo.")).toBeTruthy();
@@ -174,7 +177,10 @@ describe("formularios de identidad", () => {
     const [url, init] = fetchMock.mock.calls[0] ?? [];
     expect(url).toBe("http://localhost:8000/api/v1/auth/forgot-password");
     expect(init?.method).toBe("POST");
-    expect(JSON.parse(String(init?.body))).toEqual({ email: authenticatedUser.email });
+    expect(JSON.parse(String(init?.body))).toEqual({
+      email: authenticatedUser.email,
+      accept_privacy: true,
+    });
   });
 
   it("anuncia error de recuperación sin exponer token", async () => {
@@ -193,6 +199,9 @@ describe("formularios de identidad", () => {
     fireEvent.change(screen.getByLabelText("Correo electrónico"), {
       target: { value: authenticatedUser.email },
     });
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /Acepto la política de privacidad/i }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Enviar instrucciones" }));
 
     const alert = await screen.findByRole("alert");

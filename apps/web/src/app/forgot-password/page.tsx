@@ -9,6 +9,7 @@ import type {
 } from "../../lib/types";
 import { Button } from "../../components/ui/shadcn/button";
 import { Card } from "../../components/ui/shadcn/card";
+import { Checkbox } from "../../components/ui/shadcn/checkbox";
 import { Input } from "../../components/ui/shadcn/input";
 import { Label } from "../../components/ui/shadcn/label";
 
@@ -24,6 +25,7 @@ export default function ForgotPasswordPage() {
     const data = new FormData(event.currentTarget);
     const payload: PasswordResetRequest = {
       email: String(data.get("email") ?? "").trim(),
+      accept_privacy: data.get("accept_privacy") === "true",
     };
 
     setStatus("loading");
@@ -70,6 +72,38 @@ export default function ForgotPasswordPage() {
                 autoComplete="email"
                 required
               />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-start gap-2">
+                <Checkbox
+                  id="forgot-consent"
+                  name="accept_privacy"
+                  value="true"
+                  aria-describedby="forgot-consent-help"
+                  required
+                />
+                <Label htmlFor="forgot-consent" className="text-sm font-normal">
+                  Acepto la política de privacidad y los términos de servicio.
+                </Label>
+              </div>
+              <p id="forgot-consent-help" className="text-xs text-text-muted">
+                Revisá la{" "}
+                <a
+                  href="https://github.com/NachoLedesma33/talentOS/blob/main/docs/privacy-policy.md"
+                  className="font-medium text-accent hover:opacity-80"
+                >
+                  política de privacidad
+                </a>{" "}
+                y los{" "}
+                <a
+                  href="https://github.com/NachoLedesma33/talentOS/blob/main/docs/terms-of-service.md"
+                  className="font-medium text-accent hover:opacity-80"
+                >
+                  términos de servicio
+                </a>
+                .
+              </p>
             </div>
 
             <Button type="submit" disabled={status === "loading"}>
