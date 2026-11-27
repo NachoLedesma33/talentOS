@@ -178,3 +178,40 @@ def test_production_trusts_forwarded_proto_for_hsts(
     assert response.status_code == 200
     assert response.headers["Strict-Transport-Security"] == "max-age=31536000; includeSubDomains"
     assert response.headers["Content-Security-Policy"]
+
+
+def test_auth_rate_limit_is_per_ip_and_uses_error_envelope(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ip = "203.0.113.10"
+    other_ip = "203.0.113.11"
+    monkeypatch.setattr(main_module, "settings", Settings(APP_ENV="staging"))
+    monkeypatch.setattr(main_module, "_AUTH_LIMIT_MAX_ATTEMPTS", 3)
+    main_module._auth_attempts.pop(ip, None)
+    main_module._auth_attempts.pop(other_ip, None)
+
+    try:
+        for _ in range(3):
+            response = client.post(
+                "/api/v1/auth/login", json={}, headers={"X-Forwarded-For": ip}
+            )
+            assert response.status_code == 422
+
+        limited = client.post(
+            "/api/v1/auth/login", json={}, headers={"X-Forwarded-For": ip}
+        )
+
+        assert limited.status_code == 429
+        assert limited.headers["Retry-After"] == "60"
+        error = limited.json()["error"]
+        assert error["code"] == "too_many_requests"
+        assert error["request_id"] == limited.headers["X-Request-ID"]
+
+        other = client.post(
+            "/api/v1/auth/login", json={}, headers={"X-Forwarded-For": other_ip}
+        )
+        assert other.status_code == 422
+        assert client.get("/health").status_code == 200
+    finally:
+        main_module._auth_attempts.pop(ip, None)
+        main_module._auth_attempts.pop(other_ip, None)

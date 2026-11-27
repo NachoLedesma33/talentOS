@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections import defaultdict, deque
 from collections.abc import Awaitable, Callable
+from time import monotonic
 
 from fastapi import FastAPI, Request, Response, status
 from fastapi.exceptions import RequestValidationError
@@ -62,6 +64,23 @@ _ERROR_CODES: dict[int, str] = {
     503: "service_unavailable",
 }
 
+_AUTH_LIMIT_WINDOW_SECONDS = 60.0
+_AUTH_LIMIT_MAX_ATTEMPTS = 60
+_AUTH_LIMIT_ENVS = frozenset({"staging", "production"})
+_AUTH_PATHS = frozenset(
+    {
+        "/api/v1/auth/login",
+        "/api/v1/auth/forgot-password",
+        "/api/v1/auth/reset-password",
+    }
+)
+_auth_attempts: dict[str, deque[float]] = defaultdict(deque)
+
+
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for", "").split(",", 1)[0].strip()
+    return forwarded or (request.client.host if request.client else "unknown")
+
 
 def _request_id(request: Request) -> str:
     value: object = getattr(request.state, "request_id", None)
@@ -88,6 +107,7 @@ async def request_context_middleware(
         "Referrer-Policy": "no-referrer",
         "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
     }
+    redirect: Response | None = None
     if settings.APP_ENV == "production":
         response_headers["Content-Security-Policy"] = (
             "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
@@ -98,13 +118,39 @@ async def request_context_middleware(
             location = f"https://{request.url.netloc}{request.url.path}"
             if request.url.query:
                 location = f"{location}?{request.url.query}"
-            response: Response = RedirectResponse(
+            redirect = RedirectResponse(
                 url=location, status_code=status.HTTP_307_TEMPORARY_REDIRECT
             )
         else:
             response_headers["Strict-Transport-Security"] = (
                 "max-age=31536000; includeSubDomains"
             )
+
+    if redirect is not None:
+        response = redirect
+    elif (
+        settings.APP_ENV in _AUTH_LIMIT_ENVS
+        and request.method == "POST"
+        and request.url.path in _AUTH_PATHS
+    ):
+        now = monotonic()
+        attempts = _auth_attempts[_client_ip(request)]
+        while attempts and now - attempts[0] >= _AUTH_LIMIT_WINDOW_SECONDS:
+            attempts.popleft()
+        if len(attempts) >= _AUTH_LIMIT_MAX_ATTEMPTS:
+            response = JSONResponse(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                content={
+                    "error": {
+                        "code": _ERROR_CODES[status.HTTP_429_TOO_MANY_REQUESTS],
+                        "message": "Demasiadas solicitudes; intente nuevamente más tarde.",
+                        "request_id": request_id,
+                    }
+                },
+                headers={"Retry-After": str(int(_AUTH_LIMIT_WINDOW_SECONDS))},
+            )
+        else:
+            attempts.append(now)
             response = await call_next(request)
     else:
         response = await call_next(request)
