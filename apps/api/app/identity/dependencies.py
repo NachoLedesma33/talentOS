@@ -132,7 +132,7 @@ def _origin_key(url: str) -> tuple[str, str] | None:
 
 
 def verify_origin(request: Request) -> None:
-    """Defensa CSRF para métodos mutantes cuando el cliente envía Origin."""
+    """Defensa CSRF para métodos mutantes; Origin obligatorio en entornos desplegados."""
     if request.method not in _MUTATING_METHODS:
         return
     settings = config.get_settings()
