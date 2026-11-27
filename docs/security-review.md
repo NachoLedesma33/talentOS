@@ -1,6 +1,6 @@
 # TalentOS — Revisión de seguridad y privacidad (Fase 14)
 
-Estado: 2026-11-26. Alcance evaluado: repositorio en modo `local`/`test` con datos sintéticos. No constituye asesoramiento legal. Evidencia de CI: dependencias `45880065546`, cabeceras y HTTPS `45915102956`, rate limit de autenticación `45919600293`, esquemas estrictos `45922837838`, límite de tamaño `45925962276`; todos success.
+Estado: 2026-11-26. Alcance evaluado: repositorio en modo `local`/`test` con datos sintéticos. No constituye asesoramiento legal. Evidencia de CI: dependencias `45880065546`, cabeceras y HTTPS `45915102956`, rate limit de autenticación `45919600293`, esquemas estrictos `45922837838`, límite de tamaño `45925962276`, eventos de seguridad `45929163932`; todos success.
 
 ## Threat model mínimo
 
@@ -22,8 +22,8 @@ Flujo crítico: `cookie + X-Organization-ID` → sesión → membresía → rol 
 |---|---|---|
 | Threat model actualizado | Revisado | Sección anterior; decisiones en `docs/decisions/ADR-017.md`. |
 | Matriz de roles y permisos revisada | Revisado | `apps/api/app/identity/dependencies.py:1-12,104-118`; tests en `apps/api/tests/test_authorization.py`. |
-| Tests cross-tenant completos | Revisado | `apps/api/tests/test_authorization.py` y `test_*_api.py` con dos organizaciones sintéticas; 527 tests en verde. |
-| Autenticación y sesiones | Revisado | bcrypt + límite 72 bytes (`identity/security.py`); token opaco con hash SHA-256; `HttpOnly`, `SameSite=lax`, `Secure` en producción (`api/routes/auth.py:72-80`). |
+| Tests cross-tenant completos | Revisado | `apps/api/tests/test_authorization.py` y `test_*_api.py` con dos organizaciones sintéticas; 529 tests en verde. |
+| Autenticación y sesiones | Revisado | bcrypt + límite 72 bytes (`identity/security.py`); token opaco con hash SHA-256; `HttpOnly`, `SameSite=lax`, `Secure` en producción (`api/routes/auth.py:87-95`). |
 | Esquemas de entrada | Revisado | `extra=forbid` en `identity/schemas.py:13-14,67-69,90-92` para registro, login, organización, invitación y reset; tests en `tests/test_auth.py`. |
 | CORS y CSRF | Revisado | Origen web explícito sin comodín (`app/main.py:46-53`); `verify_origin` para métodos mutantes (`identity/dependencies.py:133-149`); `SameSite=lax`. |
 | Cabeceras y transporte | Revisado | `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` en toda respuesta (`app/main.py:107-112`); CSP y HSTS en producción; redirect 307 HTTP→HTTPS con `X-Forwarded-Proto` (`app/main.py:114-130`); docs deshabilitados en producción (`app/main.py:37-44`); tests en `test_health.py`. |
@@ -34,7 +34,7 @@ Flujo crítico: `cookie + X-Organization-ID` → sesión → membresía → rol 
 | Prompt injection | Revisado | Contratos de salida y detección en `agents/cv_analyst.py`; tests en `apps/api/tests/test_cv_analyst.py:337-352` y `test_documents_review.py:424-469`. |
 | Herramientas de agentes | Revisado | Permisos, timeout, idempotencia y aprobación humana en `agents/tools.py:145-152,504-554,622-673`. |
 | Webhooks | Revisado | HMAC-SHA256 en tiempo constante, anti-replay y dedupe por organización (`integrations/webhooks.py:130-142,202`); tests en `test_inbound_webhooks.py`. |
-| Logs y datos personales | Revisado | `JsonFormatter` solo metadatos (`core/logging.py:12-24`); tests de redacción en `test_documents_tasks.py`, `test_email_sandbox.py`, `test_inbound_webhooks.py`, entre otros. |
+| Logs y datos personales | Revisado | `JsonFormatter` solo metadatos (`core/logging.py:12-24`); eventos `auth_login_failed` y `auth_password_reset_failed` con `request_id`/`correlation_id` (`api/routes/auth.py:43-51,82,123`); tests de redacción en `test_documents_tasks.py`, `test_email_sandbox.py`, `test_inbound_webhooks.py` y `test_auth.py`. |
 | Retención y eliminación | Parcial | Purga de eventos de agente a 30 días (`agents/tasks.py:150-180`). Sin exportación/eliminación de candidatos: riesgo `RM-04`. |
 | Escaneo de dependencias | Revisado | `npm audit --audit-level=high` y `pip-audit` en CI con venv aislada; `cryptography` subido a `>=50,<51`. |
 | Backup y restauración | Pendiente | Sin procedimiento automatizado: riesgo `RM-05`. |

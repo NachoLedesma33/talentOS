@@ -1049,7 +1049,7 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 16-32 | Límite de recuperación de contraseña | rate limit + auditoría | `NOT_STARTED` | — |
 | 16-33 | CORS restrictivo | orígenes por entorno + tests | `NOT_STARTED` | — |
 | 16-34 | Rutas de administrador por defecto | revisión de rutas y cierre | `NOT_STARTED` | — |
-| 16-35 | Eventos de seguridad | logging de fallos y correlación | `NOT_STARTED` | — |
+| 16-35 | Eventos de seguridad | logging de fallos y correlación | `DONE` | Commit `7dc55ff`; CI `45929163932` success; `auth_login_failed` y `auth_password_reset_failed` con `request_id`/`correlation_id`, sin email/token/password; 529 tests. |
 | 16-36 | Datos estructurados | JSON-LD y metadatos | `NOT_STARTED` | — |
 | 16-37 | Escaneo de dependencias | `npm audit` + `pip-audit` | `NOT_STARTED` | — |
 | 16-38 | Sin sourcemaps | configuración de build + verificación | `NOT_STARTED` | — |
@@ -1077,3 +1077,4 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 2026-11-26 | 16-20 | `0b2bac3` | `45919600293` | Rate limit de 60/min por IP en endpoints de autenticación desplegada. |
 | 2026-11-26 | 16-17 | `82a9a58` | `45922837838` | Rechazo de campos desconocidos en esquemas de identidad. |
 | 2026-11-26 | 16-31 | `f9ba3da` | `45925962276` | Límite global de 2 MiB por solicitud con 413 uniforme. |
+| 2026-11-26 | 16-35 | `7dc55ff` | `45929163932` | Eventos de seguridad de autenticación con correlación y sin PII. |
