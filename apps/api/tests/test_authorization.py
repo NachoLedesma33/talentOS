@@ -242,3 +242,28 @@ def test_missing_origin_is_rejected_in_deployed_environments(
     assert missing.status_code == 403
     assert missing.json()["error"]["code"] == "forbidden"
     assert allowed.status_code == 401
+
+
+def test_cors_preflight_allows_only_configured_web_origin(client: TestClient) -> None:
+    allowed_origin = str(get_settings().WEB_BASE_URL).rstrip("/")
+
+    allowed = client.options(
+        "/api/v1/auth/login",
+        headers={
+            "Origin": allowed_origin,
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+    rejected = client.options(
+        "/api/v1/auth/login",
+        headers={
+            "Origin": "https://foreign.example",
+            "Access-Control-Request-Method": "POST",
+        },
+    )
+
+    assert allowed.status_code == 200
+    assert allowed.headers["access-control-allow-origin"] == allowed_origin
+    assert allowed.headers["access-control-allow-credentials"] == "true"
+    assert rejected.status_code == 400
+    assert "access-control-allow-origin" not in rejected.headers
