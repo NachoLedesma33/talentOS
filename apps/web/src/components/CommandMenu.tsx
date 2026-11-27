@@ -1,24 +1,26 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useI18n, type MessageKey } from "../lib/i18n";
 import { Button } from "./ui/shadcn/button";
 import { Input } from "./ui/shadcn/input";
 
-const commands = [
-  { href: "/dashboard", label: "Panel", hint: "Resumen de la organización" },
-  { href: "/jobs", label: "Vacantes", hint: "Requisitos y etapas" },
-  { href: "/candidates", label: "Candidatos", hint: "Perfiles y evidencia" },
-  { href: "/applications", label: "Pipeline", hint: "Postulaciones por etapa" },
-  { href: "/documents", label: "Documentos", hint: "Archivos privados" },
-  { href: "/assessment", label: "Evaluación", hint: "Criterios y brechas" },
-  { href: "/interviews", label: "Entrevistas", hint: "Agenda y guiones" },
-  { href: "/agents", label: "Agentes", hint: "Ejecuciones y traza" },
-  { href: "/automations", label: "Automatizaciones", hint: "Reglas y aprobaciones" },
-  { href: "/integrations", label: "Integraciones", hint: "Adaptadores y entregas" },
-  { href: "/analytics", label: "Analítica", hint: "Métricas del proceso" },
-] as const;
+const commands: ReadonlyArray<{ href: string; label: MessageKey; hint: MessageKey }> = [
+  { href: "/dashboard", label: "shell.panel", hint: "cmd.hint.panel" },
+  { href: "/jobs", label: "shell.jobs", hint: "cmd.hint.jobs" },
+  { href: "/candidates", label: "shell.candidates", hint: "cmd.hint.candidates" },
+  { href: "/applications", label: "shell.pipeline", hint: "cmd.hint.pipeline" },
+  { href: "/documents", label: "shell.documents", hint: "cmd.hint.documents" },
+  { href: "/assessment", label: "shell.assessment", hint: "cmd.hint.assessment" },
+  { href: "/interviews", label: "shell.interviews", hint: "cmd.hint.interviews" },
+  { href: "/agents", label: "shell.agents", hint: "cmd.hint.agents" },
+  { href: "/automations", label: "shell.automations", hint: "cmd.hint.automations" },
+  { href: "/integrations", label: "shell.integrations", hint: "cmd.hint.integrations" },
+  { href: "/analytics", label: "shell.analytics", hint: "cmd.hint.analytics" },
+];
 
 export function CommandMenu() {
+  const { locale, t } = useI18n();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -46,9 +48,9 @@ export function CommandMenu() {
   }, [open]);
 
   const visible = useMemo(() => {
-    const filter = query.trim().toLocaleLowerCase("es");
-    return commands.filter(({ label }) => label.toLocaleLowerCase("es").includes(filter));
-  }, [query]);
+    const filter = query.trim().toLocaleLowerCase(locale);
+    return commands.filter(({ label }) => t(label).toLocaleLowerCase(locale).includes(filter));
+  }, [locale, query, t]);
 
   return (
     <>
@@ -63,12 +65,12 @@ export function CommandMenu() {
           setOpen((current) => !current);
         }}
       >
-        Buscar sección…
+        {t("cmd.trigger")}
       </Button>
       {open ? (
         <dialog
           open
-          aria-label="Buscar sección"
+          aria-label={t("cmd.aria")}
           className="fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-lg rounded-md border border-border bg-surface p-4 text-text shadow-lg"
         >
           <div className="space-y-3">
@@ -77,8 +79,8 @@ export function CommandMenu() {
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Filtrar secciones"
-              aria-label="Filtrar secciones"
+              placeholder={t("cmd.filter")}
+              aria-label={t("cmd.filter")}
             />
             <ul className="max-h-80 space-y-1 overflow-y-auto text-sm">
               {visible.map((command) => (
@@ -88,13 +90,15 @@ export function CommandMenu() {
                     className="block rounded-sm px-2 py-2 hover:bg-surface-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     onClick={() => setOpen(false)}
                   >
-                    <span className="font-medium">{command.label}</span>
-                    <span className="ml-2 text-text-muted">{command.hint}</span>
+                    <span className="font-medium">{t(command.label)}</span>
+                    <span className="ml-2 text-text-muted">{t(command.hint)}</span>
                   </a>
                 </li>
               ))}
             </ul>
-            {visible.length === 0 ? <p className="text-sm text-text-muted">Sin resultados.</p> : null}
+            {visible.length === 0 ? (
+              <p className="text-sm text-text-muted">{t("cmd.empty")}</p>
+            ) : null}
           </div>
         </dialog>
       ) : null}

@@ -130,6 +130,21 @@ const es = {
   "shell.jobs": "Vacantes",
   "shell.privacy": "Privacidad",
   "shell.terms": "Términos",
+  "cmd.trigger": "Buscar sección…",
+  "cmd.aria": "Buscar sección",
+  "cmd.filter": "Filtrar secciones",
+  "cmd.empty": "Sin resultados.",
+  "cmd.hint.panel": "Resumen de la organización",
+  "cmd.hint.jobs": "Requisitos y etapas",
+  "cmd.hint.candidates": "Perfiles y evidencia",
+  "cmd.hint.pipeline": "Postulaciones por etapa",
+  "cmd.hint.documents": "Archivos privados",
+  "cmd.hint.assessment": "Criterios y brechas",
+  "cmd.hint.interviews": "Agenda y guiones",
+  "cmd.hint.agents": "Ejecuciones y traza",
+  "cmd.hint.automations": "Reglas y aprobaciones",
+  "cmd.hint.integrations": "Adaptadores y entregas",
+  "cmd.hint.analytics": "Métricas del proceso",
 };
 
 const en: typeof es = {
@@ -249,6 +264,21 @@ const en: typeof es = {
   "shell.jobs": "Jobs",
   "shell.privacy": "Privacy",
   "shell.terms": "Terms",
+  "cmd.trigger": "Search section…",
+  "cmd.aria": "Search section",
+  "cmd.filter": "Filter sections",
+  "cmd.empty": "No results.",
+  "cmd.hint.panel": "Organization overview",
+  "cmd.hint.jobs": "Requirements and stages",
+  "cmd.hint.candidates": "Profiles and evidence",
+  "cmd.hint.pipeline": "Applications by stage",
+  "cmd.hint.documents": "Private files",
+  "cmd.hint.assessment": "Criteria and gaps",
+  "cmd.hint.interviews": "Schedule and scripts",
+  "cmd.hint.agents": "Runs and trace",
+  "cmd.hint.automations": "Rules and approvals",
+  "cmd.hint.integrations": "Adapters and deliveries",
+  "cmd.hint.analytics": "Process metrics",
 };
 
 const messages: Record<Locale, typeof es> = { es, en };
