@@ -1086,3 +1086,7 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 2026-11-27 | 16-36 | `01075ea` | `45942842954` | Metadatos OpenGraph/Twitter y JSON-LD con `<` escapado. |
 | 2026-11-27 | 16-12 | `008d2ce` | `45943801440` | Escaneo de secretos en archivos versionados, sin dependencias nuevas. |
 | 2026-11-27 | 16-40 | `dff215d` | `45946044427` | Seed/reset de demo sintética; idempotente y limitado a `local`/`test`. |
+| 2026-11-27 | 16-12/32/33/36/40 | `0e1bbc3` | `45946928309` | Estados, evidencia y checklist de seguridad sincronizados. |
+| 2026-11-27 | 16-06 | `9835bbe` | `45947918916` | Panel de vacantes traducido; `tsc`/`lint`/121 tests/`build`/E2E OK. |
+| 2026-11-27 | — | `6e8bd7a` | `45948670139` | Reglas generadas por `next dev` versionadas para árbol limpio. |
+| 2026-11-27 | 16-16 | `def051f` | `45949479351` | ADR-018: Google OIDC con PKCE y activación solo con env en `staging`/`production`. |
