@@ -93,7 +93,7 @@ export default function Home() {
   return (
     <div className="flex flex-col">
       <header className="border-b border-border-subtle bg-surface">
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+        <div className="mx-auto flex w-full max-w-[1440px] flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-10">
           <Link href="/" className="flex items-center gap-3 text-text">
             <span
               aria-hidden="true"
@@ -131,7 +131,7 @@ export default function Home() {
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-10">
         <section
           aria-labelledby="hero-heading"
           className="grid gap-14 py-20 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-center lg:py-28"
@@ -171,7 +171,7 @@ export default function Home() {
           <div className="space-y-4">
             <Image
               src="/hero-talentos.svg"
-              alt="Ilustración original: etapas de selección conectadas con evidencia y aprobación humana."
+              alt="Ilustración: dos personas revisan una postulación con evidencia y aprobación humana."
               width={720}
               height={420}
               className="h-auto w-full rounded-[1.75rem] border border-border-subtle bg-surface-muted"
@@ -210,18 +210,30 @@ export default function Home() {
         <dl className="grid gap-6 border-y border-border-subtle py-8 sm:grid-cols-3">
           <div className="space-y-1">
             <dt className="text-xs uppercase tracking-wider text-text-muted">{t("stats.evidence")}</dt>
-            <dd className="text-3xl font-semibold tracking-tight text-text">4</dd>
-            <p className="text-xs text-text-muted">{t("stats.evidenceDetail")}</p>
+            <dd className="text-3xl font-semibold tracking-tight text-text">
+              4
+              <span className="mt-1 block text-xs font-normal text-text-muted">
+                {t("stats.evidenceDetail")}
+              </span>
+            </dd>
           </div>
           <div className="space-y-1">
             <dt className="text-xs uppercase tracking-wider text-text-muted">{t("stats.human")}</dt>
-            <dd className="text-3xl font-semibold tracking-tight text-text">{t("stats.humanValue")}</dd>
-            <p className="text-xs text-text-muted">{t("stats.humanDetail")}</p>
+            <dd className="text-3xl font-semibold tracking-tight text-text">
+              {t("stats.humanValue")}
+              <span className="mt-1 block text-xs font-normal text-text-muted">
+                {t("stats.humanDetail")}
+              </span>
+            </dd>
           </div>
           <div className="space-y-1">
             <dt className="text-xs uppercase tracking-wider text-text-muted">{t("stats.automatic")}</dt>
-            <dd className="text-3xl font-semibold tracking-tight text-text">0</dd>
-            <p className="text-xs text-text-muted">{t("stats.automaticDetail")}</p>
+            <dd className="text-3xl font-semibold tracking-tight text-text">
+              0
+              <span className="mt-1 block text-xs font-normal text-text-muted">
+                {t("stats.automaticDetail")}
+              </span>
+            </dd>
           </div>
         </dl>
 
@@ -293,7 +305,7 @@ export default function Home() {
       </div>
 
       <footer className="border-t border-border-subtle bg-surface-muted">
-        <div className="mx-auto grid w-full max-w-6xl gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr] lg:px-8">
+        <div className="mx-auto grid w-full max-w-[1440px] gap-10 px-4 py-14 sm:px-6 md:grid-cols-[1.4fr_1fr] lg:px-10">
           <div className="space-y-3">
             <p className="text-sm font-semibold tracking-tight text-text">TalentOS</p>
             <p className="max-w-sm text-sm leading-relaxed text-text-muted">{t("footer.tagline")}</p>
@@ -306,19 +318,8 @@ export default function Home() {
               <li><Link href="/dashboard">{t("footer.dashboard")}</Link></li>
             </ul>
           </div>
-          <div className="space-y-3 text-sm">
-            <h2 className="font-semibold text-text">{t("footer.environment")}</h2>
-            <ul className="space-y-2 text-text-muted">
-              <li>
-                <a href="http://localhost:8000/health">/health</a>
-              </li>
-              <li>
-                <a href="http://localhost:8000/ready">/ready</a>
-              </li>
-            </ul>
-          </div>
         </div>
-        <div className="mx-auto w-full max-w-6xl px-4 pb-8 text-xs text-text-muted sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-[1440px] px-4 pb-8 text-xs text-text-muted sm:px-6 lg:px-10">
           <p>{t("footer.note")}</p>
         </div>
       </footer>
