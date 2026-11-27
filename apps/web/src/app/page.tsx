@@ -170,10 +170,10 @@ export default function Home() {
 
           <div className="space-y-4">
             <Image
-              src="/hero-talentos.svg"
+              src="/hero-talentos.jpg"
               alt="Ilustración: dos personas revisan una postulación con evidencia y aprobación humana."
-              width={720}
-              height={420}
+              width={1200}
+              height={896}
               className="h-auto w-full rounded-[1.75rem] border border-border-subtle bg-surface-muted"
               priority
             />
