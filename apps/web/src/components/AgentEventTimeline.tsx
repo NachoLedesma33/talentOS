@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n } from "../lib/i18n";
 import type { AgentEvent } from "../lib/types";
 import { Card } from "./ui/shadcn/card";
 import {
@@ -68,34 +69,33 @@ export function AgentEventTimeline({
   events: AgentEvent[];
   loading?: boolean;
 }) {
+  const { t } = useI18n();
   return (
     <section aria-labelledby="agent-events-heading" aria-busy={loading} className="space-y-2">
       <div className="space-y-1">
         <h3 id="agent-events-heading" className="text-base font-semibold">
-          Traza de la ejecución
+          {t("agentEvent.title")}
         </h3>
         <p aria-live="polite" className="text-sm text-text-muted">
           {loading
-            ? "Cargando eventos…"
-            : `${events.length} evento${events.length === 1 ? "" : "s"} registrado${events.length === 1 ? "" : "s"}.`}
+            ? t("agentEvent.loading")
+            : `${events.length} ${t(events.length === 1 ? "runTimeline.eventSingular" : "runTimeline.eventPlural")} ${t(events.length === 1 ? "runTimeline.registeredSingular" : "runTimeline.registeredPlural")}.`}
         </p>
       </div>
 
       {!loading && events.length === 0 ? (
         <Card className="bg-secondary p-3 text-sm text-text-muted">
-          Todavía no hay eventos para esta ejecución.
+          {t("runTimeline.eventsEmpty")}
         </Card>
       ) : (
         <Table className="rounded-md border border-border">
-          <TableCaption className="sr-only">
-            Eventos de la ejecución con metadatos saneados
-          </TableCaption>
+          <TableCaption className="sr-only">{t("agentEvent.caption")}</TableCaption>
           <TableHeader className="bg-surface-muted text-xs uppercase tracking-wide text-text-muted">
             <TableRow>
-              <TableHead scope="col" className="px-3 py-2 font-semibold">Tipo</TableHead>
-              <TableHead scope="col" className="px-3 py-2 font-semibold">Fecha UTC</TableHead>
-              <TableHead scope="col" className="px-3 py-2 font-semibold">Correlación</TableHead>
-              <TableHead scope="col" className="px-3 py-2 font-semibold">Detalle saneado</TableHead>
+              <TableHead scope="col" className="px-3 py-2 font-semibold">{t("runTimeline.column.type")}</TableHead>
+              <TableHead scope="col" className="px-3 py-2 font-semibold">{t("runTimeline.column.dateUtc")}</TableHead>
+              <TableHead scope="col" className="px-3 py-2 font-semibold">{t("runTimeline.column.correlation")}</TableHead>
+              <TableHead scope="col" className="px-3 py-2 font-semibold">{t("agentEvent.detailColumn")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -129,7 +129,9 @@ export function AgentEventTimeline({
                       </code>
                     ) : null}
                     {extra.length === 0 && DETAIL_KEYS.every((key) => payload[key] === undefined) ? (
-                      <span className="text-xs text-text-muted">Sin metadatos adicionales.</span>
+                      <span className="text-xs text-text-muted">
+                        {t("runTimeline.noMetadata")}
+                      </span>
                     ) : null}
                   </TableCell>
                 </TableRow>
