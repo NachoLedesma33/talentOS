@@ -427,3 +427,52 @@ def test_requests_without_session_are_rejected_and_origin_is_checked(
     )
     assert foreign_origin.status_code == 403
     assert foreign_origin.json()["error"]["code"] == "forbidden"
+
+
+def test_export_is_tenant_scoped_limited_by_role_and_audited(
+    client: TestClient, seeded: dict[str, str], db: DBSession
+) -> None:
+    headers = _org_headers(seeded["org_a"])
+    own = _create_candidate(client, headers, email="export.candidates@example.test")
+    client.post(
+        f"{_CANDIDATES_URL}/{own['id']}/notes",
+        json={"body": "Synthetic export note"},
+        headers=headers,
+    )
+
+    _login(client, _OWNER_B)
+    foreign = _create_candidate(
+        client, _org_headers(seeded["org_b"]), email="foreign.export@example.test"
+    )
+    _login(client, _RECRUITER)
+
+    response = client.get(f"{_CANDIDATES_URL}/export", headers=headers)
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["schema_version"] == 1
+    assert payload["organization_id"] == seeded["org_a"]
+    assert [item["id"] for item in payload["candidates"]] == [own["id"]]
+    assert payload["candidates"][0]["email"] == "export.candidates@example.test"
+    assert [item["candidate_id"] for item in payload["notes"]] == [own["id"]]
+    assert payload["notes"][0]["body"] == "Synthetic export note"
+    assert payload["applications"] == []
+    assert payload["documents"] == []
+    assert foreign["id"] not in str(payload)
+    assert "foreign.export@example.test" not in str(payload)
+
+    event = db.scalar(
+        select(AuditLog).where(
+            AuditLog.organization_id == UUID(seeded["org_a"]),
+            AuditLog.action == "candidate.exported",
+        )
+    )
+    assert event is not None
+    assert event.actor_id == UUID(seeded["recruiter_id"])
+    assert event.resource_type == "organization"
+    assert event.resource_id == UUID(seeded["org_a"])
+
+    _login(client, _VIEWER)
+    denied = client.get(f"{_CANDIDATES_URL}/export", headers=headers)
+    assert denied.status_code == 403
+    assert denied.json()["error"]["code"] == "forbidden"
