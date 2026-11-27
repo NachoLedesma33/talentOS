@@ -404,6 +404,9 @@ describe("formularios de identidad", () => {
     fireEvent.change(screen.getByLabelText("Contraseña"), {
       target: { value: "SyntheticPass456" },
     });
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /Acepto la política de privacidad/i }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Crear cuenta y aceptar" }));
 
     await waitFor(() => {
@@ -417,6 +420,7 @@ describe("formularios de identidad", () => {
       name: "Nueva Usuaria",
       email: detail.email,
       password: "SyntheticPass456",
+      accept_privacy: true,
     });
   });
 
