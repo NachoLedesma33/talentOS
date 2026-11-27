@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
+import { useI18n } from "../lib/i18n";
 import type { Candidate, CandidateCreate } from "../lib/types";
 import { Button } from "./ui/shadcn/button";
 import { Input } from "./ui/shadcn/input";
@@ -15,6 +16,7 @@ function describeError(error: unknown, fallback: string): string {
 }
 
 export function CandidateForm({ onCreated }: { onCreated?: (candidate: Candidate) => void }) {
+  const { t } = useI18n();
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,10 +41,10 @@ export function CandidateForm({ onCreated }: { onCreated?: (candidate: Candidate
         body: JSON.stringify(payload),
       });
       form.reset();
-      setMessage(`Candidato creado: ${candidate.name}.`);
+      setMessage(`${t("candidates.form.created")} ${candidate.name}.`);
       onCreated?.(candidate);
     } catch (cause) {
-      setError(describeError(cause, "No se pudo crear el candidato."));
+      setError(describeError(cause, t("candidates.form.error")));
     } finally {
       setSubmitting(false);
     }
@@ -50,10 +52,10 @@ export function CandidateForm({ onCreated }: { onCreated?: (candidate: Candidate
 
   return (
     <form onSubmit={handleSubmit} aria-busy={submitting} className="space-y-3">
-      <h3 className="text-sm font-semibold">Nuevo candidato</h3>
+      <h3 className="text-sm font-semibold">{t("candidates.form.new")}</h3>
       <div className="space-y-1">
         <Label htmlFor="candidate-name" className="block">
-          Nombre
+          {t("candidates.form.name")}
         </Label>
         <Input
           id="candidate-name"
@@ -66,7 +68,7 @@ export function CandidateForm({ onCreated }: { onCreated?: (candidate: Candidate
       </div>
       <div className="space-y-1">
         <Label htmlFor="candidate-email" className="block">
-          Correo electrónico
+          {t("candidates.form.email")}
         </Label>
         <Input
           id="candidate-email"
@@ -78,7 +80,7 @@ export function CandidateForm({ onCreated }: { onCreated?: (candidate: Candidate
       </div>
       <div className="space-y-1">
         <Label htmlFor="candidate-location" className="block">
-          Ubicación
+          {t("candidates.form.location")}
         </Label>
         <Input
           id="candidate-location"
@@ -88,7 +90,7 @@ export function CandidateForm({ onCreated }: { onCreated?: (candidate: Candidate
         />
       </div>
       <Button type="submit" disabled={submitting}>
-        {submitting ? "Creando candidato…" : "Crear candidato"}
+        {submitting ? t("candidates.form.creating") : t("candidates.form.create")}
       </Button>
       <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
         {error ? (
