@@ -517,3 +517,43 @@ def test_invalid_reset_logs_security_event_without_token(
     )
     assert event.request_id == response.headers["X-Request-ID"]
     assert "not-a-real-token" not in caplog.text
+
+
+def test_password_reset_events_logged_with_correlation_without_secrets(
+    client: TestClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    assert _register(client).status_code == 201
+    caplog.clear()
+
+    with caplog.at_level(logging.INFO, logger="talentos"):
+        forgot = client.post(
+            "/api/v1/auth/forgot-password",
+            json={"email": _EMAIL},
+            headers={"X-Correlation-ID": "corr-recovery"},
+        )
+        token = forgot.json()["dev_token"]
+        reset = client.post(
+            "/api/v1/auth/reset-password",
+            json={"token": token, "password": "NewSyntheticPass456"},
+            headers={"X-Correlation-ID": "corr-recovery"},
+        )
+
+    assert forgot.status_code == 200
+    assert reset.status_code == 200
+    requested = next(
+        record
+        for record in caplog.records
+        if record.getMessage() == "auth_password_reset_requested"
+    )
+    succeeded = next(
+        record
+        for record in caplog.records
+        if record.getMessage() == "auth_password_reset_succeeded"
+    )
+    assert requested.request_id == forgot.headers["X-Request-ID"]
+    assert requested.correlation_id == "corr-recovery"
+    assert succeeded.request_id == reset.headers["X-Request-ID"]
+    assert succeeded.correlation_id == "corr-recovery"
+    assert _EMAIL not in caplog.text
+    assert token not in caplog.text
+    assert "NewSyntheticPass456" not in caplog.text

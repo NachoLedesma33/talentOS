@@ -40,11 +40,11 @@ OriginChecked = Annotated[None, Depends(verify_origin)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
-def _log_auth_event(request: Request, message: str) -> None:
+def _log_auth_event(request: Request, message: str, level: int = logging.WARNING) -> None:
     request_id = getattr(request.state, "request_id", None)
     correlation_id = getattr(request.state, "correlation_id", None)
     log_structured(
-        logging.WARNING,
+        level,
         message,
         request_id=str(request_id) if request_id else None,
         correlation_id=str(correlation_id) if correlation_id else None,
@@ -100,10 +100,12 @@ def login(
 def forgot_password(
     _origin: OriginChecked,
     payload: PasswordResetRequest,
+    request: Request,
     db: DbDependency,
 ) -> PasswordResetRequestResponse:
     settings = config.get_settings()
     token = request_password_reset(db, email=payload.email)
+    _log_auth_event(request, "auth_password_reset_requested", logging.INFO)
     return PasswordResetRequestResponse(
         message="Si el email existe, se generó una solicitud de recuperación.",
         dev_token=token if settings.APP_ENV != "production" else None,
@@ -125,6 +127,7 @@ def reset_password(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="El enlace de recuperación no es válido o expiró.",
         ) from None
+    _log_auth_event(request, "auth_password_reset_succeeded", logging.INFO)
     return MessageResponse(message="Contraseña actualizada.")
 
 
