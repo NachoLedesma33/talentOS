@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from fastapi.testclient import TestClient
 from httpx import Response
+from pydantic import BaseModel, ValidationError
 from sqlalchemy import Engine, create_engine, select
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy.pool import StaticPool
@@ -25,6 +26,7 @@ from app.identity.models import (
     User,
 )
 from app.identity.models import Session as UserSession
+from app.identity.schemas import MemberRoleUpdate, OrganizationCreate
 from app.identity.security import hash_token
 from app.main import app
 
@@ -424,3 +426,56 @@ def test_reset_password_rejects_short_password(client: TestClient) -> None:
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "validation_error"
+
+
+@pytest.mark.parametrize(
+    ("path", "payload"),
+    [
+        (
+            "/api/v1/auth/register",
+            {
+                "email": _EMAIL,
+                "password": _PASSWORD,
+                "name": _NAME,
+                "role": "owner",
+            },
+        ),
+        (
+            "/api/v1/auth/login",
+            {"email": _EMAIL, "password": _PASSWORD, "is_admin": True},
+        ),
+        ("/api/v1/auth/forgot-password", {"email": _EMAIL, "user_id": "synthetic"}),
+        (
+            "/api/v1/auth/reset-password",
+            {
+                "token": "synthetic-token",
+                "password": _PASSWORD,
+                "organization_id": "synthetic",
+            },
+        ),
+    ],
+)
+def test_auth_requests_reject_unknown_fields(
+    client: TestClient, path: str, payload: dict[str, object]
+) -> None:
+    response = client.post(path, json=payload)
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "validation_error"
+
+
+@pytest.mark.parametrize(
+    ("model", "payload"),
+    [
+        (
+            OrganizationCreate,
+            {"name": "Synthetic Org", "slug": "synthetic-org", "is_admin": True},
+        ),
+        (MemberRoleUpdate, {"role": "owner", "user_id": "synthetic"}),
+    ],
+)
+def test_identity_models_reject_unknown_fields(
+    model: type[BaseModel], payload: dict[str, object]
+) -> None:
+    with pytest.raises(ValidationError):
+        model.model_validate(payload)

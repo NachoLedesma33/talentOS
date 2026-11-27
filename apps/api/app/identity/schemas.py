@@ -11,7 +11,7 @@ from app.identity.security import MAX_PASSWORD_BYTES
 
 
 class _InputModel(BaseModel):
-    model_config = ConfigDict(str_strip_whitespace=True)
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     @field_validator("email", mode="before", check_fields=False)
     @classmethod
@@ -65,7 +65,7 @@ class MeResponse(UserResponse):
 
 
 class OrganizationCreate(BaseModel):
-    model_config = ConfigDict(str_strip_whitespace=True)
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
     name: str = Field(min_length=1, max_length=200)
     slug: str = Field(
@@ -88,6 +88,8 @@ class MemberInvite(_InputModel):
 
 
 class MemberRoleUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     role: MembershipRole
 
 
