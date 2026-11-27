@@ -4,6 +4,16 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  .paper-texture {
+    background-color: var(--color-surface);
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(11, 92, 173, 0.035), transparent 45%),
+      repeating-linear-gradient(0deg, rgba(27, 36, 48, 0.022) 0 1px, transparent 1px 4px),
+      repeating-linear-gradient(90deg, rgba(27, 36, 48, 0.018) 0 1px, transparent 1px 4px);
+  }
+}
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
