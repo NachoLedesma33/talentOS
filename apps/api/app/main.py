@@ -7,7 +7,7 @@ from collections.abc import Awaitable, Callable
 from fastapi import FastAPI, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.routes import (
@@ -32,7 +32,14 @@ from app.core.logging import configure_logging, log_structured
 settings = get_settings()
 configure_logging(settings.LOG_LEVEL)
 
-app = FastAPI(title=settings.APP_NAME, version="0.1.0")
+_production = settings.APP_ENV == "production"
+app = FastAPI(
+    title=settings.APP_NAME,
+    version="0.1.0",
+    docs_url=None if _production else "/docs",
+    redoc_url=None if _production else "/redoc",
+    openapi_url=None if _production else "/openapi.json",
+)
 
 # CORS explícito para el origen web; sin "*" porque la sesión usa cookies.
 app.add_middleware(
@@ -75,7 +82,34 @@ async def request_context_middleware(
     request.state.correlation_id = correlation_id
     request.state.organization_id = organization_id
 
-    response = await call_next(request)
+    response_headers = {
+        "X-Content-Type-Options": "nosniff",
+        "X-Frame-Options": "DENY",
+        "Referrer-Policy": "no-referrer",
+        "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    }
+    if settings.APP_ENV == "production":
+        response_headers["Content-Security-Policy"] = (
+            "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+        )
+        forwarded = request.headers.get("x-forwarded-proto", "").split(",", 1)[0]
+        scheme = forwarded.strip().lower() or request.url.scheme.lower()
+        if scheme != "https":
+            location = f"https://{request.url.netloc}{request.url.path}"
+            if request.url.query:
+                location = f"{location}?{request.url.query}"
+            response: Response = RedirectResponse(
+                url=location, status_code=status.HTTP_307_TEMPORARY_REDIRECT
+            )
+        else:
+            response_headers["Strict-Transport-Security"] = (
+                "max-age=31536000; includeSubDomains"
+            )
+            response = await call_next(request)
+    else:
+        response = await call_next(request)
+
+    response.headers.update(response_headers)
     response.headers["X-Request-ID"] = request_id
     if correlation_id:
         response.headers["X-Correlation-ID"] = correlation_id

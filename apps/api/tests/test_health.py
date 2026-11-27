@@ -5,6 +5,7 @@ from collections.abc import Iterator
 import pytest
 from fastapi.testclient import TestClient
 
+from app import main as main_module
 from app.api.routes import health as health_routes
 from app.core.config import Settings, get_settings
 from app.main import app
@@ -135,3 +136,45 @@ def test_request_id_generated_and_propagated(client: TestClient) -> None:
 
     propagated = client.get("/health", headers={"X-Request-ID": "req-from-caller"})
     assert propagated.headers["X-Request-ID"] == "req-from-caller"
+
+
+def test_security_headers_present_in_non_production(client: TestClient) -> None:
+    response = client.get("/health")
+
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["X-Frame-Options"] == "DENY"
+    assert response.headers["Referrer-Policy"] == "no-referrer"
+    assert response.headers["Permissions-Policy"] == "camera=(), microphone=(), geolocation=()"
+    assert "Strict-Transport-Security" not in response.headers
+    assert "Content-Security-Policy" not in response.headers
+
+
+def test_production_redirects_http_to_https(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(main_module, "settings", Settings(APP_ENV="production"))
+
+    response = client.get("/health?probe=1", follow_redirects=False)
+
+    assert response.status_code == 307
+    assert response.headers["location"] == "https://testserver/health?probe=1"
+    assert response.headers["X-Request-ID"]
+    assert (
+        response.headers["Content-Security-Policy"]
+        == "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+    )
+    assert "Strict-Transport-Security" not in response.headers
+
+
+def test_production_trusts_forwarded_proto_for_hsts(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(main_module, "settings", Settings(APP_ENV="production"))
+
+    response = client.get(
+        "/health", headers={"X-Forwarded-Proto": "https, http"}, follow_redirects=False
+    )
+
+    assert response.status_code == 200
+    assert response.headers["Strict-Transport-Security"] == "max-age=31536000; includeSubDomains"
+    assert response.headers["Content-Security-Policy"]
