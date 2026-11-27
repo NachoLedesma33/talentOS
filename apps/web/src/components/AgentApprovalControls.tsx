@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
+import { useI18n } from "../lib/i18n";
 import type {
   AgentApprovalDecision,
   AgentResumeResponse,
@@ -16,20 +17,23 @@ import { Select } from "./ui/shadcn/select";
 
 type Decision = AgentApprovalDecision["decision"];
 
-function describeError(cause: unknown): string {
+function describeError(cause: unknown, t: (key: "approval.error" | "approval.brokerError") => string): string {
   if (cause instanceof ApiError) {
     if (cause.code === "broker_unavailable") {
-      return "broker no disponible, sin cambios.";
+      return t("approval.brokerError");
     }
     return `${cause.status}: ${cause.message}`;
   }
-  return "No se pudo completar la acción.";
+  return t("approval.error");
 }
 
-function decisionLabel(decision: Decision | Approval["status"]): string {
-  if (decision === "approved") return "aprobada";
-  if (decision === "rejected") return "rechazada";
-  return "pendiente";
+function decisionLabel(
+  decision: Decision | Approval["status"],
+  t: (key: "approval.decision.pending" | "approval.decision.approved" | "approval.decision.rejected") => string,
+): string {
+  if (decision === "approved") return t("approval.decision.approved");
+  if (decision === "rejected") return t("approval.decision.rejected");
+  return t("approval.decision.pending");
 }
 
 export function AgentApprovalControls({
@@ -43,6 +47,7 @@ export function AgentApprovalControls({
   onRunChange?: (run: AgentRun) => void;
   onRefresh?: () => Promise<void> | void;
 }) {
+  const { t } = useI18n();
   const [selections, setSelections] = useState<Record<string, Decision>>({});
   const [confirmed, setConfirmed] = useState<Record<string, Decision>>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
@@ -75,10 +80,10 @@ export function AgentApprovalControls({
       );
       setConfirmed((current) => ({ ...current, [approval.id]: decision }));
       onRunChange?.(updated);
-      setNotice(`Decisión registrada: ${decisionLabel(decision)}.`);
+      setNotice(`${t("approval.decisionRecorded")}${decisionLabel(decision, t)}.`);
       await onRefresh?.();
     } catch (cause) {
-      setError(describeError(cause));
+      setError(describeError(cause, t));
     } finally {
       setBusy(null);
     }
@@ -95,13 +100,11 @@ export function AgentApprovalControls({
         { method: "POST" },
       );
       setNotice(
-        result.queued
-          ? "Reanudación encolada (queued). El estado final lo confirma el servidor."
-          : "Reanudación solicitada; sin confirmación de encolado.",
+        result.queued ? t("approval.resumeQueued") : t("approval.resumeRequested"),
       );
       await onRefresh?.();
     } catch (cause) {
-      setError(describeError(cause));
+      setError(describeError(cause, t));
     } finally {
       setBusy(null);
     }
@@ -109,7 +112,7 @@ export function AgentApprovalControls({
 
   async function cancel() {
     if (!runId || isBusy) return;
-    if (!window.confirm("¿Cancelar la ejecución? Esta acción no se puede deshacer.")) return;
+    if (!window.confirm(t("approval.cancelConfirm"))) return;
 
     setBusy("cancel");
     setError(null);
@@ -120,10 +123,10 @@ export function AgentApprovalControls({
         { method: "POST" },
       );
       onRunChange?.(updated);
-      setNotice("Ejecución cancelada.");
+      setNotice(t("approval.cancelled"));
       await onRefresh?.();
     } catch (cause) {
-      setError(describeError(cause));
+      setError(describeError(cause, t));
     } finally {
       setBusy(null);
     }
@@ -133,15 +136,13 @@ export function AgentApprovalControls({
     <section aria-labelledby="agent-approvals-heading" aria-busy={isBusy} className="space-y-3">
       <div className="space-y-1">
         <h3 id="agent-approvals-heading" className="text-base font-semibold">
-          Aprobaciones humanas
+          {t("approval.title")}
         </h3>
-        <p className="text-sm text-text-muted">
-          Las decisiones se registran en el servidor; la reanudación requiere una decisión previa.
-        </p>
+        <p className="text-sm text-text-muted">{t("approval.noteAgent")}</p>
       </div>
 
       <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
-        {notice ?? (hasPersistedDecision ? "Decisión persistida disponible." : "Sin decisiones registradas.")}
+        {notice ?? (hasPersistedDecision ? t("approval.persisted") : t("approval.noDecisions"))}
       </p>
       {error ? (
         <Card role="alert" className="p-3 text-sm">
@@ -151,7 +152,7 @@ export function AgentApprovalControls({
 
       {approvals.length === 0 ? (
         <Card className="bg-secondary p-3 text-sm text-text-muted">
-          No hay aprobaciones para esta ejecución.
+          {t("approval.empty")}
         </Card>
       ) : (
         <ul className="space-y-3">
@@ -163,22 +164,24 @@ export function AgentApprovalControls({
                 <Card className="space-y-2 p-3">
                   <dl className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-text-muted">
                     <div>
-                      <dt className="inline font-semibold">Acción: </dt>
+                      <dt className="inline font-semibold">{t("approval.actionLabel")}</dt>
                       <dd className="inline">{approval.action_type}</dd>
                     </div>
                     <div>
-                      <dt className="inline font-semibold">Creada: </dt>
+                      <dt className="inline font-semibold">{t("approval.createdLabel")}</dt>
                       <dd className="inline">{approval.created_at}</dd>
                     </div>
                     <div>
-                      <dt className="inline font-semibold">Estado: </dt>
-                      <dd className="inline">{decisionLabel(current)}</dd>
+                      <dt className="inline font-semibold">{t("approval.statusLabel")}</dt>
+                      <dd className="inline">{decisionLabel(current, t)}</dd>
                     </div>
                   </dl>
 
                   {decided ? (
                     <p role="status" className="text-sm text-text-muted">
-                      Decisión registrada: {decisionLabel(current)}. No se puede repetir.
+                      {t("approval.decisionRecorded")}
+                      {decisionLabel(current, t)}
+                      {t("approval.cannotRepeat")}
                     </p>
                   ) : (
                     <form
@@ -187,7 +190,8 @@ export function AgentApprovalControls({
                     >
                       <div className="space-y-1">
                         <Label htmlFor={`approval-decision-${approval.id}`} className="block">
-                          Decisión para {approval.action_type}
+                          {t("approval.decisionFor")}
+                          {approval.action_type}
                         </Label>
                         <Select
                           id={`approval-decision-${approval.id}`}
@@ -200,13 +204,14 @@ export function AgentApprovalControls({
                           }
                           disabled={isBusy}
                         >
-                          <option value="approved">Aprobar envío</option>
-                          <option value="rejected">Rechazar y devolver a revisión</option>
+                          <option value="approved">{t("approval.approveSend")}</option>
+                          <option value="rejected">{t("approval.rejectReview")}</option>
                         </Select>
                       </div>
                       <div className="min-w-48 flex-1 space-y-1">
                         <Label htmlFor={`approval-note-${approval.id}`} className="block">
-                          Nota opcional para {approval.action_type}
+                          {t("approval.noteFor")}
+                          {approval.action_type}
                         </Label>
                         <Input
                           id={`approval-note-${approval.id}`}
@@ -224,9 +229,11 @@ export function AgentApprovalControls({
                       <Button
                         type="submit"
                         disabled={isBusy}
-                        aria-label={`Registrar decisión para ${approval.action_type}`}
+                        aria-label={`${t("approval.registerFor")}${approval.action_type}`}
                       >
-                        {busy === `decide:${approval.id}` ? "Registrando…" : "Registrar decisión"}
+                        {busy === `decide:${approval.id}`
+                          ? t("approval.registering")
+                          : t("approval.register")}
                       </Button>
                     </form>
                   )}
@@ -244,7 +251,7 @@ export function AgentApprovalControls({
           onClick={() => void resume()}
           disabled={isBusy || !hasPersistedDecision || !runId}
         >
-          {busy === "resume" ? "Encolando…" : "Reanudar ejecución"}
+          {busy === "resume" ? t("approval.resuming") : t("approval.resume")}
         </Button>
         <Button
           type="button"
@@ -252,10 +259,10 @@ export function AgentApprovalControls({
           onClick={() => void cancel()}
           disabled={isBusy || !runId}
         >
-          {busy === "cancel" ? "Cancelando…" : "Cancelar ejecución"}
+          {busy === "cancel" ? t("approval.cancelling") : t("approval.cancel")}
         </Button>
         {!hasPersistedDecision ? (
-          <p className="text-sm text-text-muted">Registra una decisión antes de reanudar.</p>
+          <p className="text-sm text-text-muted">{t("approval.resumeHint")}</p>
         ) : null}
       </div>
     </section>
