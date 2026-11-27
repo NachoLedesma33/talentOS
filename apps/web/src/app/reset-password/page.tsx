@@ -46,7 +46,7 @@ function ResetPasswordForm() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4 py-10">
+    <div className="flex min-h-[calc(100vh-4rem)] items-center justify-center px-4 py-10">
       <div className="w-full max-w-md space-y-4">
         <div className="space-y-1">
           <Link href="/" className="text-sm font-semibold tracking-tight">
@@ -145,7 +145,7 @@ function ResetPasswordForm() {
           </Link>
         </p>
       </div>
-    </main>
+    </div>
   );
 }
 
