@@ -1102,3 +1102,53 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 2026-11-27 | 16-06/UI polish | `200ca5a`, `848e972`, `5357251` | `46023858586`, `46026836911` | IntegrationsPanel y AutomationRulePanel traducidos; UI polish cerrado. |
 | 2026-11-27 | 16-03 | `2870178` | `46028725638` | Hero JPG propio; `naturalWidth=1200`, `naturalHeight=896`, sin console errors. |
 | 2026-11-27 | 16-46 | `ba9a305` | `46034226576` | Superadmin de demo con bandera persistida, seed por `TALENTOS_SUPERADMIN_PASSWORD`; elevación solo en `local`/`test`. |
+
+---
+
+# 27. Fase 17 — Asistente virtual de workspace (2026-11-27)
+
+**Estado:** `PLANNED`. **Origen:** petición del usuario 2026-11-27; `docs/decisions/ADR-020-asistente-virtual.md` aceptado. **RF:** `RF-ASSIST-001`. **Dependencia:** cierre de Fase 16 (`16-45`) con CI verde. No iniciar implementación antes de esa dependencia.
+
+## 27.1 Reglas del loop
+
+1. Misma disciplina de §26.1: ≤2 archivos por lote, gates reales, commit/push solo con CI verde y evidencia en tabla.
+2. Backend autoridad: `organization_id` de sesión; sin lectura entre cuentas; superadmin no amplía tenant.
+3. LLM solo en capa de agentes; salidas validadas con Pydantic; herramientas cerradas; sin SQL, shell, filesystem ni navegación arbitraria.
+4. Toda escritura queda como borrador o acción propuesta; aplicar requiere confirmación explícita; efectos externos requieren `Approval` resuelta.
+5. Sin dependencias nuevas sin ADR; demo usa `LLM_PROVIDER=mock` y datos sintéticos de la organización demo.
+
+## 27.2 Supuestos
+
+- Superadmin demo: `superadmin.demo@example.test`, membresía `viewer`; ve solo la organización activa.
+- Sin RAG, sin historial persistente y sin búsqueda semántica en este alcance.
+- Formularios permitidos: `job.create`, `candidate.create`, `assessment.criterion`, `interview.guide`, `automation.rule`, `message.draft`; campos sensibles quedan para la persona.
+- Acciones permitidas: `explain`, `navigate`, `fill_form`, `create_draft`, `request_approval`; fuera de allowlist → `unsupported_reason`.
+- Workflow `workspace_assistant`, versión `1.0.0`, con interrupt en `propose_actions`.
+- `RF-ASSIST-001` registrado en `TalentOS_SDD.md` §4.9; sin dependencias nuevas.
+
+## 27.3 Backlog y estado
+
+| Lote | Pedido | Unidad prevista | Estado | Evidencia |
+|---|---|---|---|---|
+| 17-01 | Roadmap y ADR | `TalentOS_ROADMAP.md`, `docs/decisions/ADR-020-asistente-virtual.md` | `IN_REVIEW` | ADR-020 aceptado; commit y CI pendientes. |
+| 17-02 | Contratos y schemas | `apps/api/app/agents/contracts.py`, `apps/api/tests/test_assistant_contracts.py` | `NOT_STARTED` | — |
+| 17-03 | Tools de lectura y capabilities | `apps/api/app/agents/tools.py`, `apps/api/tests/test_assistant_tools.py` | `NOT_STARTED` | Cross-tenant, roles, cotas e idempotencia. |
+| 17-04 | Workflow y LLM mock | `apps/api/app/agents/assistant.py`, `apps/api/tests/test_assistant_workflow.py` | `NOT_STARTED` | Validación, inyección y reintentos. |
+| 17-05 | Endpoint de mensajes y ack | `apps/api/app/api/routes/agents.py`, `apps/api/tests/test_assistant_api.py` | `NOT_STARTED` | `401`, `403`, `not_available`, ack sin efectos no confirmados. |
+| 17-06 | Panel UI y acciones | `apps/web/src/components/AssistantPanel.tsx`, `apps/web/tests/assistant_panel.test.tsx` | `NOT_STARTED` | Citas, `Aplicar`/`Descartar`, sin JS arbitrario. |
+| 17-07 | Integración en shell e i18n | `apps/web/src/components/WorkspaceShell.tsx`, `apps/web/src/lib/i18n.tsx` | `NOT_STARTED` | Panel visible en superficie permitida; textos `es`/`en`. |
+| 17-08 | Seed demo ampliado | `apps/api/scripts/seed_demo.py`, `apps/api/tests/test_demo_seed.py` | `NOT_STARTED` | Requisitos, evidencia, borradores, regla `draft` y aprobaciones. |
+| 17-09 | Evaluación con mock | `apps/api/tests/test_assistant_evaluations.py` | `NOT_STARTED` | Groundedness, off-scope, inyección, latencia y tokens. |
+| 17-10 | E2E y cierre | `apps/web/e2e/assistant.spec.ts`, `TalentOS_ROADMAP.md` | `NOT_STARTED` | `build` + E2E `CI=1`, `WEB_BASE_URL`, puerto libre `4346+`. |
+
+## 27.4 Criterios de cierre
+
+- Sin sesión → `401`; `resource_ref` de otra organización → `not_available` sin revelar existencia.
+- `viewer` puede explicar y navegar; escritura → `permission_denied`.
+- Toda cita pertenece al documento, candidato y organización del contexto.
+- `fill_form` pasa el schema de `form_id`; sin campos sensibles; sin confirmación no hay cambio de dominio.
+- Efecto externo queda `waiting_approval` hasta `Approval` resuelta.
+- Prompt injection no amplía tools, permisos ni rutas.
+- Misma `idempotency_key` no crea dos `AgentRun` ni dos borradores.
+- Logs y `AgentEvent.payload` sin contraseñas, tokens, emails completos ni CV completo.
+- Gates del lote en verde antes de marcar `DONE`; sin evidencia real, estado `IN_REVIEW`.
