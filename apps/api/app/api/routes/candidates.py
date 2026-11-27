@@ -103,6 +103,21 @@ def create_candidate(
         raise _http_error(exc) from None
 
 
+@router.get("/export")
+def export_candidates(
+    actor: CurrentUser,
+    active_organization: CurrentOrganization,
+    _member: NoteReader,
+    db: DbDependency,
+) -> dict[str, object]:
+    try:
+        return candidates_service.export_candidates(
+            db, organization_id=active_organization.id, actor_id=actor.id
+        )
+    except candidates_service.CandidatesDomainError as exc:
+        raise _http_error(exc) from None
+
+
 @router.get("/{candidate_id}", response_model=CandidateResponse)
 def get_candidate(
     candidate_id: uuid.UUID,

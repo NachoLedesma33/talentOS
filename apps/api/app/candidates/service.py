@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
+from enum import Enum
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session as DBSession
 
+from app.applications.models import Application
 from app.audit.models import AuditLog
 from app.audit.service import list_resource_events, record_audit
 from app.candidates.models import (
@@ -23,8 +27,10 @@ from app.candidates.repositories import (
 from app.candidates.repositories import (
     list_notes as list_note_rows,
 )
+from app.documents.models import Document
 
 MAX_NOTE_BODY_LENGTH = 2000
+MAX_EXPORT_CANDIDATES = 1000
 
 
 class CandidatesDomainError(Exception):
@@ -37,6 +43,10 @@ class CandidateValidationError(CandidatesDomainError):
 
 class CandidateNotFoundError(CandidatesDomainError):
     """El candidato no existe en la organización autenticada."""
+
+
+class CandidateExportTooLargeError(CandidatesDomainError):
+    """La organización supera el tope de candidatos exportables en una solicitud."""
 
 
 def _require_candidate(
@@ -199,3 +209,115 @@ def get_activity(
     return list_resource_events(
         db, organization_id, "candidate", candidate_id
     )
+
+
+def _export_value(value: object) -> object:
+    if isinstance(value, Enum):
+        return value.value
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, uuid.UUID):
+        return str(value)
+    return value
+
+
+def export_candidates(
+    db: DBSession, *, organization_id: uuid.UUID, actor_id: uuid.UUID
+) -> dict[str, object]:
+    """Exporta datos propios del tenant; audita el acceso sin registrar payload."""
+    total = count_candidate_rows(db, organization_id)
+    if total > MAX_EXPORT_CANDIDATES:
+        raise CandidateExportTooLargeError
+
+    candidates = list_candidate_rows(
+        db, organization_id, limit=MAX_EXPORT_CANDIDATES, offset=0
+    )
+    candidate_ids = {candidate.id for candidate in candidates}
+    notes = list(
+        db.scalars(
+            select(CandidateNote)
+            .join(Candidate, CandidateNote.candidate_id == Candidate.id)
+            .where(Candidate.organization_id == organization_id)
+            .order_by(CandidateNote.created_at, CandidateNote.id)
+        ).all()
+    )
+    applications = list(
+        db.scalars(
+            select(Application)
+            .where(Application.organization_id == organization_id)
+            .order_by(Application.created_at, Application.id)
+        ).all()
+    )
+    documents = list(
+        db.scalars(
+            select(Document)
+            .where(Document.organization_id == organization_id)
+            .order_by(Document.created_at, Document.id)
+        ).all()
+    )
+
+    record_audit(
+        db,
+        organization_id=organization_id,
+        actor_id=actor_id,
+        action="candidate.exported",
+        resource_type="organization",
+        resource_id=organization_id,
+    )
+    db.commit()
+
+    return {
+        "schema_version": 1,
+        "organization_id": str(organization_id),
+        "candidates": [
+            {
+                "id": str(candidate.id),
+                "name": candidate.name,
+                "email": candidate.email,
+                "location": candidate.location,
+                "profile_status": _export_value(candidate.profile_status),
+                "created_at": _export_value(candidate.created_at),
+                "updated_at": _export_value(candidate.updated_at),
+            }
+            for candidate in candidates
+        ],
+        "notes": [
+            {
+                "id": str(note.id),
+                "candidate_id": str(note.candidate_id),
+                "author_id": str(note.author_id),
+                "body": note.body,
+                "created_at": _export_value(note.created_at),
+                "updated_at": _export_value(note.updated_at),
+            }
+            for note in notes
+            if note.candidate_id in candidate_ids
+        ],
+        "applications": [
+            {
+                "id": str(application.id),
+                "candidate_id": str(application.candidate_id),
+                "job_id": str(application.job_id),
+                "stage": _export_value(application.stage),
+                "source": _export_value(application.source),
+                "created_at": _export_value(application.created_at),
+                "updated_at": _export_value(application.updated_at),
+            }
+            for application in applications
+            if application.candidate_id in candidate_ids
+        ],
+        "documents": [
+            {
+                "id": str(document.id),
+                "candidate_id": str(document.candidate_id),
+                "original_filename": document.original_filename,
+                "content_type": document.content_type,
+                "size_bytes": document.size_bytes,
+                "checksum_sha256": document.checksum_sha256,
+                "status": _export_value(document.status),
+                "created_at": _export_value(document.created_at),
+            }
+            for document in documents
+            if document.candidate_id in candidate_ids
+        ],
+    }
