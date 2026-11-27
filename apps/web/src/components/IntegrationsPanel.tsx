@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ApiError, apiFetch } from "../lib/api";
+import { useI18n, type MessageKey } from "../lib/i18n";
 import type {
   EmailApprovalStatus,
   EmailDeliveryStatus,
@@ -33,41 +34,41 @@ import {
 
 const PAGE_SIZE = 20;
 
-const PROVIDER_LABELS: Record<IntegrationProvider, string> = {
-  email_sandbox: "Correo sandbox",
-  webhook_outbound: "Webhook saliente",
-  webhook_inbound: "Webhook entrante",
+const PROVIDER_LABEL_KEYS: Record<IntegrationProvider, MessageKey> = {
+  email_sandbox: "integrations.provider.emailSandbox",
+  webhook_outbound: "integrations.provider.webhookOutbound",
+  webhook_inbound: "integrations.provider.webhookInbound",
 };
 
-const INTEGRATION_STATUS_LABELS: Record<IntegrationStatus, string> = {
-  active: "Activa",
-  disabled: "Desactivada",
+const INTEGRATION_STATUS_LABEL_KEYS: Record<IntegrationStatus, MessageKey> = {
+  active: "integrations.status.active",
+  disabled: "integrations.status.disabled",
 };
 
-const DELIVERY_STATUS_LABELS: Record<WebhookDeliveryStatus, string> = {
-  pending: "Pendiente",
-  sending: "Enviando",
-  delivered: "Entregada",
-  failed: "Fallida",
-  dead_letter: "Dead letter",
+const DELIVERY_STATUS_LABEL_KEYS: Record<WebhookDeliveryStatus, MessageKey> = {
+  pending: "integrations.delivery.pending",
+  sending: "integrations.delivery.sending",
+  delivered: "integrations.delivery.delivered",
+  failed: "integrations.delivery.failed",
+  dead_letter: "integrations.delivery.deadLetter",
 };
 
-const EMAIL_TEMPLATE_LABELS: Record<EmailTemplate, string> = {
-  initial_contact: "Contacto inicial",
-  interview_invite: "Invitación a entrevista",
-  follow_up: "Seguimiento",
+const EMAIL_TEMPLATE_LABEL_KEYS: Record<EmailTemplate, MessageKey> = {
+  initial_contact: "integrations.template.initialContact",
+  interview_invite: "integrations.template.interviewInvite",
+  follow_up: "integrations.template.followUp",
 };
 
-const APPROVAL_LABELS: Record<EmailApprovalStatus, string> = {
-  pending: "Pendiente",
-  approved: "Aprobado",
-  rejected: "Rechazado",
+const APPROVAL_LABEL_KEYS: Record<EmailApprovalStatus, MessageKey> = {
+  pending: "integrations.approval.pending",
+  approved: "integrations.approval.approved",
+  rejected: "integrations.approval.rejected",
 };
 
-const DELIVERY_LABELS: Record<EmailDeliveryStatus, string> = {
-  not_sent: "Sin enviar",
-  sent: "Enviado",
-  failed: "Fallido",
+const DELIVERY_LABEL_KEYS: Record<EmailDeliveryStatus, MessageKey> = {
+  not_sent: "integrations.emailDelivery.notSent",
+  sent: "integrations.emailDelivery.sent",
+  failed: "integrations.emailDelivery.failed",
 };
 
 type DraftAction = "approve" | "reject" | "send";
@@ -79,12 +80,12 @@ function describeError(cause: unknown, fallback: string): string {
   return fallback;
 }
 
-function busyText(busy: string | null): string | null {
+function busyText(busy: string | null, t: (key: MessageKey) => string): string | null {
   if (!busy) return null;
-  if (busy.startsWith("delivery:")) return "Reintentando entrega…";
-  if (busy.startsWith("draft:approve:")) return "Aprobando borrador…";
-  if (busy.startsWith("draft:reject:")) return "Rechazando borrador…";
-  if (busy.startsWith("draft:send:")) return "Solicitando envío…";
+  if (busy.startsWith("delivery:")) return t("integrations.busyRetryDelivery");
+  if (busy.startsWith("draft:approve:")) return t("integrations.busyApproveDraft");
+  if (busy.startsWith("draft:reject:")) return t("integrations.busyRejectDraft");
+  if (busy.startsWith("draft:send:")) return t("integrations.busySendDraft");
   return null;
 }
 
@@ -115,6 +116,7 @@ function requestDrafts(integrationId: string): Promise<EmailDraftList> {
 }
 
 export function IntegrationsPanel() {
+  const { t } = useI18n();
   const [statusFilter, setStatusFilter] = useState<IntegrationStatus | "all">("all");
   const [offset, setOffset] = useState(0);
   const [list, setList] = useState<IntegrationList | null>(null);
@@ -145,7 +147,7 @@ export function IntegrationsPanel() {
       setList(await requestIntegrationList(nextStatus, nextOffset));
       setOffset(nextOffset);
     } catch (cause) {
-      setError(describeError(cause, "No se pudo cargar el listado de integraciones."));
+      setError(describeError(cause, t("integrations.errorList")));
     } finally {
       setListLoading(false);
     }
@@ -159,7 +161,7 @@ export function IntegrationsPanel() {
       },
       (cause: unknown) => {
         if (active) {
-          setError(describeError(cause, "No se pudo cargar el listado de integraciones."));
+          setError(describeError(cause, t("integrations.errorList")));
         }
       },
     ).finally(() => {
@@ -168,7 +170,7 @@ export function IntegrationsPanel() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [t]);
 
   async function selectIntegration(integration: IntegrationSummary): Promise<void> {
     if (busy) return;
@@ -183,7 +185,7 @@ export function IntegrationsPanel() {
     const wantsDeliveries = integration.provider === "webhook_outbound";
     const wantsDrafts = integration.provider === "email_sandbox";
     if (!wantsDeliveries && !wantsDrafts) {
-      setNotice("Este proveedor no expone entregas salientes ni borradores de correo.");
+      setNotice(t("integrations.errorSelect"));
       return;
     }
 
@@ -192,14 +194,14 @@ export function IntegrationsPanel() {
       try {
         setDeliveries((await requestDeliveries(integration.id)).items);
       } catch (cause) {
-        setDeliveriesError(describeError(cause, "No se pudo cargar las entregas salientes."));
+        setDeliveriesError(describeError(cause, t("integrations.errorDeliveries")));
       }
     }
     if (wantsDrafts) {
       try {
         setDrafts((await requestDrafts(integration.id)).items);
       } catch (cause) {
-        setDraftsError(describeError(cause, "No se pudo cargar los borradores de correo."));
+        setDraftsError(describeError(cause, t("integrations.errorDrafts")));
       }
     }
     setDetailLoading(false);
@@ -218,9 +220,9 @@ export function IntegrationsPanel() {
       setDeliveries((current) =>
         current?.map((item) => (item.id === updated.id ? updated : item)) ?? null,
       );
-      setNotice("Reintento encolado. El estado final lo confirma el servidor.");
+      setNotice(t("integrations.retryQueued"));
     } catch (cause) {
-      setActionError(describeError(cause, "No se pudo solicitar el reintento."));
+      setActionError(describeError(cause, t("integrations.errorRetry")));
     } finally {
       setBusy(null);
     }
@@ -241,15 +243,15 @@ export function IntegrationsPanel() {
       );
       setNotice(
         action === "approve"
-          ? "Borrador aprobado. No se envió."
+          ? t("integrations.draftApproved")
           : action === "reject"
-            ? "Borrador rechazado. Sin envío."
+            ? t("integrations.draftRejected")
             : updated.delivery_status === "sent"
-              ? "Borrador enviado."
-              : "Solicitud de envío registrada; revisa el estado devuelto.",
+              ? t("integrations.draftSent")
+              : t("integrations.draftSendRequested"),
       );
     } catch (cause) {
-      setActionError(describeError(cause, "No se pudo completar la acción sobre el borrador."));
+      setActionError(describeError(cause, t("integrations.errorDraftAction")));
     } finally {
       setBusy(null);
     }
@@ -259,27 +261,24 @@ export function IntegrationsPanel() {
     <section aria-labelledby="integrations-panel-heading" aria-busy={working} className="space-y-6">
       <div className="space-y-1">
         <h2 id="integrations-panel-heading" className="text-lg font-semibold">
-          Estado de integraciones
+          {t("integrations.heading")}
         </h2>
-        <p className="text-sm text-text-muted">
-          Metadatos y diagnóstico operativo. Las credenciales se cifran en el servidor y nunca se
-          muestran aquí; el alta y la rotación se hacen desde la API.
-        </p>
+        <p className="text-sm text-text-muted">{t("integrations.intro")}</p>
       </div>
 
       <p role="status" aria-live="polite" className="min-h-5 text-sm text-text-muted">
         {listLoading
-          ? "Cargando integraciones…"
+          ? t("integrations.loadingList")
           : detailLoading
-            ? "Cargando diagnóstico…"
-            : busyText(busy) ?? notice ?? ""}
+            ? t("integrations.loadingDiagnostics")
+            : busyText(busy, t) ?? notice ?? ""}
       </p>
 
       {error ? (
         <Card role="alert" className="space-y-2 p-3">
           <p className="text-sm">{error}</p>
           <Button type="button" variant="outline" size="sm" onClick={() => void loadList()}>
-            Reintentar
+            {t("integrations.retry")}
           </Button>
         </Card>
       ) : null}
@@ -293,7 +292,7 @@ export function IntegrationsPanel() {
       <div className="flex flex-wrap items-end gap-3">
         <div className="space-y-1">
           <Label htmlFor="integration-status-filter" className="block">
-            Filtrar por estado
+            {t("integrations.filterStatus")}
           </Label>
           <Select
             id="integration-status-filter"
@@ -305,28 +304,28 @@ export function IntegrationsPanel() {
             }}
             disabled={working}
           >
-            <option value="all">Todos</option>
-            <option value="active">Activa</option>
-            <option value="disabled">Desactivada</option>
+            <option value="all">{t("integrations.filterAll")}</option>
+            <option value="active">{t("integrations.status.active")}</option>
+            <option value="disabled">{t("integrations.status.disabled")}</option>
           </Select>
         </div>
         <Button type="button" variant="outline" onClick={() => void loadList()} disabled={working}>
-          Actualizar listado
+          {t("integrations.refresh")}
         </Button>
       </div>
 
       {list && list.items.length > 0 ? (
         <div className="space-y-2">
           <Table className="text-left">
-            <TableCaption className="sr-only">Integraciones de la organización activa</TableCaption>
+            <TableCaption className="sr-only">{t("integrations.tableCaption")}</TableCaption>
             <TableHeader>
               <TableRow className="border-b border-border text-left">
-                <TableHead scope="col" className="px-2 py-2 font-semibold">Proveedor</TableHead>
-                <TableHead scope="col" className="px-2 py-2 font-semibold">Estado</TableHead>
-                <TableHead scope="col" className="px-2 py-2 font-semibold">Versión de config.</TableHead>
-                <TableHead scope="col" className="px-2 py-2 font-semibold">ID de clave</TableHead>
-                <TableHead scope="col" className="px-2 py-2 font-semibold">Creada (UTC)</TableHead>
-                <TableHead scope="col" className="px-2 py-2 font-semibold">Actualizada (UTC)</TableHead>
+                <TableHead scope="col" className="px-2 py-2 font-semibold">{t("integrations.colProvider")}</TableHead>
+                <TableHead scope="col" className="px-2 py-2 font-semibold">{t("integrations.colStatus")}</TableHead>
+                <TableHead scope="col" className="px-2 py-2 font-semibold">{t("integrations.colConfigVersion")}</TableHead>
+                <TableHead scope="col" className="px-2 py-2 font-semibold">{t("integrations.colKeyId")}</TableHead>
+                <TableHead scope="col" className="px-2 py-2 font-semibold">{t("integrations.colCreated")}</TableHead>
+                <TableHead scope="col" className="px-2 py-2 font-semibold">{t("integrations.colUpdated")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -340,12 +339,12 @@ export function IntegrationsPanel() {
                       disabled={working}
                       onClick={() => void selectIntegration(item)}
                       aria-current={item.id === selected?.id ? "true" : undefined}
-                      aria-label={`Seleccionar integración ${item.provider}`}
+                      aria-label={`${t("integrations.selectAria")}${item.provider}`}
                     >
-                      {PROVIDER_LABELS[item.provider]} · <code>{item.provider}</code>
+                      {t(PROVIDER_LABEL_KEYS[item.provider])} · <code>{item.provider}</code>
                     </Button>
                   </TableCell>
-                  <TableCell className="px-2 py-2">{INTEGRATION_STATUS_LABELS[item.status]}</TableCell>
+                  <TableCell className="px-2 py-2">{t(INTEGRATION_STATUS_LABEL_KEYS[item.status])}</TableCell>
                   <TableCell className="px-2 py-2">{item.config_version}</TableCell>
                   <TableCell className="px-2 py-2"><code>{item.key_id}</code></TableCell>
                   <TableCell className="px-2 py-2">{item.created_at}</TableCell>
@@ -355,7 +354,9 @@ export function IntegrationsPanel() {
             </TableBody>
           </Table>
           <div className="flex flex-wrap items-center gap-3 text-sm text-text-muted">
-            <span>{`Página ${currentPage} de ${totalPages} · ${list.total} registros`}</span>
+            <span>
+              {`${t("integrations.page")}${currentPage}${t("integrations.of")}${totalPages} · ${list.total}${t("integrations.records")}`}
+            </span>
             <Button
               type="button"
               variant="outline"
@@ -367,7 +368,7 @@ export function IntegrationsPanel() {
                 void loadList(statusFilter, next);
               }}
             >
-              Página anterior
+              {t("integrations.prevPage")}
             </Button>
             <Button
               type="button"
@@ -380,14 +381,13 @@ export function IntegrationsPanel() {
                 void loadList(statusFilter, next);
               }}
             >
-              Página siguiente
+              {t("integrations.nextPage")}
             </Button>
           </div>
         </div>
       ) : list && !listLoading && !error ? (
         <Card className="bg-secondary p-3 text-sm text-text-muted">
-          No hay integraciones registradas. Configúralas desde la API; esta pantalla no pide ni
-          muestra credenciales.
+          {t("integrations.empty")}
         </Card>
       ) : null}
 
@@ -395,20 +395,20 @@ export function IntegrationsPanel() {
         <div className="space-y-6">
           <section aria-labelledby="integration-detail-heading" className="space-y-3">
             <h3 id="integration-detail-heading" className="text-base font-semibold">
-              {PROVIDER_LABELS[selected.provider]} · <code>{selected.provider}</code>
+              {t(PROVIDER_LABEL_KEYS[selected.provider])} · <code>{selected.provider}</code>
             </h3>
             <Card className="p-3 text-sm">
               <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
               <div>
-                <dt className="text-xs font-semibold text-text-muted">Estado: </dt>
-                <dd className="inline">{INTEGRATION_STATUS_LABELS[selected.status]}</dd>
+                <dt className="text-xs font-semibold text-text-muted">{t("integrations.detailStatus")}</dt>
+                <dd className="inline">{t(INTEGRATION_STATUS_LABEL_KEYS[selected.status])}</dd>
               </div>
               <div>
-                <dt className="text-xs font-semibold text-text-muted">Versión de config.: </dt>
+                <dt className="text-xs font-semibold text-text-muted">{t("integrations.detailConfigVersion")}</dt>
                 <dd className="inline">{selected.config_version}</dd>
               </div>
                 <div>
-                  <dt className="text-xs font-semibold text-text-muted">ID de clave: </dt>
+                  <dt className="text-xs font-semibold text-text-muted">{t("integrations.detailKeyId")}</dt>
                   <dd className="inline"><code>{selected.key_id}</code></dd>
                 </div>
               </dl>
@@ -418,7 +418,7 @@ export function IntegrationsPanel() {
           {selected.provider === "webhook_outbound" ? (
             <section aria-labelledby="deliveries-heading" className="space-y-2">
               <h3 id="deliveries-heading" className="text-base font-semibold">
-                Entregas salientes
+                {t("integrations.deliveries")}
               </h3>
               {deliveriesError ? (
                 <Card role="alert" className="p-3 text-sm">
@@ -427,23 +427,23 @@ export function IntegrationsPanel() {
               ) : null}
               {deliveries && deliveries.length > 0 ? (
                 <Table className="text-left text-sm">
-                  <TableCaption className="sr-only">Entregas salientes registradas</TableCaption>
+                  <TableCaption className="sr-only">{t("integrations.deliveriesCaption")}</TableCaption>
                   <TableHeader>
                     <TableRow className="border-b border-border text-left">
-                      <TableHead scope="col" className="px-2 py-2 font-semibold">Evento</TableHead>
-                      <TableHead scope="col" className="px-2 py-2 font-semibold">Estado</TableHead>
-                      <TableHead scope="col" className="px-2 py-2 font-semibold">Intentos</TableHead>
-                      <TableHead scope="col" className="px-2 py-2 font-semibold">Error</TableHead>
-                      <TableHead scope="col" className="px-2 py-2 font-semibold">HTTP</TableHead>
-                      <TableHead scope="col" className="px-2 py-2 font-semibold">Creada (UTC)</TableHead>
-                      <TableHead scope="col" className="px-2 py-2 font-semibold">Acción</TableHead>
+                      <TableHead scope="col" className="px-2 py-2 font-semibold">{t("integrations.colEvent")}</TableHead>
+                      <TableHead scope="col" className="px-2 py-2 font-semibold">{t("integrations.colStatus")}</TableHead>
+                      <TableHead scope="col" className="px-2 py-2 font-semibold">{t("integrations.colAttempts")}</TableHead>
+                      <TableHead scope="col" className="px-2 py-2 font-semibold">{t("integrations.colError")}</TableHead>
+                      <TableHead scope="col" className="px-2 py-2 font-semibold">{t("integrations.colHttp")}</TableHead>
+                      <TableHead scope="col" className="px-2 py-2 font-semibold">{t("integrations.colCreated")}</TableHead>
+                      <TableHead scope="col" className="px-2 py-2 font-semibold">{t("integrations.colAction")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {deliveries.map((delivery) => (
                       <TableRow key={delivery.id} className="border-b border-border">
                         <TableCell className="px-2 py-2"><code>{delivery.event_type}</code></TableCell>
-                        <TableCell className="px-2 py-2">{DELIVERY_STATUS_LABELS[delivery.status]}</TableCell>
+                        <TableCell className="px-2 py-2">{t(DELIVERY_STATUS_LABEL_KEYS[delivery.status])}</TableCell>
                         <TableCell className="px-2 py-2">{delivery.attempts}</TableCell>
                         <TableCell className="px-2 py-2">{delivery.last_error_code ?? "—"}</TableCell>
                         <TableCell className="px-2 py-2">{delivery.last_status_code ?? "—"}</TableCell>
@@ -454,11 +454,11 @@ export function IntegrationsPanel() {
                               type="button"
                               disabled={working}
                               onClick={() => void retryDelivery(delivery)}
-                              aria-label={`Reintentar entrega ${delivery.id}`}
+                              aria-label={`${t("integrations.retryDeliveryAria")}${delivery.id}`}
                               variant="outline"
                               size="sm"
                             >
-                              Reintentar
+                              {t("integrations.retry")}
                             </Button>
                           ) : (
                             "—"
@@ -470,7 +470,7 @@ export function IntegrationsPanel() {
                 </Table>
               ) : detailLoading ? null : (
                 <Card className="bg-secondary p-3 text-sm text-text-muted">
-                  No hay entregas salientes registradas.
+                  {t("integrations.emptyDeliveries")}
                 </Card>
               )}
             </section>
@@ -479,7 +479,7 @@ export function IntegrationsPanel() {
           {selected.provider === "email_sandbox" ? (
             <section aria-labelledby="drafts-heading" className="space-y-2">
               <h3 id="drafts-heading" className="text-base font-semibold">
-                Borradores de correo
+                {t("integrations.drafts")}
               </h3>
               {draftsError ? (
                 <Card role="alert" className="p-3 text-sm">
@@ -488,23 +488,23 @@ export function IntegrationsPanel() {
               ) : null}
               {drafts && drafts.length > 0 ? (
                 <Table className="text-left text-sm">
-                  <TableCaption className="sr-only">Borradores de correo sandbox</TableCaption>
+                  <TableCaption className="sr-only">{t("integrations.draftsCaption")}</TableCaption>
                   <TableHeader>
                     <TableRow className="border-b border-border text-left">
-                      <TableHead scope="col" className="px-2 py-2 font-semibold">Plantilla</TableHead>
-                      <TableHead scope="col" className="px-2 py-2 font-semibold">Aprobación</TableHead>
-                      <TableHead scope="col" className="px-2 py-2 font-semibold">Entrega</TableHead>
-                      <TableHead scope="col" className="px-2 py-2 font-semibold">Intentos</TableHead>
-                      <TableHead scope="col" className="px-2 py-2 font-semibold">Creado (UTC)</TableHead>
-                      <TableHead scope="col" className="px-2 py-2 font-semibold">Acciones</TableHead>
+                      <TableHead scope="col" className="px-2 py-2 font-semibold">{t("integrations.colTemplate")}</TableHead>
+                      <TableHead scope="col" className="px-2 py-2 font-semibold">{t("integrations.colApproval")}</TableHead>
+                      <TableHead scope="col" className="px-2 py-2 font-semibold">{t("integrations.colDelivery")}</TableHead>
+                      <TableHead scope="col" className="px-2 py-2 font-semibold">{t("integrations.colAttempts")}</TableHead>
+                      <TableHead scope="col" className="px-2 py-2 font-semibold">{t("integrations.colCreatedDraft")}</TableHead>
+                      <TableHead scope="col" className="px-2 py-2 font-semibold">{t("integrations.colActions")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {drafts.map((draft) => (
                       <TableRow key={draft.id} className="border-b border-border">
-                        <TableCell className="px-2 py-2">{EMAIL_TEMPLATE_LABELS[draft.template]}</TableCell>
-                        <TableCell className="px-2 py-2">{APPROVAL_LABELS[draft.approval_status]}</TableCell>
-                        <TableCell className="px-2 py-2">{DELIVERY_LABELS[draft.delivery_status]}</TableCell>
+                        <TableCell className="px-2 py-2">{t(EMAIL_TEMPLATE_LABEL_KEYS[draft.template])}</TableCell>
+                        <TableCell className="px-2 py-2">{t(APPROVAL_LABEL_KEYS[draft.approval_status])}</TableCell>
+                        <TableCell className="px-2 py-2">{t(DELIVERY_LABEL_KEYS[draft.delivery_status])}</TableCell>
                         <TableCell className="px-2 py-2">{draft.attempts}</TableCell>
                         <TableCell className="px-2 py-2">{draft.created_at}</TableCell>
                         <TableCell className="px-2 py-2">
@@ -515,21 +515,21 @@ export function IntegrationsPanel() {
                                   type="button"
                                   disabled={working}
                                   onClick={() => void decideDraft(draft, "approve")}
-                                  aria-label={`Aprobar borrador ${draft.id}`}
+                                  aria-label={`${t("integrations.approveDraftAria")}${draft.id}`}
                                   variant="outline"
                                   size="sm"
                                 >
-                                  Aprobar
+                                  {t("integrations.approve")}
                                 </Button>
                                 <Button
                                   type="button"
                                   disabled={working}
                                   onClick={() => void decideDraft(draft, "reject")}
-                                  aria-label={`Rechazar borrador ${draft.id}`}
+                                  aria-label={`${t("integrations.rejectDraftAria")}${draft.id}`}
                                   variant="outline"
                                   size="sm"
                                 >
-                                  Rechazar
+                                  {t("integrations.reject")}
                                 </Button>
                               </>
                             ) : null}
@@ -538,10 +538,10 @@ export function IntegrationsPanel() {
                                 type="button"
                                 disabled={working}
                                 onClick={() => void decideDraft(draft, "send")}
-                                aria-label={`Enviar borrador ${draft.id}`}
+                                aria-label={`${t("integrations.sendDraftAria")}${draft.id}`}
                                 size="sm"
                               >
-                                Enviar
+                                {t("integrations.send")}
                               </Button>
                             ) : null}
                           </div>
@@ -552,7 +552,7 @@ export function IntegrationsPanel() {
                 </Table>
               ) : detailLoading ? null : (
                 <Card className="bg-secondary p-3 text-sm text-text-muted">
-                  No hay borradores de correo registrados.
+                  {t("integrations.emptyDrafts")}
                 </Card>
               )}
             </section>
@@ -560,7 +560,7 @@ export function IntegrationsPanel() {
 
           {selected.provider === "webhook_inbound" ? (
             <Card className="bg-secondary p-3 text-sm text-text-muted">
-              Este proveedor sólo recibe eventos; no hay entregas salientes ni borradores que revisar.
+              {t("integrations.inboundNotice")}
             </Card>
           ) : null}
         </div>
