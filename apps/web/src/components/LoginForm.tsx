@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
+import { useI18n } from "../lib/i18n";
 import type { AuthResponse, LoginRequest } from "../lib/types";
 import { Button } from "./ui/shadcn/button";
 import { Input } from "./ui/shadcn/input";
@@ -11,6 +12,7 @@ import { Label } from "./ui/shadcn/label";
 type SubmitStatus = "idle" | "loading" | "success" | "error";
 
 export function LoginForm() {
+  const { t } = useI18n();
   const router = useRouter();
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [message, setMessage] = useState<string | null>(null);
@@ -31,13 +33,11 @@ export function LoginForm() {
         body: JSON.stringify(payload),
       });
       setStatus("success");
-      setMessage("Sesión iniciada. Redirigiendo al panel…");
+      setMessage(t("login.success"));
       router.push("/dashboard");
     } catch (error) {
       setStatus("error");
-      setMessage(
-        error instanceof ApiError ? error.message : "No se pudo iniciar sesión.",
-      );
+      setMessage(error instanceof ApiError ? error.message : t("login.error"));
     }
   }
 
@@ -45,7 +45,7 @@ export function LoginForm() {
     <form onSubmit={handleSubmit} aria-busy={status === "loading"} className="space-y-4">
       <div className="space-y-1">
         <Label htmlFor="login-email" className="block">
-          Correo electrónico
+          {t("login.email")}
         </Label>
         <Input
           id="login-email"
@@ -58,7 +58,7 @@ export function LoginForm() {
 
       <div className="space-y-1">
         <Label htmlFor="login-password" className="block">
-          Contraseña
+          {t("login.password")}
         </Label>
         <Input
           id="login-password"
@@ -70,7 +70,7 @@ export function LoginForm() {
       </div>
 
       <Button type="submit" disabled={status === "loading"}>
-        {status === "loading" ? "Iniciando sesión…" : "Iniciar sesión"}
+        {status === "loading" ? t("login.submitting") : t("login.submit")}
       </Button>
 
       <p
@@ -78,7 +78,7 @@ export function LoginForm() {
         role={status === "error" ? "alert" : undefined}
         className="min-h-5 text-sm text-text-muted"
       >
-        {status === "error" ? `Error: ${message}` : message}
+        {status === "error" ? `${t("login.errorPrefix")} ${message}` : message}
       </p>
     </form>
   );

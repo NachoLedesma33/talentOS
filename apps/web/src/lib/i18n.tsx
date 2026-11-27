@@ -340,6 +340,13 @@ const es = {
   "review.confirm": "Confirmar",
   "review.confirmed": "Confirmados",
   "review.pendingReview": "pendientes de revisión",
+  "login.email": "Correo electrónico",
+  "login.password": "Contraseña",
+  "login.submit": "Iniciar sesión",
+  "login.submitting": "Iniciando sesión…",
+  "login.success": "Sesión iniciada. Redirigiendo al panel…",
+  "login.error": "No se pudo iniciar sesión.",
+  "login.errorPrefix": "Error:",
 };
 
 const en: typeof es = {
@@ -669,6 +676,13 @@ const en: typeof es = {
   "review.confirm": "Confirm",
   "review.confirmed": "Confirmed",
   "review.pendingReview": "pending review",
+  "login.email": "Email",
+  "login.password": "Password",
+  "login.submit": "Sign in",
+  "login.submitting": "Signing in…",
+  "login.success": "Signed in. Redirecting to the dashboard…",
+  "login.error": "Could not sign in.",
+  "login.errorPrefix": "Error:",
 };
 
 const messages: Record<Locale, typeof es> = { es, en };
