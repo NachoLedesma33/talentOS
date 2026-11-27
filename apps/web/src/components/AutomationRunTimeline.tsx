@@ -1,5 +1,6 @@
 "use client";
 
+import { useI18n, type MessageKey } from "../lib/i18n";
 import type {
   AutomationRunEvent,
   AutomationRunMode,
@@ -41,19 +42,21 @@ const PUBLIC_PAYLOAD_KEYS = new Set([
   "to_stage",
 ]);
 
-const RUN_STATUS_LABELS: Record<AutomationRunStatus, string> = {
-  pending: "Pendiente",
-  running: "En curso",
-  waiting_approval: "Esperando aprobación",
-  completed: "Completada",
-  failed: "Fallida",
-  cancelled: "Cancelada",
-  timed_out: "Agotado por tiempo",
+type Translate = (key: MessageKey) => string;
+
+const RUN_STATUS_KEYS: Record<AutomationRunStatus, MessageKey> = {
+  pending: "runTimeline.status.pending",
+  running: "runTimeline.status.running",
+  waiting_approval: "runTimeline.status.waiting_approval",
+  completed: "runTimeline.status.completed",
+  failed: "runTimeline.status.failed",
+  cancelled: "runTimeline.status.cancelled",
+  timed_out: "runTimeline.status.timed_out",
 };
 
-const RUN_MODE_LABELS: Record<AutomationRunMode, string> = {
-  test: "Prueba",
-  live: "Real",
+const RUN_MODE_KEYS: Record<AutomationRunMode, MessageKey> = {
+  test: "runTimeline.mode.test",
+  live: "runTimeline.mode.live",
 };
 
 const SENSITIVE_VALUE = /@|https?:\/\/|www\.|\/private\/|sk-/i;
@@ -73,13 +76,13 @@ function formatDuration(run: AutomationRunSummary): string | null {
     : `${(milliseconds / 1000).toFixed(1)} s`;
 }
 
-function compact(value: unknown): string {
+function compact(value: unknown, t: Translate): string {
   const text = typeof value === "string" ? value : (JSON.stringify(value) ?? "");
-  if (SENSITIVE_VALUE.test(text)) return "[dato omitido]";
+  if (SENSITIVE_VALUE.test(text)) return t("runTimeline.redacted");
   return text.length > 200 ? `${text.slice(0, 200)}…` : text;
 }
 
-function safePayload(payload: Record<string, unknown>): Record<string, string> {
+function safePayload(payload: Record<string, unknown>, t: Translate): Record<string, string> {
   const result: Record<string, string> = {};
   for (const key of PUBLIC_PAYLOAD_KEYS) {
     if (
@@ -87,7 +90,7 @@ function safePayload(payload: Record<string, unknown>): Record<string, string> {
       payload[key] !== null &&
       payload[key] !== undefined
     ) {
-      result[key] = compact(payload[key]);
+      result[key] = compact(payload[key], t);
     }
   }
   return result;
@@ -108,16 +111,17 @@ export function AutomationRunTimeline({
   error?: string | null;
   onSelectRun?: (runId: string) => void;
 }) {
+  const { t } = useI18n();
   return (
     <section aria-labelledby="automation-timeline-heading" aria-busy={loading} className="space-y-4">
       <div className="space-y-1">
         <h3 id="automation-timeline-heading" className="text-base font-semibold">
-          Ejecuciones y traza
+          {t("runTimeline.title")}
         </h3>
         <p aria-live="polite" className="text-sm text-text-muted">
           {loading
-            ? "Cargando ejecuciones y eventos…"
-            : `${runs.length} ejecución${runs.length === 1 ? "" : "es"} · ${events.length} evento${events.length === 1 ? "" : "s"} registrado${events.length === 1 ? "" : "s"}.`}
+            ? t("runTimeline.loading")
+            : `${runs.length} ${t(runs.length === 1 ? "runTimeline.runSingular" : "runTimeline.runPlural")} · ${events.length} ${t(events.length === 1 ? "runTimeline.eventSingular" : "runTimeline.eventPlural")} ${t(events.length === 1 ? "runTimeline.registeredSingular" : "runTimeline.registeredPlural")}.`}
         </p>
       </div>
 
@@ -128,23 +132,23 @@ export function AutomationRunTimeline({
       ) : null}
 
       <div className="space-y-2">
-        <h4 className="text-sm font-semibold">Ejecuciones</h4>
+        <h4 className="text-sm font-semibold">{t("runTimeline.runsTitle")}</h4>
         {!loading && runs.length === 0 && !error ? (
           <Card className="bg-secondary p-3 text-sm text-text-muted">
-            No hay ejecuciones registradas para esta automatización.
+            {t("runTimeline.runsEmpty")}
           </Card>
         ) : (
           <Table className="border border-border text-left">
-            <TableCaption className="sr-only">Ejecuciones de la automatización</TableCaption>
+            <TableCaption className="sr-only">{t("runTimeline.runsCaption")}</TableCaption>
             <TableHeader className="bg-surface-muted text-xs uppercase tracking-wide text-text-muted">
               <TableRow>
-                <TableHead scope="col" className="px-3 py-2 font-semibold">Ejecución</TableHead>
-                <TableHead scope="col" className="px-3 py-2 font-semibold">Modo</TableHead>
-                <TableHead scope="col" className="px-3 py-2 font-semibold">Estado</TableHead>
-                <TableHead scope="col" className="px-3 py-2 font-semibold">Error</TableHead>
-                <TableHead scope="col" className="px-3 py-2 font-semibold">Creada UTC</TableHead>
-                <TableHead scope="col" className="px-3 py-2 font-semibold">Duración</TableHead>
-                <TableHead scope="col" className="px-3 py-2 font-semibold">Correlación</TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">{t("runTimeline.column.run")}</TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">{t("runTimeline.column.mode")}</TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">{t("runTimeline.column.status")}</TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">{t("runTimeline.column.error")}</TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">{t("runTimeline.column.createdUtc")}</TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">{t("runTimeline.column.duration")}</TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">{t("runTimeline.column.correlation")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -163,7 +167,7 @@ export function AutomationRunTimeline({
                           variant="outline"
                           size="sm"
                           onClick={() => onSelectRun(run.id)}
-                          aria-label={`Ver ejecución ${run.id}`}
+                          aria-label={`${t("runTimeline.viewRun")}${run.id}`}
                         >
                           {run.id} · v{run.version}
                         </Button>
@@ -171,8 +175,8 @@ export function AutomationRunTimeline({
                         <span>{run.id} · v{run.version}</span>
                       )}
                     </TableCell>
-                    <TableCell className="px-3 py-2">{RUN_MODE_LABELS[run.mode]}</TableCell>
-                    <TableCell className="px-3 py-2">{RUN_STATUS_LABELS[run.status]}</TableCell>
+                    <TableCell className="px-3 py-2">{t(RUN_MODE_KEYS[run.mode])}</TableCell>
+                    <TableCell className="px-3 py-2">{t(RUN_STATUS_KEYS[run.status])}</TableCell>
                     <TableCell className="px-3 py-2 text-text-muted">{run.error_code ?? "—"}</TableCell>
                     <TableCell className="whitespace-nowrap px-3 py-2 text-text-muted">
                       {formatUtc(run.created_at)}
@@ -188,25 +192,25 @@ export function AutomationRunTimeline({
       </div>
 
       <div className="space-y-2">
-        <h4 className="text-sm font-semibold">Eventos de la ejecución seleccionada</h4>
+        <h4 className="text-sm font-semibold">{t("runTimeline.eventsTitle")}</h4>
         {!loading && events.length === 0 && !error ? (
           <Card className="bg-secondary p-3 text-sm text-text-muted">
-            Todavía no hay eventos para esta ejecución.
+            {t("runTimeline.eventsEmpty")}
           </Card>
         ) : (
           <Table className="border border-border text-left">
-            <TableCaption className="sr-only">Eventos con payload saneado</TableCaption>
+            <TableCaption className="sr-only">{t("runTimeline.eventsCaption")}</TableCaption>
             <TableHeader className="bg-surface-muted text-xs uppercase tracking-wide text-text-muted">
               <TableRow>
-                <TableHead scope="col" className="px-3 py-2 font-semibold">Tipo</TableHead>
-                <TableHead scope="col" className="px-3 py-2 font-semibold">Fecha UTC</TableHead>
-                <TableHead scope="col" className="px-3 py-2 font-semibold">Correlación</TableHead>
-                <TableHead scope="col" className="px-3 py-2 font-semibold">Payload saneado</TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">{t("runTimeline.column.type")}</TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">{t("runTimeline.column.dateUtc")}</TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">{t("runTimeline.column.correlation")}</TableHead>
+                <TableHead scope="col" className="px-3 py-2 font-semibold">{t("runTimeline.column.safePayload")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {events.map((event, index) => {
-                const payload = safePayload(event.payload ?? {});
+                const payload = safePayload(event.payload ?? {}, t);
                 const keys = Object.keys(payload);
                 return (
                   <TableRow
@@ -220,7 +224,9 @@ export function AutomationRunTimeline({
                     <TableCell className="px-3 py-2 text-text-muted">{event.correlation_id}</TableCell>
                     <TableCell className="px-3 py-2">
                       {keys.length === 0 ? (
-                        <span className="text-xs text-text-muted">Sin metadatos adicionales.</span>
+                        <span className="text-xs text-text-muted">
+                          {t("runTimeline.noMetadata")}
+                        </span>
                       ) : (
                         <code className="block break-all text-xs text-text-muted">
                           {JSON.stringify(payload)}
