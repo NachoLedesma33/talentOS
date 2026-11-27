@@ -4,6 +4,7 @@ import importlib
 import logging
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -557,3 +558,64 @@ def test_password_reset_events_logged_with_correlation_without_secrets(
     assert _EMAIL not in caplog.text
     assert token not in caplog.text
     assert "NewSyntheticPass456" not in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("url", "payload"),
+    [
+        ("/api/v1/auth/register", {"email": _EMAIL, "password": _PASSWORD, "name": _NAME}),
+        ("/api/v1/auth/forgot-password", {"email": _EMAIL}),
+        ("/api/v1/auth/reset-password", {"token": "synthetic-token", "password": _PASSWORD}),
+    ],
+)
+def test_auth_forms_reject_declined_privacy_consent(
+    client: TestClient, url: str, payload: dict[str, str]
+) -> None:
+    response = client.post(url, json={**payload, "accept_privacy": False})
+
+    assert response.status_code == 422
+
+
+def test_deployed_environment_requires_explicit_privacy_consent(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        "app.identity.schemas.config",
+        SimpleNamespace(get_settings=lambda: SimpleNamespace(APP_ENV="production")),
+    )
+    payload = {"email": _EMAIL, "password": _PASSWORD, "name": _NAME}
+
+    omitted = client.post("/api/v1/auth/register", json=payload)
+    accepted = client.post("/api/v1/auth/register", json={**payload, "accept_privacy": True})
+
+    assert omitted.status_code == 422
+    assert accepted.status_code == 201
+
+
+def test_privacy_consent_is_logged_without_pii(
+    client: TestClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.clear()
+
+    with caplog.at_level(logging.INFO, logger="talentos"):
+        response = client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": _EMAIL,
+                "password": _PASSWORD,
+                "name": _NAME,
+                "accept_privacy": True,
+            },
+            headers={"X-Correlation-ID": "corr-consent"},
+        )
+
+    assert response.status_code == 201
+    event = next(
+        record
+        for record in caplog.records
+        if record.getMessage() == "auth_privacy_consent_accepted"
+    )
+    assert event.request_id == response.headers["X-Request-ID"]
+    assert event.correlation_id == "corr-consent"
+    assert _EMAIL not in caplog.text
+    assert _PASSWORD not in caplog.text
