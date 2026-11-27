@@ -29,7 +29,7 @@ TalentOS no decide contrataciones de forma automática, no infiere atributos pro
 
 ## 4. Base de tratamiento
 
-El tratamiento se limita a la relación contractual con la organización usuaria y a las instrucciones de sus administradores. Para datos de candidatos, la organización debe obtener consentimiento y definir procedencia y retención antes de usar la herramienta con información real. El formulario de registro y el alta de candidatos incorporarán este extremo en el lote 16-09 del roadmap.
+El tratamiento se limita a la relación contractual con la organización usuaria y a las instrucciones de sus administradores. Para datos de candidatos, la organización debe obtener consentimiento y definir procedencia y retención antes de usar la herramienta con información real; TalentOS no sustituye ese consentimiento. Los formularios de registro, invitación, recuperación y restablecimiento exigen `accept_privacy` con enlaces a esta política y a `docs/terms-of-service.md`. El backend rechaza `accept_privacy: false` y, en `staging`/`production`, exige el envío explícito del campo.
 
 ## 5. Acceso y aislamiento
 
@@ -61,9 +61,10 @@ El modo demo usa `LLM_PROVIDER=mock` y no envía datos a proveedores externos. S
 - Validación de extensión, MIME, firma real, tamaño y páginas en archivos subidos.
 - Defensas contra prompt injection, herramientas de agente acotadas y salidas validadas.
 - Logs estructurados sin datos personales innecesarios.
+- Consentimiento explícito en alta, invitación y recuperación; evento `auth_privacy_consent_accepted` sin PII.
 - Escaneo de dependencias en CI.
 
-Pendiente para producción: rate limit global HTTP, clave estable para URLs firmadas, HTTPS/HSTS verificados, consentimiento en formularios, política de retención de candidatos, backup/restauración y cierre de riesgos `RM-01`–`RM-05`.
+Pendiente para producción: rate limit global HTTP, clave estable para URLs firmadas, HTTPS/HSTS verificados, política de retención de candidatos, backup/restauración y cierre de riesgos `RM-01`–`RM-05`.
 
 ## 10. Derechos y solicitudes
 

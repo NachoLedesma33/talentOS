@@ -1023,7 +1023,7 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 16-06 | Idioma `es`/`en` + botón | módulo de textos + selector + `lang` | `IN_REVIEW` | Commits `5d52c7e`, `ddf10aa`, `4a8a850`, `dd798b1`, `8008b9e`; CI `45937828805` success; landing, shell, encabezado de panel y menú de comandos traducidos; faltan paneles de negocio. |
 | 16-07 | Política de privacidad | `docs/privacy-policy.md` | `DONE` | Commit `4a8a850`; CI `45911085332` success; enlace en footer del workspace. |
 | 16-08 | Términos y condiciones | `docs/terms-of-service.md` | `DONE` | Commit `4a8a850`; CI `45911085332` success; enlace en footer del workspace. |
-| 16-09 | Consentimiento informado | formularios de alta y recuperación | `NOT_STARTED` | — |
+| 16-09 | Consentimiento informado | formularios de alta y recuperación | `DONE` | Commits `a290fa7`, `fd2cb4e`, `b7b543d`, `902f645`, `4d4aed7`, `7fe2132`, `100f168`, `907b3b3`, `65b82c7`; CI `45958045628`, `45959329932`, `45960491271`, `45961566726`, `45964236168`, `45965598613`, `45967026729` success; `45962611490` falló en E2E por checkbox ausente, corregido en `7fe2132`. |
 | 16-10 | Borrado de datos de usuario | exportación y borrado tenant-scoped + tests + auditoría | `DONE` | Commits `b4c4e99`, `bfdd0ab`, `fcf400f`, `e92465f`; CI `45951468264`, `45952486615`, `45953481519`, `45954654670` success. |
 | 16-11 | Audit de vulnerabilidades | revisión de hallazgos y correcciones | `DONE` | Verificado en `8008b9e`; CI `45937828805` success; checklist y riesgos en `docs/security-review.md:19-54`; riesgos `RM-01`–`RM-05` aceptados solo para demo/local. |
 | 16-12 | Claves expuestas y secretos en git | escaneo + `.gitignore`/docs | `DONE` | Commit `008d2ce`; CI `45943801440` success; job `secrets` en `.github/workflows/ci.yml` con `git grep` de patrones AWS/GitHub/Slack/JWT/claves privadas; YAML validado; sin dependencias nuevas. |
@@ -1094,3 +1094,7 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 2026-11-27 | 16-10 | `b4c4e99`, `bfdd0ab` | `45951468264`, `45952486615` | Exportación tenant-scoped de candidatos, notas, postulaciones y documentos; auditoría y test. |
 | 2026-11-27 | 16-10 | `fcf400f`, `e92465f` | `45953481519`, `45954654670` | Borrado tenant-scoped con roles, borrado de bytes y auditoría; test cross-tenant. |
 | 2026-11-27 | 16-10 | `e88a0c6` | `45955716802` | Política de privacidad y revisión de seguridad sincronizadas. |
+| 2026-11-27 | 16-10 | `8c6bfea` | `45956748498` | Roadmap `16-10` cerrado con evidencia. |
+| 2026-11-27 | 16-09 | `a290fa7`, `fd2cb4e` | `45958045628`, `45959329932` | `accept_privacy` estricto en backend; rechazo de `false` y consentimiento explícito en `staging`/`production`. |
+| 2026-11-27 | 16-09 | `b7b543d`, `902f645`, `4d4aed7` | `45960491271`, `45961566726`, `45962611490` | DTOs y checkbox en registro, invitación y recuperación; E2E de recuperación falló por checkbox ausente. |
+| 2026-11-27 | 16-09 | `7fe2132`, `100f168`, `907b3b3`, `65b82c7` | `45964236168`, `45965598613`, `45967026729` | E2E corregido; checkbox en reset e invitación; `tsc`/`lint`/121 tests/`build`/E2E OK. |
