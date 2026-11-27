@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session as DBSession
 
 from app.core import config
+from app.core.logging import log_structured
 from app.db.session import get_db
 from app.identity.dependencies import get_current_user, verify_origin
 from app.identity.models import User
@@ -38,6 +40,17 @@ OriginChecked = Annotated[None, Depends(verify_origin)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
+def _log_auth_event(request: Request, message: str) -> None:
+    request_id = getattr(request.state, "request_id", None)
+    correlation_id = getattr(request.state, "correlation_id", None)
+    log_structured(
+        logging.WARNING,
+        message,
+        request_id=str(request_id) if request_id else None,
+        correlation_id=str(correlation_id) if correlation_id else None,
+    )
+
+
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register(
     _origin: OriginChecked,
@@ -58,6 +71,7 @@ def register(
 def login(
     _origin: OriginChecked,
     payload: LoginRequest,
+    request: Request,
     response: Response,
     db: DbDependency,
 ) -> User:
@@ -65,6 +79,7 @@ def login(
     try:
         user, token = authenticate_user(db, email=payload.email, password=payload.password)
     except InvalidCredentialsError:
+        _log_auth_event(request, "auth_login_failed")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales inválidas."
         ) from None
@@ -99,11 +114,13 @@ def forgot_password(
 def reset_password(
     _origin: OriginChecked,
     payload: PasswordResetConfirm,
+    request: Request,
     db: DbDependency,
 ) -> MessageResponse:
     try:
         reset_password_service(db, token=payload.token, password=payload.password)
     except PasswordResetTokenError:
+        _log_auth_event(request, "auth_password_reset_failed")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="El enlace de recuperación no es válido o expiró.",

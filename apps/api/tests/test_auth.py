@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib
+import logging
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 
@@ -479,3 +480,40 @@ def test_identity_models_reject_unknown_fields(
 ) -> None:
     with pytest.raises(ValidationError):
         model.model_validate(payload)
+
+
+def test_failed_login_logs_security_event_with_correlation(
+    client: TestClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    assert _register(client).status_code == 201
+    caplog.clear()
+
+    with caplog.at_level(logging.WARNING, logger="talentos"):
+        response = client.post(
+            "/api/v1/auth/login",
+            json={"email": _EMAIL, "password": "WrongSyntheticPass"},
+            headers={"X-Correlation-ID": "corr-synthetic"},
+        )
+
+    assert response.status_code == 401
+    event = next(record for record in caplog.records if record.getMessage() == "auth_login_failed")
+    assert event.request_id == response.headers["X-Request-ID"]
+    assert event.correlation_id == "corr-synthetic"
+    assert _EMAIL not in caplog.text
+    assert "WrongSyntheticPass" not in caplog.text
+
+
+def test_invalid_reset_logs_security_event_without_token(
+    client: TestClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.clear()
+
+    with caplog.at_level(logging.WARNING, logger="talentos"):
+        response = _reset(client, "not-a-real-token")
+
+    assert response.status_code == 400
+    event = next(
+        record for record in caplog.records if record.getMessage() == "auth_password_reset_failed"
+    )
+    assert event.request_id == response.headers["X-Request-ID"]
+    assert "not-a-real-token" not in caplog.text
