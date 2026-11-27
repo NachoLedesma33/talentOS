@@ -1134,8 +1134,8 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 17-02 | Contratos y schemas | `apps/api/app/agents/contracts.py`, `apps/api/tests/test_assistant_contracts.py` | `DONE` | `a1900ff`; CI `46058799763` success; `pytest` 552. |
 | 17-03 | Tools de lectura y capabilities | `apps/api/app/agents/tools.py`, `apps/api/tests/test_assistant_tools.py` | `DONE` | `b609ae1`; CI `46061944047` success; `pytest` 558; 13 tests nuevos, `ruff`/`mypy` limpios. |
 | 17-04 | Workflow y LLM mock | `apps/api/app/agents/assistant.py`, `apps/api/tests/test_assistant_workflow.py` | `DONE` | `224237b`; CI `46066121679` success; 9 tests nuevos; `pytest` 567 passed; `ruff`/`mypy` limpios. |
-| 17-05 | Endpoint de mensajes y ack | `apps/api/app/api/routes/agents.py`, `apps/api/tests/test_assistant_api.py` | `IN_REVIEW` | `8c959d1`; 6 tests nuevos; `pytest` 573 passed; `ruff`/`mypy` limpios; `401`, `403`, `not_available`, ack sin efectos no confirmados; CI pendiente. |
-| 17-06 | Panel UI y acciones | `apps/web/src/components/AssistantPanel.tsx`, `apps/web/tests/assistant_panel.test.tsx` | `NOT_STARTED` | Citas, `Aplicar`/`Descartar`, sin JS arbitrario. |
+| 17-05 | Endpoint de mensajes y ack | `apps/api/app/api/routes/agents.py`, `apps/api/tests/test_assistant_api.py` | `DONE` | `8c959d1`; CI `46069838247` success; 6 tests nuevos; `pytest` 573 passed; `ruff`/`mypy` limpios; `401`, `403`, `not_available`, ack sin efectos no confirmados. |
+| 17-06 | Panel UI y acciones | `apps/web/src/components/AssistantPanel.tsx`, `apps/web/tests/assistant_panel.test.tsx` | `IN_REVIEW` | `113e411`; 5 tests nuevos; `npm test -- --run` 126 passed; `tsc`/`lint` limpios; citas, `Aplicar`/`Descartar`, sin JS arbitrario; CI pendiente. |
 | 17-07 | Integración en shell e i18n | `apps/web/src/components/WorkspaceShell.tsx`, `apps/web/src/lib/i18n.tsx` | `NOT_STARTED` | Panel visible en superficie permitida; textos `es`/`en`. |
 | 17-08 | Seed demo ampliado | `apps/api/scripts/seed_demo.py`, `apps/api/tests/test_demo_seed.py` | `NOT_STARTED` | Requisitos, evidencia, borradores, regla `draft` y aprobaciones. |
 | 17-09 | Evaluación con mock | `apps/api/tests/test_assistant_evaluations.py` | `NOT_STARTED` | Groundedness, off-scope, inyección, latencia y tokens. |
@@ -1160,3 +1160,4 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 2026-11-27 | 17-01/17-02 | `f52a938`, `a1900ff`, `aa5fb9a` | `46058799763` | success; ADR + contratos + RF en SDD. |
 | 2026-11-27 | 17-03 | `b609ae1` | `46061944047` | success; registry de solo lectura con capabilities, tenant, roles, cotas y traza; `pytest` 558. |
 | 2026-11-27 | 17-04 | `224237b` | `46066121679` | success; grafo `workspace_assistant` con citas verificadas, políticas, reintentos e interrupt; 9 tests nuevos; `pytest` 567 passed. |
+| 2026-11-27 | 17-05 | `8c959d1` | `46069838247` | success; endpoints de mensaje y ack con aislamiento por tenant, idempotencia y aprobación persistida; 6 tests nuevos; `pytest` 573 passed. |
