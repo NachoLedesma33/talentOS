@@ -18,9 +18,15 @@ from enum import StrEnum
 from time import monotonic
 from typing import NoReturn
 
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy.orm import Session as DBSession
 
+from app.agents.contracts import (
+    WORKSPACE_ASSISTANT_WORKFLOW,
+    AssistantActionType,
+    AssistantFormId,
+    AssistantSurface,
+)
 from app.agents.models import (
     AgentDomainError,
     AgentEventType,
@@ -53,14 +59,20 @@ from app.agents.tool_schemas import (
     RequestHumanApprovalInput,
     StatusCount,
 )
-from app.applications.repositories import get_application
-from app.candidates.repositories import get_candidate
+from app.applications.repositories import (
+    count_applications,
+    get_application,
+    list_applications,
+)
+from app.automation.repositories import get_automation, list_runs
+from app.candidates.repositories import count_candidates, get_candidate, list_candidates
 from app.documents.models import (
     DocumentExtraction,
     ExtractedFieldName,
     ExtractedFieldStatus,
 )
 from app.documents.repositories import (
+    count_documents,
     get_document,
     get_latest_extraction,
     list_documents,
@@ -69,7 +81,7 @@ from app.documents.repositories import (
 from app.identity.models import MembershipRole, User, UserStatus
 from app.identity.repositories import get_membership
 from app.jobs.models import JobVersion
-from app.jobs.repositories import get_job, list_versions
+from app.jobs.repositories import count_jobs, get_job, list_jobs, list_versions
 
 _MAX_FIELDS = 20
 _MAX_QUOTES = 20
@@ -79,6 +91,150 @@ _MAX_DOCUMENTS = 10
 _TERMINAL_STATUSES = frozenset(
     {ExtractedFieldStatus.CONFIRMED, ExtractedFieldStatus.CORRECTED}
 )
+
+
+class _StrictAssistantModel(BaseModel):
+    """Contratos locales del asistente; el lote se mantiene en dos archivos."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True, frozen=True)
+
+
+class EmptyInput(_StrictAssistantModel):
+    """Herramientas sin argumentos; rechaza campos inventados por el modelo."""
+
+
+class ListWorkspaceInput(_StrictAssistantModel):
+    limit: int = Field(default=10, ge=1, le=20, strict=True)
+
+
+class AutomationStatusInput(_StrictAssistantModel):
+    automation_id: uuid.UUID
+
+
+class FormSchemaInput(_StrictAssistantModel):
+    form_id: AssistantFormId
+
+
+class WorkspaceSummaryResult(_StrictAssistantModel):
+    organization_id: uuid.UUID
+    jobs: int = Field(ge=0)
+    candidates: int = Field(ge=0)
+    applications: int = Field(ge=0)
+    documents: int = Field(ge=0)
+    missing: list[str] = Field(default_factory=list, max_length=10)
+
+
+class JobSummary(_StrictAssistantModel):
+    job_id: uuid.UUID
+    title: str = Field(max_length=200)
+    status: str = Field(max_length=50)
+
+
+class JobsResult(_StrictAssistantModel):
+    organization_id: uuid.UUID
+    jobs: list[JobSummary] = Field(default_factory=list, max_length=20)
+    missing: list[str] = Field(default_factory=list, max_length=10)
+
+
+class CandidateSummary(_StrictAssistantModel):
+    candidate_id: uuid.UUID
+    name: str = Field(max_length=200)
+    profile_status: str = Field(max_length=50)
+
+
+class CandidatesResult(_StrictAssistantModel):
+    organization_id: uuid.UUID
+    candidates: list[CandidateSummary] = Field(default_factory=list, max_length=20)
+    missing: list[str] = Field(default_factory=list, max_length=10)
+
+
+class ApplicationSummary(_StrictAssistantModel):
+    application_id: uuid.UUID
+    job_id: uuid.UUID
+    candidate_id: uuid.UUID
+    stage: str = Field(max_length=50)
+
+
+class ApplicationsResult(_StrictAssistantModel):
+    organization_id: uuid.UUID
+    applications: list[ApplicationSummary] = Field(default_factory=list, max_length=20)
+    missing: list[str] = Field(default_factory=list, max_length=10)
+
+
+class AutomationStatusResult(_StrictAssistantModel):
+    automation_id: uuid.UUID
+    name: str = Field(max_length=200)
+    status: str = Field(max_length=50)
+    current_version: int = Field(ge=1)
+    recent_runs: int = Field(ge=0)
+    missing: list[str] = Field(default_factory=list, max_length=10)
+
+
+class FormFieldSpec(_StrictAssistantModel):
+    name: str = Field(max_length=50)
+    type: str = Field(max_length=20)
+    required: bool
+    sensitive: bool = False
+
+
+class FormSchemaResult(_StrictAssistantModel):
+    form_id: AssistantFormId
+    fields: list[FormFieldSpec] = Field(default_factory=list, max_length=20)
+    requires_review: bool
+
+
+class PlatformCapabilitiesResult(_StrictAssistantModel):
+    organization_id: uuid.UUID
+    workflow: str = Field(max_length=100)
+    version: str = Field(max_length=50)
+    intents: list[str] = Field(default_factory=list, max_length=20)
+    surfaces: list[str] = Field(default_factory=list, max_length=20)
+    forms: list[str] = Field(default_factory=list, max_length=20)
+    routes: list[str] = Field(default_factory=list, max_length=20)
+
+
+_ASSISTANT_FORM_FIELDS: dict[AssistantFormId, tuple[FormFieldSpec, ...]] = {
+    AssistantFormId.JOB_CREATE: (
+        FormFieldSpec(name="title", type="text", required=True),
+        FormFieldSpec(name="description", type="textarea", required=False),
+        FormFieldSpec(name="modality", type="text", required=False),
+        FormFieldSpec(name="location", type="text", required=False),
+        FormFieldSpec(name="seniority", type="text", required=False),
+    ),
+    AssistantFormId.CANDIDATE_CREATE: (
+        FormFieldSpec(name="name", type="text", required=True),
+        FormFieldSpec(name="location", type="text", required=False),
+    ),
+    AssistantFormId.ASSESSMENT_CRITERION: (
+        FormFieldSpec(name="explanation", type="textarea", required=True),
+        FormFieldSpec(name="limitations", type="textarea", required=True),
+    ),
+    AssistantFormId.INTERVIEW_GUIDE: (
+        FormFieldSpec(name="questions", type="textarea", required=True),
+    ),
+    AssistantFormId.AUTOMATION_RULE: (
+        FormFieldSpec(name="name", type="text", required=True),
+        FormFieldSpec(name="description", type="textarea", required=False),
+        FormFieldSpec(name="trigger_type", type="text", required=True),
+    ),
+    AssistantFormId.MESSAGE_DRAFT: (
+        FormFieldSpec(name="body", type="textarea", required=True),
+    ),
+}
+
+_ASSISTANT_SURFACE_ROUTES: dict[AssistantSurface, str] = {
+    AssistantSurface.DASHBOARD: "/dashboard",
+    AssistantSurface.JOBS: "/jobs",
+    AssistantSurface.CANDIDATES: "/candidates",
+    AssistantSurface.APPLICATIONS: "/applications",
+    AssistantSurface.ASSESSMENT: "/assessment",
+    AssistantSurface.INTERVIEWS: "/interviews",
+    AssistantSurface.DOCUMENTS: "/documents",
+    AssistantSurface.AUTOMATIONS: "/automations",
+    AssistantSurface.INTEGRATIONS: "/integrations",
+    AssistantSurface.ANALYTICS: "/analytics",
+    AssistantSurface.AGENTS: "/agents",
+}
 
 
 class ToolErrorCode(StrEnum):
@@ -581,6 +737,131 @@ def _find_cached_event(
     return True
 
 
+def _get_workspace_summary(
+    ctx: ToolContext, _args: BaseModel, _invocation: ToolInvocation
+) -> BaseModel:
+    """Solo conteos del tenant; sin nombres, correos ni texto de documentos."""
+    return WorkspaceSummaryResult(
+        organization_id=ctx.organization_id,
+        jobs=count_jobs(ctx.db, ctx.organization_id),
+        candidates=count_candidates(ctx.db, ctx.organization_id),
+        applications=count_applications(ctx.db, ctx.organization_id),
+        documents=count_documents(ctx.db, ctx.organization_id),
+    )
+
+
+def _list_jobs(ctx: ToolContext, args: BaseModel, _invocation: ToolInvocation) -> BaseModel:
+    assert isinstance(args, ListWorkspaceInput)
+    jobs = list_jobs(ctx.db, ctx.organization_id, limit=args.limit)
+    return JobsResult(
+        organization_id=ctx.organization_id,
+        jobs=[
+            JobSummary(
+                job_id=job.id,
+                title=_bounded_text(job.title, 200),
+                status=str(job.status.value if hasattr(job.status, "value") else job.status),
+            )
+            for job in jobs
+        ],
+        missing=["no_jobs"] if not jobs else [],
+    )
+
+
+def _list_candidates(
+    ctx: ToolContext, args: BaseModel, _invocation: ToolInvocation
+) -> BaseModel:
+    assert isinstance(args, ListWorkspaceInput)
+    candidates = list_candidates(ctx.db, ctx.organization_id, limit=args.limit)
+    return CandidatesResult(
+        organization_id=ctx.organization_id,
+        candidates=[
+            CandidateSummary(
+                candidate_id=candidate.id,
+                name=_bounded_text(candidate.name, 200),
+                profile_status=str(candidate.profile_status),
+            )
+            for candidate in candidates
+        ],
+        missing=["no_candidates"] if not candidates else [],
+    )
+
+
+def _list_applications(
+    ctx: ToolContext, args: BaseModel, _invocation: ToolInvocation
+) -> BaseModel:
+    assert isinstance(args, ListWorkspaceInput)
+    applications = list_applications(ctx.db, ctx.organization_id, limit=args.limit)
+    return ApplicationsResult(
+        organization_id=ctx.organization_id,
+        applications=[
+            ApplicationSummary(
+                application_id=item.id,
+                job_id=item.job_id,
+                candidate_id=item.candidate_id,
+                stage=str(item.stage.value if hasattr(item.stage, "value") else item.stage),
+            )
+            for item in applications
+        ],
+        missing=["no_applications"] if not applications else [],
+    )
+
+
+def _get_automation_status(
+    ctx: ToolContext, args: BaseModel, _invocation: ToolInvocation
+) -> BaseModel:
+    assert isinstance(args, AutomationStatusInput)
+    automation = get_automation(ctx.db, ctx.organization_id, args.automation_id)
+    if automation is None:
+        _fail(ToolErrorCode.TENANT_MISMATCH)
+    runs = list_runs(ctx.db, ctx.organization_id, automation.id, limit=10)
+    return AutomationStatusResult(
+        automation_id=automation.id,
+        name=_bounded_text(automation.name, 200),
+        status=str(
+            automation.status.value
+            if hasattr(automation.status, "value")
+            else automation.status
+        ),
+        current_version=automation.current_version,
+        recent_runs=len(runs),
+        missing=["no_runs"] if not runs else [],
+    )
+
+
+def _get_form_schema(
+    ctx: ToolContext, args: BaseModel, _invocation: ToolInvocation
+) -> BaseModel:
+    assert isinstance(args, FormSchemaInput)
+    fields = _ASSISTANT_FORM_FIELDS.get(args.form_id)
+    if fields is None:
+        _fail(ToolErrorCode.INVALID_INPUT)
+    return FormSchemaResult(
+        form_id=args.form_id,
+        fields=list(fields),
+        requires_review=args.form_id
+        in {
+            AssistantFormId.ASSESSMENT_CRITERION,
+            AssistantFormId.INTERVIEW_GUIDE,
+            AssistantFormId.MESSAGE_DRAFT,
+        },
+    )
+
+
+def _get_platform_capabilities(
+    ctx: ToolContext, _args: BaseModel, _invocation: ToolInvocation
+) -> BaseModel:
+    """Catálogo cerrado: el LLM no puede inventar intents, rutas ni formularios."""
+    return PlatformCapabilitiesResult(
+        organization_id=ctx.organization_id,
+        workflow=WORKSPACE_ASSISTANT_WORKFLOW.workflow,
+        version=WORKSPACE_ASSISTANT_WORKFLOW.version,
+        intents=sorted(intent.value for intent in AssistantActionType),
+        surfaces=sorted(surface.value for surface in AssistantSurface),
+        forms=sorted(form.value for form in AssistantFormId),
+        routes=sorted(_ASSISTANT_SURFACE_ROUTES.values()),
+    )
+
+
 def _authorize(ctx: ToolContext, definition: ToolDefinition) -> None:
     """Membresía activa y rol reales en cada llamada; `actor_role` no es autoridad."""
     membership = get_membership(ctx.db, ctx.actor_id, ctx.organization_id)
@@ -684,9 +965,17 @@ class ToolRegistry:
 
 
 _READ_WORKFLOWS = frozenset(
-    {"job_analysis", "cv_analysis", "matching", "quality_audit", "orchestration"}
+    {
+        "job_analysis",
+        "cv_analysis",
+        "matching",
+        "quality_audit",
+        "orchestration",
+        WORKSPACE_ASSISTANT_WORKFLOW.workflow,
+    }
 )
 _DRAFT_WORKFLOWS = frozenset({"matching", "workflow_assistant", "orchestration"})
+_ASSISTANT_WORKFLOWS = frozenset({WORKSPACE_ASSISTANT_WORKFLOW.workflow})
 _ALL_ROLES = frozenset(set(MembershipRole))
 _WRITE_ROLES = frozenset(
     {MembershipRole.OWNER, MembershipRole.ADMIN, MembershipRole.RECRUITER}
@@ -728,6 +1017,76 @@ def build_default_registry() -> ToolRegistry:
             is_write=False,
         ),
         ToolDefinition(
+            name="get_workspace_summary",
+            handler=_get_workspace_summary,
+            input_schema=EmptyInput,
+            allowed_workflows=_ASSISTANT_WORKFLOWS,
+            roles=_ALL_ROLES,
+            timeout_seconds=2.0,
+            max_calls_per_run=10,
+            is_write=False,
+        ),
+        ToolDefinition(
+            name="list_jobs",
+            handler=_list_jobs,
+            input_schema=ListWorkspaceInput,
+            allowed_workflows=_ASSISTANT_WORKFLOWS,
+            roles=_ALL_ROLES,
+            timeout_seconds=2.0,
+            max_calls_per_run=10,
+            is_write=False,
+        ),
+        ToolDefinition(
+            name="list_candidates",
+            handler=_list_candidates,
+            input_schema=ListWorkspaceInput,
+            allowed_workflows=_ASSISTANT_WORKFLOWS,
+            roles=_ALL_ROLES,
+            timeout_seconds=2.0,
+            max_calls_per_run=10,
+            is_write=False,
+        ),
+        ToolDefinition(
+            name="list_applications",
+            handler=_list_applications,
+            input_schema=ListWorkspaceInput,
+            allowed_workflows=_ASSISTANT_WORKFLOWS,
+            roles=_ALL_ROLES,
+            timeout_seconds=2.0,
+            max_calls_per_run=10,
+            is_write=False,
+        ),
+        ToolDefinition(
+            name="get_automation_status",
+            handler=_get_automation_status,
+            input_schema=AutomationStatusInput,
+            allowed_workflows=_ASSISTANT_WORKFLOWS,
+            roles=_ALL_ROLES,
+            timeout_seconds=2.0,
+            max_calls_per_run=10,
+            is_write=False,
+        ),
+        ToolDefinition(
+            name="get_form_schema",
+            handler=_get_form_schema,
+            input_schema=FormSchemaInput,
+            allowed_workflows=_ASSISTANT_WORKFLOWS,
+            roles=_ALL_ROLES,
+            timeout_seconds=2.0,
+            max_calls_per_run=5,
+            is_write=False,
+        ),
+        ToolDefinition(
+            name="get_platform_capabilities",
+            handler=_get_platform_capabilities,
+            input_schema=EmptyInput,
+            allowed_workflows=_ASSISTANT_WORKFLOWS,
+            roles=_ALL_ROLES,
+            timeout_seconds=2.0,
+            max_calls_per_run=5,
+            is_write=False,
+        ),
+        ToolDefinition(
             name="create_assessment_draft",
             handler=_create_assessment_draft,
             input_schema=CreateAssessmentDraftInput,
@@ -761,3 +1120,40 @@ def build_default_registry() -> ToolRegistry:
     for definition in definitions:
         registry.register(definition)
     return registry
+
+
+_ASSISTANT_READ_TOOLS = frozenset(
+    {
+        "get_job_requirements",
+        "get_candidate_profile",
+        "get_confirmed_document_text",
+        "get_automation_status",
+        "get_workspace_summary",
+        "list_jobs",
+        "list_candidates",
+        "list_applications",
+        "get_form_schema",
+        "get_platform_capabilities",
+    }
+)
+
+
+def build_assistant_registry() -> ToolRegistry:
+    """Registry de solo lectura del asistente; escrituras se añaden en lotes posteriores."""
+    default = build_default_registry()
+    scoped = ToolRegistry()
+    for name in sorted(_ASSISTANT_READ_TOOLS):
+        definition = default.get(name)
+        scoped.register(
+            ToolDefinition(
+                name=definition.name,
+                handler=definition.handler,
+                input_schema=definition.input_schema,
+                allowed_workflows=_ASSISTANT_WORKFLOWS,
+                roles=definition.roles,
+                timeout_seconds=definition.timeout_seconds,
+                max_calls_per_run=definition.max_calls_per_run,
+                is_write=definition.is_write,
+            )
+        )
+    return scoped
