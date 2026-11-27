@@ -165,6 +165,7 @@ test("tarea: recuperar contraseña y definir una nueva", async ({ page }) => {
   await page.getByRole("link", { name: "Recuperar contraseña" }).click();
   await expect(page.getByRole("heading", { name: "Recuperar contraseña" })).toBeVisible();
   await page.getByLabel("Correo electrónico").fill("invitado@example.test");
+  await page.getByRole("checkbox", { name: /Acepto la política de privacidad/i }).check();
   await page.getByRole("button", { name: "Enviar instrucciones" }).click();
   await expect(page.getByText("Modo demo: no se envió ningún correo.")).toBeVisible();
 
