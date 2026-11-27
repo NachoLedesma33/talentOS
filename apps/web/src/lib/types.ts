@@ -58,16 +58,19 @@ export interface RegisterRequest {
   email: string;
   password: string;
   name: string;
+  accept_privacy?: boolean;
 }
 
 /** Recuperación de contraseña y respuestas demo sin SMTP. */
 export interface PasswordResetRequest {
   email: string;
+  accept_privacy?: boolean;
 }
 
 export interface PasswordResetConfirm {
   token: string;
   password: string;
+  accept_privacy?: boolean;
 }
 
 export interface MessageResponse {
