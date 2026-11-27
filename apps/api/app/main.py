@@ -59,11 +59,14 @@ _ERROR_CODES: dict[int, str] = {
     404: "not_found",
     405: "method_not_allowed",
     409: "conflict",
+    413: "payload_too_large",
     422: "validation_error",
     429: "too_many_requests",
     503: "service_unavailable",
 }
 
+_MAX_REQUEST_BODY_BYTES = 2 * 1024 * 1024
+_BODY_METHODS = frozenset({"POST", "PUT", "PATCH"})
 _AUTH_LIMIT_WINDOW_SECONDS = 60.0
 _AUTH_LIMIT_MAX_ATTEMPTS = 60
 _AUTH_LIMIT_ENVS = frozenset({"staging", "production"})
@@ -126,8 +129,35 @@ async def request_context_middleware(
                 "max-age=31536000; includeSubDomains"
             )
 
+    too_large = False
+    if (
+        redirect is None
+        and request.method in _BODY_METHODS
+        and not request.headers.get("content-type", "")
+        .lower()
+        .startswith("multipart/form-data")
+    ):
+        declared = request.headers.get("content-length")
+        if declared and declared.isdigit() and int(declared) > _MAX_REQUEST_BODY_BYTES:
+            too_large = True
+        else:
+            body = await request.body()
+            if len(body) > _MAX_REQUEST_BODY_BYTES:
+                too_large = True
+
     if redirect is not None:
         response = redirect
+    elif too_large:
+        response = JSONResponse(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            content={
+                "error": {
+                    "code": _ERROR_CODES[status.HTTP_413_CONTENT_TOO_LARGE],
+                    "message": "Solicitud demasiado grande.",
+                    "request_id": request_id,
+                }
+            },
+        )
     elif (
         settings.APP_ENV in _AUTH_LIMIT_ENVS
         and request.method == "POST"

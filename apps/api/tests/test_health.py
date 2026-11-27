@@ -215,3 +215,32 @@ def test_auth_rate_limit_is_per_ip_and_uses_error_envelope(
     finally:
         main_module._auth_attempts.pop(ip, None)
         main_module._auth_attempts.pop(other_ip, None)
+
+
+def test_request_body_limit_uses_error_envelope(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(main_module, "_MAX_REQUEST_BODY_BYTES", 64)
+
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": "synthetic.user@example.com", "password": "SyntheticPass123"},
+    )
+
+    assert response.status_code == 413
+    error = response.json()["error"]
+    assert error["code"] == "payload_too_large"
+    assert error["request_id"] == response.headers["X-Request-ID"]
+
+
+def test_multipart_uploads_bypass_global_body_limit(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(main_module, "_MAX_REQUEST_BODY_BYTES", 1)
+
+    response = client.post(
+        "/ruta-inexistente",
+        files={"file": ("synthetic.txt", b"x" * 128, "text/plain")},
+    )
+
+    assert response.status_code == 404
