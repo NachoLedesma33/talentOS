@@ -3,9 +3,11 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 from enum import StrEnum
+from typing import Self
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
+from app.core import config
 from app.identity.models import MembershipRole, UserStatus
 from app.identity.security import MAX_PASSWORD_BYTES
 
@@ -21,7 +23,22 @@ class _InputModel(BaseModel):
         return value
 
 
-class RegisterRequest(_InputModel):
+class _ConsentInput(_InputModel):
+    accept_privacy: bool = Field(default=True)
+
+    @model_validator(mode="after")
+    def privacy_consent_is_explicit(self) -> Self:
+        if not self.accept_privacy:
+            raise ValueError("Debe aceptar la política de privacidad.")
+        if (
+            config.get_settings().APP_ENV in {"staging", "production"}
+            and "accept_privacy" not in self.model_fields_set
+        ):
+            raise ValueError("Debe aceptar explícitamente la política de privacidad.")
+        return self
+
+
+class RegisterRequest(_ConsentInput):
     email: EmailStr
     password: str = Field(min_length=8)
     name: str = Field(min_length=1)
@@ -108,11 +125,11 @@ class MessageResponse(BaseModel):
     message: str
 
 
-class PasswordResetRequest(_InputModel):
+class PasswordResetRequest(_ConsentInput):
     email: EmailStr
 
 
-class PasswordResetConfirm(_InputModel):
+class PasswordResetConfirm(_ConsentInput):
     token: str = Field(min_length=1, max_length=128)
     password: str = Field(min_length=8)
 

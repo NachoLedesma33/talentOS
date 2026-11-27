@@ -55,16 +55,19 @@ def _log_auth_event(request: Request, message: str, level: int = logging.WARNING
 def register(
     _origin: OriginChecked,
     payload: RegisterRequest,
+    request: Request,
     db: DbDependency,
 ) -> User:
     try:
-        return register_user(
+        user = register_user(
             db, email=payload.email, password=payload.password, name=payload.name
         )
     except EmailAlreadyRegisteredError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="El email ya está registrado."
         ) from None
+    _log_auth_event(request, "auth_privacy_consent_accepted", logging.INFO)
+    return user
 
 
 @router.post("/login", response_model=UserResponse)
@@ -106,6 +109,7 @@ def forgot_password(
     settings = config.get_settings()
     token = request_password_reset(db, email=payload.email)
     _log_auth_event(request, "auth_password_reset_requested", logging.INFO)
+    _log_auth_event(request, "auth_privacy_consent_accepted", logging.INFO)
     return PasswordResetRequestResponse(
         message="Si el email existe, se generó una solicitud de recuperación.",
         dev_token=token if settings.APP_ENV != "production" else None,
@@ -128,6 +132,7 @@ def reset_password(
             detail="El enlace de recuperación no es válido o expiró.",
         ) from None
     _log_auth_event(request, "auth_password_reset_succeeded", logging.INFO)
+    _log_auth_event(request, "auth_privacy_consent_accepted", logging.INFO)
     return MessageResponse(message="Contraseña actualizada.")
 
 
