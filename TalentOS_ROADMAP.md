@@ -1107,7 +1107,7 @@ TalentOS está listo para presentarse como portfolio cuando:
 
 # 27. Fase 17 — Asistente virtual de workspace (2026-11-27)
 
-**Estado:** `PLANNED`. **Origen:** petición del usuario 2026-11-27; `docs/decisions/ADR-020-asistente-virtual.md` aceptado. **RF:** `RF-ASSIST-001`. **Dependencia:** cierre de Fase 16 (`16-45`) con CI verde. No iniciar implementación antes de esa dependencia.
+**Estado:** `IN_PROGRESS`. **Origen:** petición del usuario 2026-11-27; `docs/decisions/ADR-020-asistente-virtual.md` aceptado. **RF:** `RF-ASSIST-001`. **Dependencia:** cierre de Fase 16 (`16-45`) con CI verde (`46048508076`).
 
 ## 27.1 Reglas del loop
 
@@ -1130,10 +1130,10 @@ TalentOS está listo para presentarse como portfolio cuando:
 
 | Lote | Pedido | Unidad prevista | Estado | Evidencia |
 |---|---|---|---|---|
-| 17-01 | Roadmap y ADR | `TalentOS_ROADMAP.md`, `docs/decisions/ADR-020-asistente-virtual.md` | `IN_REVIEW` | ADR-020 aceptado; commit y CI pendientes. |
-| 17-02 | Contratos y schemas | `apps/api/app/agents/contracts.py`, `apps/api/tests/test_assistant_contracts.py` | `NOT_STARTED` | — |
-| 17-03 | Tools de lectura y capabilities | `apps/api/app/agents/tools.py`, `apps/api/tests/test_assistant_tools.py` | `NOT_STARTED` | Cross-tenant, roles, cotas e idempotencia. |
-| 17-04 | Workflow y LLM mock | `apps/api/app/agents/assistant.py`, `apps/api/tests/test_assistant_workflow.py` | `NOT_STARTED` | Validación, inyección y reintentos. |
+| 17-01 | Roadmap y ADR | `TalentOS_ROADMAP.md`, `docs/decisions/ADR-020-asistente-virtual.md` | `DONE` | `f52a938`; CI `46058799763` success; RF en SDD §4.9 (`aa5fb9a`). |
+| 17-02 | Contratos y schemas | `apps/api/app/agents/contracts.py`, `apps/api/tests/test_assistant_contracts.py` | `DONE` | `a1900ff`; CI `46058799763` success; `pytest` 552. |
+| 17-03 | Tools de lectura y capabilities | `apps/api/app/agents/tools.py`, `apps/api/tests/test_assistant_tools.py` | `DONE` | `b609ae1`; CI `46061944047` success; `pytest` 558; 13 tests nuevos, `ruff`/`mypy` limpios. |
+| 17-04 | Workflow y LLM mock | `apps/api/app/agents/assistant.py`, `apps/api/tests/test_assistant_workflow.py` | `IN_REVIEW` | `224237b`; 9 tests nuevos; `ruff`/`mypy` limpios; `pytest` 567 passed; CI pendiente. |
 | 17-05 | Endpoint de mensajes y ack | `apps/api/app/api/routes/agents.py`, `apps/api/tests/test_assistant_api.py` | `NOT_STARTED` | `401`, `403`, `not_available`, ack sin efectos no confirmados. |
 | 17-06 | Panel UI y acciones | `apps/web/src/components/AssistantPanel.tsx`, `apps/web/tests/assistant_panel.test.tsx` | `NOT_STARTED` | Citas, `Aplicar`/`Descartar`, sin JS arbitrario. |
 | 17-07 | Integración en shell e i18n | `apps/web/src/components/WorkspaceShell.tsx`, `apps/web/src/lib/i18n.tsx` | `NOT_STARTED` | Panel visible en superficie permitida; textos `es`/`en`. |
@@ -1152,3 +1152,11 @@ TalentOS está listo para presentarse como portfolio cuando:
 - Misma `idempotency_key` no crea dos `AgentRun` ni dos borradores.
 - Logs y `AgentEvent.payload` sin contraseñas, tokens, emails completos ni CV completo.
 - Gates del lote en verde antes de marcar `DONE`; sin evidencia real, estado `IN_REVIEW`.
+
+## 27.5 Evidencia
+
+| Fecha | Lote | Commits | CI | Resultado |
+|---|---|---|---|---|
+| 2026-11-27 | 17-01/17-02 | `f52a938`, `a1900ff`, `aa5fb9a` | `46058799763` | success; ADR + contratos + RF en SDD. |
+| 2026-11-27 | 17-03 | `b609ae1` | `46061944047` | success; registry de solo lectura con capabilities, tenant, roles, cotas y traza; `pytest` 558. |
+| 2026-11-27 | 17-04 | `224237b` | pendiente | Grafo `workspace_assistant` con citas verificadas, políticas, reintentos e interrupt; 9 tests nuevos; `pytest` 567 passed. |
