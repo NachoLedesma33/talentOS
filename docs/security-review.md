@@ -1,6 +1,6 @@
 # TalentOS — Revisión de seguridad y privacidad (Fase 14)
 
-Estado: 2026-11-26. Alcance evaluado: repositorio en modo `local`/`test` con datos sintéticos. No constituye asesoramiento legal. Evidencia de CI: dependencias `45880065546`, cabeceras y HTTPS `45915102956`, rate limit de autenticación `45919600293`, esquemas estrictos `45922837838`, límite de tamaño `45925962276`, eventos de seguridad `45929163932`; todos success.
+Estado: 2026-11-27. Alcance evaluado: repositorio en modo `local`/`test` con datos sintéticos. No constituye asesoramiento legal. Evidencia de CI: dependencias `45880065546`, cabeceras y HTTPS `45915102956`, rate limit de autenticación `45919600293`, esquemas estrictos `45922837838`, límite de tamaño `45925962276`, eventos de seguridad `45929163932`, CSRF `45932408840` y `45933203449`; todos success.
 
 ## Threat model mínimo
 
@@ -22,10 +22,10 @@ Flujo crítico: `cookie + X-Organization-ID` → sesión → membresía → rol 
 |---|---|---|
 | Threat model actualizado | Revisado | Sección anterior; decisiones en `docs/decisions/ADR-017.md`. |
 | Matriz de roles y permisos revisada | Revisado | `apps/api/app/identity/dependencies.py:1-12,104-118`; tests en `apps/api/tests/test_authorization.py`. |
-| Tests cross-tenant completos | Revisado | `apps/api/tests/test_authorization.py` y `test_*_api.py` con dos organizaciones sintéticas; 529 tests en verde. |
+| Tests cross-tenant completos | Revisado | `apps/api/tests/test_authorization.py` y `test_*_api.py` con dos organizaciones sintéticas; 530 tests en verde. |
 | Autenticación y sesiones | Revisado | bcrypt + límite 72 bytes (`identity/security.py`); token opaco con hash SHA-256; `HttpOnly`, `SameSite=lax`, `Secure` en producción (`api/routes/auth.py:87-95`). |
 | Esquemas de entrada | Revisado | `extra=forbid` en `identity/schemas.py:13-14,67-69,90-92` para registro, login, organización, invitación y reset; tests en `tests/test_auth.py`. |
-| CORS y CSRF | Revisado | Origen web explícito sin comodín (`app/main.py:46-53`); `verify_origin` para métodos mutantes (`identity/dependencies.py:133-149`); `SameSite=lax`. |
+| CORS y CSRF | Revisado | Origen web explícito sin comodín (`app/main.py:46-53`); `verify_origin` exige `Origin` en mutaciones bajo `staging`/`production` y valida esquema/host/puerto (`identity/dependencies.py:37-38,134-152`); `SameSite=lax`. |
 | Cabeceras y transporte | Revisado | `nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy` en toda respuesta (`app/main.py:107-112`); CSP y HSTS en producción; redirect 307 HTTP→HTTPS con `X-Forwarded-Proto` (`app/main.py:114-130`); docs deshabilitados en producción (`app/main.py:37-44`); tests en `test_health.py`. |
 | Rate limiting | Parcial | Límite por tool de agente (`agents/tools.py:641`) y 60 intentos/minuto por IP en `login`, `forgot-password` y `reset-password` bajo `staging`/`production` (`app/main.py:70-80,161-184`); 429 con `Retry-After`. Sin límite global HTTP: riesgo `RM-01`. |
 | Upload y parsing | Revisado | Extensión, MIME declarado, firma real, 10 MiB y 50 páginas (`documents/validation.py:8-14,50-71`); parseo determinista sin servicio externo. Límite global de 2 MiB para cuerpo no multipart con 413 uniforme (`app/main.py:68-69,132-160`); multipart queda bajo la cota específica de upload. |

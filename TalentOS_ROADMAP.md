@@ -1039,7 +1039,7 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 16-22 | Validación y saneado de entradas | Pydantic + escapes antes de persistir | `NOT_STARTED` | — |
 | 16-23 | Límite de respuestas de API | paginación y cotas de salida | `NOT_STARTED` | — |
 | 16-24 | Cabeceras de seguridad, HTTPS y HSTS | middleware + tests | `DONE` | Commit `edb42db`; CI `45915102956` success; `nosniff`, `DENY`, `Referrer-Policy`, `Permissions-Policy`, CSP en producción, redirect 307 y HSTS; 518 tests. |
-| 16-25 | CSRF | tokens/origen según estrategia | `NOT_STARTED` | — |
+| 16-25 | CSRF | tokens/origen según estrategia | `DONE` | Commits `b7ddfed`/`c45a046`; CI `45932408840`/`45933203449` success; `Origin` obligatorio en mutaciones bajo `staging`/`production`, orígenes permitidos por configuración; 530 tests. |
 | 16-26 | Sesiones al cambiar contraseña | invalidación + test | `NOT_STARTED` | — |
 | 16-27 | Caducidad de enlaces | URLs firmadas con TTL y test | `NOT_STARTED` | — |
 | 16-28 | Sin numeración de usuarios | UUID y respuestas uniformes | `NOT_STARTED` | — |
@@ -1078,3 +1078,4 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 2026-11-26 | 16-17 | `82a9a58` | `45922837838` | Rechazo de campos desconocidos en esquemas de identidad. |
 | 2026-11-26 | 16-31 | `f9ba3da` | `45925962276` | Límite global de 2 MiB por solicitud con 413 uniforme. |
 | 2026-11-26 | 16-35 | `7dc55ff` | `45929163932` | Eventos de seguridad de autenticación con correlación y sin PII. |
+| 2026-11-27 | 16-25 | `b7ddfed` | `45932408840` | `Origin` obligatorio en mutaciones desplegadas y rechazo de orígenes externos. |
