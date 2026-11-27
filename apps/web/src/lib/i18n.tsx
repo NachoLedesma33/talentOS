@@ -364,6 +364,21 @@ const es = {
   "history.col.createdBy": "Creado por",
   "history.col.date": "Fecha",
   "history.col.summary": "Resumen del snapshot saneado",
+  "register.name": "Nombre",
+  "register.email": "Correo electrónico",
+  "register.password": "Contraseña",
+  "register.passwordHint": "Mínimo 8 caracteres.",
+  "register.consent": "Acepto la política de privacidad y los términos de servicio.",
+  "register.consentHelpIntro": "Revisá la",
+  "register.privacyLink": "política de privacidad",
+  "register.consentHelpJoin": "y los",
+  "register.termsLink": "términos de servicio",
+  "register.submitting": "Creando cuenta…",
+  "register.submit": "Crear cuenta",
+  "register.success": "Cuenta creada. Ahora puedes iniciar sesión.",
+  "register.error": "No se pudo crear la cuenta.",
+  "register.errorPrefix": "Error:",
+  "register.loginLink": "Ir a iniciar sesión",
 };
 
 const en: typeof es = {
@@ -717,6 +732,21 @@ const en: typeof es = {
   "history.col.createdBy": "Created by",
   "history.col.date": "Date",
   "history.col.summary": "Sanitized snapshot summary",
+  "register.name": "Name",
+  "register.email": "Email",
+  "register.password": "Password",
+  "register.passwordHint": "Minimum 8 characters.",
+  "register.consent": "I accept the privacy policy and the terms of service.",
+  "register.consentHelpIntro": "Review the",
+  "register.privacyLink": "privacy policy",
+  "register.consentHelpJoin": "and the",
+  "register.termsLink": "terms of service",
+  "register.submitting": "Creating account…",
+  "register.submit": "Create account",
+  "register.success": "Account created. You can sign in now.",
+  "register.error": "Could not create the account.",
+  "register.errorPrefix": "Error:",
+  "register.loginLink": "Go to sign in",
 };
 
 const messages: Record<Locale, typeof es> = { es, en };

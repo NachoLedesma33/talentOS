@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
+import { useI18n } from "../lib/i18n";
 import type { AuthResponse, RegisterRequest } from "../lib/types";
 import { Button } from "./ui/shadcn/button";
 import { Checkbox } from "./ui/shadcn/checkbox";
@@ -11,6 +12,7 @@ import { Label } from "./ui/shadcn/label";
 type SubmitStatus = "idle" | "loading" | "success" | "error";
 
 export function RegisterForm() {
+  const { t } = useI18n();
   const [status, setStatus] = useState<SubmitStatus>("idle");
   const [message, setMessage] = useState<string | null>(null);
 
@@ -32,10 +34,10 @@ export function RegisterForm() {
         body: JSON.stringify(payload),
       });
       setStatus("success");
-      setMessage("Cuenta creada. Ahora puedes iniciar sesión.");
+      setMessage(t("register.success"));
     } catch (error) {
       setStatus("error");
-      setMessage(error instanceof ApiError ? error.message : "No se pudo crear la cuenta.");
+      setMessage(error instanceof ApiError ? error.message : t("register.error"));
     }
   }
 
@@ -43,7 +45,7 @@ export function RegisterForm() {
     <form onSubmit={handleSubmit} aria-busy={status === "loading"} className="space-y-4">
       <div className="space-y-1">
         <Label htmlFor="register-name" className="block">
-          Nombre
+          {t("register.name")}
         </Label>
         <Input
           id="register-name"
@@ -56,7 +58,7 @@ export function RegisterForm() {
 
       <div className="space-y-1">
         <Label htmlFor="register-email" className="block">
-          Correo electrónico
+          {t("register.email")}
         </Label>
         <Input
           id="register-email"
@@ -69,7 +71,7 @@ export function RegisterForm() {
 
       <div className="space-y-1">
         <Label htmlFor="register-password" className="block">
-          Contraseña
+          {t("register.password")}
         </Label>
         <Input
           id="register-password"
@@ -79,7 +81,7 @@ export function RegisterForm() {
           minLength={8}
           required
         />
-        <p className="text-xs text-text-muted">Mínimo 8 caracteres.</p>
+        <p className="text-xs text-text-muted">{t("register.passwordHint")}</p>
       </div>
 
       <div className="space-y-2">
@@ -92,30 +94,30 @@ export function RegisterForm() {
             required
           />
           <Label htmlFor="register-consent" className="text-sm font-normal">
-            Acepto la política de privacidad y los términos de servicio.
+            {t("register.consent")}
           </Label>
         </div>
         <p id="register-consent-help" className="text-xs text-text-muted">
-          Revisá la{" "}
+          {t("register.consentHelpIntro")}{" "}
           <a
             href="https://github.com/NachoLedesma33/talentOS/blob/main/docs/privacy-policy.md"
             className="font-medium text-accent hover:opacity-80"
           >
-            política de privacidad
+            {t("register.privacyLink")}
           </a>{" "}
-          y los{" "}
+          {t("register.consentHelpJoin")}{" "}
           <a
             href="https://github.com/NachoLedesma33/talentOS/blob/main/docs/terms-of-service.md"
             className="font-medium text-accent hover:opacity-80"
           >
-            términos de servicio
+            {t("register.termsLink")}
           </a>
           .
         </p>
       </div>
 
       <Button type="submit" disabled={status === "loading"}>
-        {status === "loading" ? "Creando cuenta…" : "Crear cuenta"}
+        {status === "loading" ? t("register.submitting") : t("register.submit")}
       </Button>
 
       <p
@@ -123,12 +125,12 @@ export function RegisterForm() {
         role={status === "error" ? "alert" : undefined}
         className="min-h-5 text-sm text-text-muted"
       >
-        {status === "error" ? `Error: ${message}` : message}
+        {status === "error" ? `${t("register.errorPrefix")} ${message}` : message}
       </p>
 
       {status === "success" ? (
         <p className="text-sm">
-          <a href="/login">Ir a iniciar sesión</a>
+          <a href="/login">{t("register.loginLink")}</a>
         </p>
       ) : null}
     </form>
