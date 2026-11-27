@@ -8,6 +8,7 @@ import {
   type ChangeEvent,
 } from "react";
 import { ACTIVE_ORG_STORAGE_KEY, ApiError, apiFetch } from "../lib/api";
+import { useI18n } from "../lib/i18n";
 import type { Organization } from "../lib/types";
 import { Button } from "./ui/shadcn/button";
 import { Card } from "./ui/shadcn/card";
@@ -26,6 +27,7 @@ function requestOrganizations(): Promise<Organization[]> {
 export function OrganizationSelector({
   onActiveOrganizationChange,
 }: OrganizationSelectorProps) {
+  const { t } = useI18n();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [activeId, setActiveId] = useState("");
   const [status, setStatus] = useState<LoadStatus>("loading");
@@ -48,20 +50,20 @@ export function OrganizationSelector({
     setOrganizations(items);
     setActiveId(selectedId);
     setStatus("ready");
-    setMessage(items.length === 0 ? "Sin organizaciones disponibles." : null);
+    setMessage(items.length === 0 ? t("organization.empty") : null);
     if (selectedId) {
       onChangeRef.current?.(selectedId);
     }
-  }, []);
+  }, [t]);
 
   const applyLoadError = useCallback((error: unknown) => {
     setStatus("error");
     setMessage(
       error instanceof ApiError
         ? error.message
-        : "No se pudieron cargar las organizaciones.",
+        : t("organization.error"),
     );
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     let active = true;
@@ -94,12 +96,12 @@ export function OrganizationSelector({
   return (
     <section aria-labelledby="organization-selector-heading" className="space-y-2">
       <h2 id="organization-selector-heading" className="text-lg font-semibold">
-        Organización activa
+        {t("organization.title")}
       </h2>
 
       {status === "loading" ? (
         <p role="status" aria-live="polite" className="text-sm text-text-muted">
-          Cargando organizaciones…
+          {t("organization.loading")}
         </p>
       ) : null}
 
@@ -116,14 +118,14 @@ export function OrganizationSelector({
               requestOrganizations().then(applyOrganizations, applyLoadError);
             }}
           >
-            Reintentar
+            {t("organization.retry")}
           </Button>
         </Card>
       ) : null}
 
       {status === "ready" && organizations.length > 0 ? (
         <Select
-          aria-label="Organización activa"
+          aria-label={t("organization.title")}
           value={activeId}
           onChange={handleChange}
         >

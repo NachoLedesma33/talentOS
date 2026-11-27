@@ -413,6 +413,11 @@ const es = {
   "feedback.col.evidence": "Evidencia / brechas",
   "feedback.evidenceCount": "evidencias",
   "feedback.gapCount": "brechas",
+  "organization.title": "Organización activa",
+  "organization.loading": "Cargando organizaciones…",
+  "organization.empty": "Sin organizaciones disponibles.",
+  "organization.error": "No se pudieron cargar las organizaciones.",
+  "organization.retry": "Reintentar",
 };
 
 const en: typeof es = {
@@ -815,6 +820,11 @@ const en: typeof es = {
   "feedback.col.evidence": "Evidence / gaps",
   "feedback.evidenceCount": "evidence items",
   "feedback.gapCount": "gaps",
+  "organization.title": "Active organization",
+  "organization.loading": "Loading organizations…",
+  "organization.empty": "No organizations available.",
+  "organization.error": "Could not load organizations.",
+  "organization.retry": "Retry",
 };
 
 const messages: Record<Locale, typeof es> = { es, en };
