@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
+import { useI18n, type MessageKey } from "../lib/i18n";
 import type {
   AssessmentEvidenceRef,
   RequirementEvaluation,
@@ -14,11 +15,11 @@ import { Label } from "./ui/shadcn/label";
 import { Select } from "./ui/shadcn/select";
 import { Textarea } from "./ui/shadcn/textarea";
 
-const STATUS_LABELS: Record<RequirementEvaluationStatus, string> = {
-  supported: "Respaldado",
-  partial: "Parcial",
-  not_found: "No encontrado",
-  needs_review: "Requiere revisión",
+const STATUS_KEYS: Record<RequirementEvaluationStatus, MessageKey> = {
+  supported: "evaluation.status.supported",
+  partial: "evaluation.status.partial",
+  not_found: "evaluation.status.not_found",
+  needs_review: "evaluation.status.needs_review",
 };
 
 const STATUS_MARKS: Record<RequirementEvaluationStatus, string> = {
@@ -35,11 +36,11 @@ const STATUS_OPTIONS: RequirementEvaluationStatus[] = [
   "needs_review",
 ];
 
-function describeError(error: unknown): string {
+function describeError(error: unknown, fallback: string): string {
   if (error instanceof ApiError) {
     return `${error.status}: ${error.message}`;
   }
-  return "No se pudo guardar la revisión.";
+  return fallback;
 }
 
 function truncateQuote(quote: string, limit = 160): string {
@@ -47,11 +48,13 @@ function truncateQuote(quote: string, limit = 160): string {
 }
 
 function Evidence({ item }: { item: AssessmentEvidenceRef }) {
+  const { t } = useI18n();
   return (
     <li>
       <Card className="bg-secondary p-2">
         <p className="text-xs text-text-muted">
-          Documento {item.document_id} · Campo {item.field_name} · Página {item.page}
+          {t("evaluation.document")} {item.document_id} · {t("evaluation.field")}{" "}
+          {item.field_name} · {t("evaluation.page")} {item.page}
         </p>
         <blockquote
           title={item.quote}
@@ -75,6 +78,7 @@ export function RequirementEvaluationCard({
   evaluation,
   onReviewed,
 }: RequirementEvaluationCardProps) {
+  const { t } = useI18n();
   const [status, setStatus] = useState<RequirementEvaluationStatus>(evaluation.status);
   const [explanation, setExplanation] = useState("");
   const [busy, setBusy] = useState(false);
@@ -105,10 +109,10 @@ export function RequirementEvaluationCard({
         { method: "PATCH", body: JSON.stringify(payload) },
       );
       setSaved(updated);
-      setMessage(`Revisión registrada: ${STATUS_LABELS[updated.status]}.`);
+      setMessage(`${t("evaluation.saved")} ${t(STATUS_KEYS[updated.status])}.`);
       onReviewed?.(updated);
     } catch (cause) {
-      setError(describeError(cause));
+      setError(describeError(cause, t("evaluation.error")));
     } finally {
       setBusy(false);
     }
@@ -122,7 +126,7 @@ export function RequirementEvaluationCard({
     >
       <div className="space-y-1">
         <h4 id={`evaluation-${evaluation.id}`} className="text-sm font-semibold">
-          Estado:{" "}
+          {t("evaluation.statusLabel")}{" "}
           <span
             data-status={current.status}
             className={buttonVariants({
@@ -131,11 +135,11 @@ export function RequirementEvaluationCard({
             })}
           >
             <span aria-hidden="true">{STATUS_MARKS[current.status]}</span>
-            {STATUS_LABELS[current.status]}
+            {t(STATUS_KEYS[current.status])}
           </span>
         </h4>
         <p className="break-words text-xs text-text-muted">
-          Requisito {current.requirement_id}
+          {t("evaluation.requirement")} {current.requirement_id}
         </p>
       </div>
 
@@ -150,21 +154,23 @@ export function RequirementEvaluationCard({
             </ul>
           ) : null}
           {current.review_required ? (
-            <p className="text-xs text-text">Requiere revisión humana.</p>
+            <p className="text-xs text-text">{t("evaluation.reviewRequired")}</p>
           ) : null}
           {current.reviewed_by || current.reviewed_at ? (
             <p className="text-xs text-text-muted">
-              Revisado por {current.reviewed_by ?? "—"}
-              {current.reviewed_at ? ` el ${current.reviewed_at}` : ""}
+              {t("evaluation.reviewedBy")} {current.reviewed_by ?? "—"}
+              {current.reviewed_at
+                ? ` ${t("evaluation.reviewedAt")} ${current.reviewed_at}`
+                : ""}
             </p>
           ) : (
-            <p className="text-xs text-text-muted">Sin revisión humana registrada.</p>
+            <p className="text-xs text-text-muted">{t("evaluation.noReview")}</p>
           )}
         </div>
 
         <div className="space-y-2">
           <h5 id={evidenceId} className="text-xs font-semibold text-text-muted">
-            Evidencia verificable
+            {t("evaluation.evidenceTitle")}
           </h5>
           {current.evidence.length > 0 ? (
             <ul aria-labelledby={evidenceId} className="space-y-2">
@@ -177,7 +183,7 @@ export function RequirementEvaluationCard({
             </ul>
           ) : (
             <p className="text-xs text-text-muted">
-              Sin evidencia verificable para este requisito.
+              {t("evaluation.noEvidence")}
             </p>
           )}
         </div>
@@ -185,7 +191,7 @@ export function RequirementEvaluationCard({
 
       <form onSubmit={(event) => void submitReview(event)} className="space-y-2">
         <Label htmlFor={statusId} className="block text-xs">
-          Estado corregido
+          {t("evaluation.correctedStatus")}
         </Label>
         <Select
           id={statusId}
@@ -196,12 +202,12 @@ export function RequirementEvaluationCard({
         >
           {STATUS_OPTIONS.map((option) => (
             <option key={option} value={option}>
-              {STATUS_LABELS[option]}
+              {t(STATUS_KEYS[option])}
             </option>
           ))}
         </Select>
         <Label htmlFor={explanationId} className="block text-xs">
-          Explicación (opcional)
+          {t("evaluation.explanation")}
         </Label>
         <Textarea
           id={explanationId}
@@ -210,7 +216,7 @@ export function RequirementEvaluationCard({
           rows={2}
         />
         <Button type="submit" size="sm" disabled={busy}>
-          {busy ? "Guardando revisión…" : "Corregir revisión"}
+          {busy ? t("evaluation.saving") : t("evaluation.correct")}
         </Button>
       </form>
 
