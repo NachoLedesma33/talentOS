@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
+import { useI18n, type MessageKey } from "../lib/i18n";
 import type {
   ApplicationStage,
   AutomationAction,
@@ -51,21 +52,21 @@ import { Select } from "./ui/shadcn/select";
 
 const PAGE_SIZE = 20;
 
-const AUTOMATION_STATUS_LABELS: Record<AutomationStatus, string> = {
-  draft: "Borrador",
-  active: "Activa",
-  inactive: "Inactiva",
-  archived: "Archivada",
+const AUTOMATION_STATUS_LABEL_KEYS: Record<AutomationStatus, MessageKey> = {
+  draft: "automations.status.draft",
+  active: "automations.status.active",
+  inactive: "automations.status.inactive",
+  archived: "automations.status.archived",
 };
 
-const RUN_STATUS_LABELS: Record<AutomationRunStatus, string> = {
-  pending: "Pendiente",
-  running: "En curso",
-  waiting_approval: "Esperando aprobación",
-  completed: "Completada",
-  failed: "Fallida",
-  cancelled: "Cancelada",
-  timed_out: "Agotado por tiempo",
+const RUN_STATUS_LABEL_KEYS: Record<AutomationRunStatus, MessageKey> = {
+  pending: "runTimeline.status.pending",
+  running: "runTimeline.status.running",
+  waiting_approval: "runTimeline.status.waiting_approval",
+  completed: "runTimeline.status.completed",
+  failed: "runTimeline.status.failed",
+  cancelled: "runTimeline.status.cancelled",
+  timed_out: "runTimeline.status.timed_out",
 };
 
 const CONDITION_FIELDS = AUTOMATION_CONDITION_FIELDS;
@@ -87,10 +88,14 @@ interface ExecutionState {
   queued: boolean | null;
 }
 
-function describeError(cause: unknown, fallback: string): string {
+function describeError(
+  cause: unknown,
+  fallback: string,
+  t: (key: MessageKey) => string,
+): string {
   if (cause instanceof ApiError) {
     if (cause.code === "broker_unavailable" || cause.status === 503) {
-      return "broker no disponible, sin cambios.";
+      return t("approval.brokerError");
     }
     return `${cause.status}: ${cause.message}`;
   }
@@ -107,9 +112,9 @@ function requestAutomationList(status: AutomationStatus | "all", pageOffset: num
 }
 
 /** Muestra sólo metadatos de la versión; nunca notas libres ni campos extra. */
-function snapshotText(detail: AutomationDetail): string {
+function snapshotText(detail: AutomationDetail, noVersion: string): string {
   const version = detail.active_version;
-  if (!version) return "Sin versión activa.";
+  if (!version) return noVersion;
   const sanitized = {
     trigger: version.trigger.event_type ?? null,
     conditions: version.conditions.map((item) => ({
@@ -129,6 +134,7 @@ function snapshotText(detail: AutomationDetail): string {
 }
 
 export function AutomationRulePanel() {
+  const { t } = useI18n();
   const [name, setName] = useState("");
   const [statusFilter, setStatusFilter] = useState<AutomationStatus | "all">("all");
   const [offset, setOffset] = useState(0);
@@ -160,7 +166,7 @@ export function AutomationRulePanel() {
     try {
       setList(await requestAutomationList(nextStatus, nextOffset));
     } catch (cause) {
-      setError(describeError(cause, "No se pudo cargar el listado de automatizaciones."));
+      setError(describeError(cause, t("automations.errorList"), t));
     } finally {
       setListLoading(false);
     }
@@ -200,7 +206,7 @@ export function AutomationRulePanel() {
       setApprovals(Array.isArray(approvalList) ? approvalList : []);
       setRuns((current) => current.map((item) => (item.id === run.id ? { ...item, ...run } : item)));
     } catch (cause) {
-      setError(describeError(cause, "No se pudo cargar la traza de la ejecución."));
+      setError(describeError(cause, t("automations.errorTrace"), t));
     } finally {
       setTraceLoading(false);
     }
@@ -220,7 +226,7 @@ export function AutomationRulePanel() {
       await loadRunTrace(runItems[0]?.id ?? null);
     } catch (cause) {
       setDetail(null);
-      setError(describeError(cause, "No se pudo cargar la automatización."));
+      setError(describeError(cause, t("automations.errorLoad"), t));
     } finally {
       setDetailLoading(false);
     }
@@ -233,7 +239,7 @@ export function AutomationRulePanel() {
         if (active) setList(result);
       },
       (cause: unknown) => {
-        if (active) setError(describeError(cause, "No se pudo cargar el listado de automatizaciones."));
+        if (active) setError(describeError(cause, t("automations.errorList"), t));
       },
     ).finally(() => {
       if (active) setListLoading(false);
@@ -241,7 +247,7 @@ export function AutomationRulePanel() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [t]);
 
   async function createAutomation(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -257,11 +263,11 @@ export function AutomationRulePanel() {
         body: JSON.stringify({ name: value } satisfies { name: string }),
       });
       setName("");
-      setNotice("Automatización creada.");
+      setNotice(t("automations.created"));
       await loadList();
       await openAutomation(created.id);
     } catch (cause) {
-      setError(describeError(cause, "No se pudo crear la automatización."));
+      setError(describeError(cause, t("automations.errorCreate"), t));
     } finally {
       setBusy(null);
     }
@@ -271,7 +277,7 @@ export function AutomationRulePanel() {
     event.preventDefault();
     if (!detail || working) return;
     if (actions.length === 0) {
-      setError("Define al menos una acción.");
+      setError(t("automations.requireAction"));
       return;
     }
     if (
@@ -279,7 +285,7 @@ export function AutomationRulePanel() {
         (action) => action.type === "propose_stage_change" && !action.payload.target_stage,
       )
     ) {
-      setError("Selecciona la etapa propuesta de cada acción.");
+      setError(t("automations.requireStage"));
       return;
     }
 
@@ -296,11 +302,11 @@ export function AutomationRulePanel() {
         `/api/v1/automations/${encodeURIComponent(detail.id)}/versions`,
         { method: "POST", body: JSON.stringify(payload) },
       );
-      setNotice("Versión creada.");
+      setNotice(t("automations.versionCreated"));
       await loadList();
       await openAutomation(detail.id);
     } catch (cause) {
-      setError(describeError(cause, "No se pudo crear la versión."));
+      setError(describeError(cause, t("automations.errorVersion"), t));
     } finally {
       setBusy(null);
     }
@@ -316,11 +322,11 @@ export function AutomationRulePanel() {
         `/api/v1/automations/${encodeURIComponent(detail.id)}`,
         { method: "PATCH", body: JSON.stringify({ status } satisfies { status: AutomationStatus }) },
       );
-      setNotice(`Estado actualizado: ${AUTOMATION_STATUS_LABELS[status]}.`);
+      setNotice(`${t("automations.statusUpdated")}${t(AUTOMATION_STATUS_LABEL_KEYS[status])}.`);
       await loadList();
       await openAutomation(detail.id);
     } catch (cause) {
-      setError(describeError(cause, "No se pudo actualizar el estado."));
+      setError(describeError(cause, t("automations.errorStatus"), t));
     } finally {
       setBusy(null);
     }
@@ -331,7 +337,7 @@ export function AutomationRulePanel() {
     const application = applicationId.trim();
     const key = idempotencyKey.trim();
     if (!application || !key) {
-      setError("Indica el ID de postulación y la clave de idempotencia.");
+      setError(t("automations.requireExecution"));
       return;
     }
 
@@ -355,7 +361,7 @@ export function AutomationRulePanel() {
           correlationId: result.correlation_id,
           queued: null,
         });
-        setNotice("Prueba registrada sin efectos externos.");
+        setNotice(t("automations.testRecorded"));
         await loadRuns(detail.id);
         await loadRunTrace(result.id);
       } else {
@@ -370,15 +376,13 @@ export function AutomationRulePanel() {
           queued: result.queued,
         });
         setNotice(
-          result.queued
-            ? "Ejecución encolada (queued). El estado final lo confirma el servidor."
-            : "La clave ya existe; no se reencoló la ejecución.",
+          result.queued ? t("automations.runQueued") : t("automations.runDuplicate"),
         );
         await loadRuns(detail.id);
         await loadRunTrace(result.id);
       }
     } catch (cause) {
-      setError(describeError(cause, "No se pudo solicitar la ejecución."));
+      setError(describeError(cause, t("automations.errorExecute"), t));
     } finally {
       setBusy(null);
     }
@@ -400,18 +404,15 @@ export function AutomationRulePanel() {
     <section aria-labelledby="automation-panel-heading" aria-busy={working} className="space-y-6">
       <div className="space-y-1">
         <h2 id="automation-panel-heading" className="text-lg font-semibold">
-          Automatizaciones
+          {t("automations.title")}
         </h2>
-        <p className="text-sm text-text-muted">
-          Reglas deterministas, versionadas y probables sin efectos externos. Los permisos y el
-          estado final los decide el servidor. Sin puntuaciones ni decisiones automáticas.
-        </p>
+        <p className="text-sm text-text-muted">{t("automations.intro")}</p>
       </div>
 
       <form onSubmit={(event) => void createAutomation(event)} className="flex flex-wrap items-end gap-3">
         <div className="min-w-64 flex-1 space-y-1">
           <Label htmlFor="automation-name" className="block">
-            Nombre de la automatización
+            {t("automations.nameLabel")}
           </Label>
           <Input
             id="automation-name"
@@ -419,7 +420,7 @@ export function AutomationRulePanel() {
             onChange={(event) => setName(event.target.value)}
             required
             maxLength={200}
-            placeholder="Regla sintética de etapa"
+            placeholder={t("automations.namePlaceholder")}
             className="w-full"
           />
         </div>
@@ -428,7 +429,7 @@ export function AutomationRulePanel() {
           disabled={working}
           variant="default"
         >
-          {busy === "create" ? "Creando…" : "Crear automatización"}
+          {busy === "create" ? t("automations.creatingButton") : t("automations.create")}
         </Button>
       </form>
 
@@ -436,7 +437,7 @@ export function AutomationRulePanel() {
         <div className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
             <Label htmlFor="automation-status-filter" className="block">
-              Filtrar por estado
+              {t("automations.filterStatus")}
             </Label>
             <Select
               id="automation-status-filter"
@@ -450,10 +451,10 @@ export function AutomationRulePanel() {
               disabled={working}
               className="w-full"
             >
-              <option value="all">Todos</option>
+              <option value="all">{t("integrations.filterAll")}</option>
               {ALL_STATUSES.filter((item) => item !== "all").map((item) => (
                 <option key={item} value={item}>
-                  {AUTOMATION_STATUS_LABELS[item]}
+                  {t(AUTOMATION_STATUS_LABEL_KEYS[item])}
                 </option>
               ))}
             </Select>
@@ -464,25 +465,25 @@ export function AutomationRulePanel() {
             disabled={working}
             variant="outline"
           >
-            Actualizar listado
+            {t("automations.refresh")}
           </Button>
         </div>
 
         <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
           {busy === "create"
-            ? "Creando automatización…"
+            ? t("automations.creating")
             : busy === "version"
-              ? "Guardando versión…"
+              ? t("automations.savingVersion")
               : busy?.startsWith("status")
-                ? "Actualizando estado…"
+                ? t("automations.updatingStatus")
                 : busy === "execution:test"
-                  ? "Registrando prueba…"
+                  ? t("automations.testing")
                   : busy === "execution:live"
-                    ? "Encolando ejecución…"
+                    ? t("automations.queuing")
                     : listLoading
-                      ? "Cargando automatizaciones…"
+                      ? t("automations.loading")
                       : detailLoading
-                        ? "Cargando detalle y ejecuciones…"
+                        ? t("automations.loadingDetail")
                         : notice}
         </p>
         {error ? (
@@ -497,7 +498,7 @@ export function AutomationRulePanel() {
               variant="outline"
               size="sm"
             >
-              Revisar y reintentar
+              {t("automations.reviewRetry")}
             </Button>
           </Card>
         ) : null}
@@ -511,25 +512,27 @@ export function AutomationRulePanel() {
                   disabled={working}
                   onClick={() => void openAutomation(item.id)}
                   aria-current={item.id === detail?.id ? "true" : undefined}
-                  aria-label={`Abrir ${item.name} versión ${item.current_version}`}
+                  aria-label={`${t("automations.openAria")}${item.name}${t("automations.openVersionAria")}${item.current_version}`}
                   variant="outline"
                   size="sm"
                   className={item.id === detail?.id ? "bg-secondary" : undefined}
                 >
-                  {item.name} · v{item.current_version} · {AUTOMATION_STATUS_LABELS[item.status]}
+                  {item.name} · v{item.current_version} · {t(AUTOMATION_STATUS_LABEL_KEYS[item.status])}
                 </Button>
               </li>
             ))}
           </ul>
         ) : list && !listLoading && !error ? (
           <Card className="bg-secondary p-3 text-sm text-text-muted">
-            No hay automatizaciones registradas.
+            {t("automations.empty")}
           </Card>
         ) : null}
 
         {list ? (
           <div className="flex flex-wrap items-center gap-3 text-sm text-text-muted">
-            <span>{`Página ${currentPage} de ${totalPages} · ${list.total} registros`}</span>
+            <span>
+              {`${t("integrations.page")}${currentPage}${t("integrations.of")}${totalPages} · ${list.total}${t("integrations.records")}`}
+            </span>
             <Button
               type="button"
               disabled={working || offset === 0}
@@ -541,7 +544,7 @@ export function AutomationRulePanel() {
               variant="outline"
               size="sm"
             >
-              Página anterior
+              {t("integrations.prevPage")}
             </Button>
             <Button
               type="button"
@@ -554,7 +557,7 @@ export function AutomationRulePanel() {
               variant="outline"
               size="sm"
             >
-              Página siguiente
+              {t("integrations.nextPage")}
             </Button>
           </div>
         ) : null}
@@ -569,27 +572,27 @@ export function AutomationRulePanel() {
             <Card className="p-3 text-sm">
             <dl className="flex flex-wrap gap-x-6 gap-y-1">
               <div>
-                <dt className="text-xs font-semibold text-text-muted">Estado: </dt>
-                <dd className="inline">{AUTOMATION_STATUS_LABELS[detail.status]}</dd>
+                <dt className="text-xs font-semibold text-text-muted">{t("automations.detail.status")}</dt>
+                <dd className="inline">{t(AUTOMATION_STATUS_LABEL_KEYS[detail.status])}</dd>
               </div>
               <div>
-                <dt className="text-xs font-semibold text-text-muted">Versión: </dt>
+                <dt className="text-xs font-semibold text-text-muted">{t("automations.detail.version")}</dt>
                 <dd className="inline">{detail.current_version}</dd>
               </div>
               <div>
-                <dt className="text-xs font-semibold text-text-muted">Creada UTC: </dt>
+                <dt className="text-xs font-semibold text-text-muted">{t("automations.detail.created")}</dt>
                 <dd className="inline">{detail.created_at}</dd>
               </div>
               <div>
-                <dt className="text-xs font-semibold text-text-muted">Actualizada UTC: </dt>
+                <dt className="text-xs font-semibold text-text-muted">{t("automations.detail.updated")}</dt>
                 <dd className="inline">{detail.updated_at}</dd>
               </div>
             </dl>
             </Card>
             <div className="space-y-1">
-              <h4 className="text-sm font-semibold">Configuración de la versión activa</h4>
+              <h4 className="text-sm font-semibold">{t("automations.activeVersionTitle")}</h4>
               <code className="block break-all bg-secondary p-3 text-xs">
-                {snapshotText(detail)}
+                {snapshotText(detail, t("automations.noActiveVersion"))}
               </code>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -599,7 +602,7 @@ export function AutomationRulePanel() {
                 onClick={() => void patchStatus("active")}
                 variant="outline"
               >
-                Activar
+                {t("automations.activate")}
               </Button>
               <Button
                 type="button"
@@ -607,7 +610,7 @@ export function AutomationRulePanel() {
                 onClick={() => void patchStatus("inactive")}
                 variant="outline"
               >
-                Desactivar
+                {t("automations.deactivate")}
               </Button>
               <Button
                 type="button"
@@ -615,15 +618,15 @@ export function AutomationRulePanel() {
                 onClick={() => void patchStatus("archived")}
                 variant="outline"
               >
-                Archivar
+                {t("automations.archive")}
               </Button>
               {detail.status === "archived" ? (
-                <p className="text-sm text-text-muted">Archivada es terminal.</p>
+                <p className="text-sm text-text-muted">{t("automations.archivedTerminal")}</p>
               ) : null}
             </div>
           </section>
 
-          <div role="group" aria-label="Modo de edición de la versión" className="flex flex-wrap gap-2">
+          <div role="group" aria-label={t("automations.editorModeAria")} className="flex flex-wrap gap-2">
             <Button
               type="button"
               aria-pressed={editorMode === "form"}
@@ -631,7 +634,7 @@ export function AutomationRulePanel() {
               variant={editorMode === "form" ? "secondary" : "outline"}
               size="sm"
             >
-              Formulario
+              {t("automations.form")}
             </Button>
             <Button
               type="button"
@@ -640,20 +643,18 @@ export function AutomationRulePanel() {
               variant={editorMode === "visual" ? "secondary" : "outline"}
               size="sm"
             >
-              Editor visual
+              {t("automations.visualEditor")}
             </Button>
           </div>
 
           <form onSubmit={(event) => void saveVersion(event)} className="space-y-3">
             <div className="space-y-1">
-              <h3 className="text-base font-semibold">Nueva versión</h3>
-              <p className="text-sm text-text-muted">
-                Disparo, condiciones y acciones cerradas. Cada versión es inmutable.
-              </p>
+              <h3 className="text-base font-semibold">{t("automations.newVersion")}</h3>
+              <p className="text-sm text-text-muted">{t("automations.newVersionIntro")}</p>
             </div>
             <div className="space-y-1">
               <Label htmlFor="automation-trigger" className="block">
-                Disparador
+                {t("automations.trigger")}
               </Label>
               <Select
                 id="automation-trigger"
@@ -661,7 +662,7 @@ export function AutomationRulePanel() {
                 onChange={() => undefined}
                 className="w-full max-w-md bg-secondary"
               >
-                <option value="application.stage_changed">Cambio de etapa de postulación</option>
+                <option value="application.stage_changed">{t("automations.triggerOption")}</option>
               </Select>
             </div>
 
@@ -678,12 +679,14 @@ export function AutomationRulePanel() {
               <div className="space-y-2">
             <Card className="p-3">
             <fieldset disabled={working} className="space-y-2">
-              <legend className="px-1 text-sm font-semibold">Condiciones</legend>
+              <legend className="px-1 text-sm font-semibold">{t("automations.conditions")}</legend>
               <ol className="space-y-3">
                 {conditions.map((condition, index) => {
                   const choices = automationConditionValues(condition.field);
                   const isList = condition.operator === "in";
-                  const valueKey = isList ? "Valores" : "Valor";
+                  const valueKey = isList
+                    ? t("automations.values")
+                    : t("automations.value");
                   return (
                     <li key={index} className="flex flex-wrap items-end gap-3">
                       <div className="space-y-1">
@@ -691,7 +694,7 @@ export function AutomationRulePanel() {
                           htmlFor={`automation-condition-field-${index}`}
                           className="block"
                         >
-                          Campo {index + 1}
+                          {`${t("automations.field")}${index + 1}`}
                         </Label>
                         <Select
                           id={`automation-condition-field-${index}`}
@@ -716,7 +719,7 @@ export function AutomationRulePanel() {
                           htmlFor={`automation-condition-operator-${index}`}
                           className="block"
                         >
-                          Operador {index + 1}
+                          {`${t("automations.operator")}${index + 1}`}
                         </Label>
                         <Select
                           id={`automation-condition-operator-${index}`}
@@ -741,7 +744,7 @@ export function AutomationRulePanel() {
                           htmlFor={`automation-condition-value-${index}`}
                           className="block"
                         >
-                          {valueKey} {index + 1}
+                          {`${valueKey} ${index + 1}`}
                         </Label>
                         <Select
                           id={`automation-condition-value-${index}`}
@@ -773,7 +776,7 @@ export function AutomationRulePanel() {
                         variant="outline"
                         size="sm"
                       >
-                        {`Quitar condición ${index + 1}`}
+                        {`${t("automations.removeCondition")}${index + 1}`}
                       </Button>
                     </li>
                   );
@@ -786,14 +789,14 @@ export function AutomationRulePanel() {
                 variant="outline"
             size="sm"
               >
-                Agregar condición
+                {t("automations.addCondition")}
               </Button>
             </fieldset>
             </Card>
 
             <Card className="p-3">
             <fieldset disabled={working} className="space-y-2">
-              <legend className="px-1 text-sm font-semibold">Acciones</legend>
+              <legend className="px-1 text-sm font-semibold">{t("automations.actions")}</legend>
               <ol className="space-y-3">
                 {actions.map((action, index) => (
                   <li key={index} className="flex flex-wrap items-end gap-3">
@@ -802,7 +805,7 @@ export function AutomationRulePanel() {
                         htmlFor={`automation-action-type-${index}`}
                         className="block"
                       >
-                        Tipo de acción {index + 1}
+                        {`${t("automations.actionType")}${index + 1}`}
                       </Label>
                       <Select
                         id={`automation-action-type-${index}`}
@@ -827,7 +830,7 @@ export function AutomationRulePanel() {
                           htmlFor={`automation-action-stage-${index}`}
                           className="block"
                         >
-                          Etapa propuesta {index + 1}
+                          {`${t("automations.proposedStage")}${index + 1}`}
                         </Label>
                         <Select
                           id={`automation-action-stage-${index}`}
@@ -844,7 +847,7 @@ export function AutomationRulePanel() {
                           required
                           className="w-full"
                         >
-                          <option value="">Selecciona etapa</option>
+                          <option value="">{t("automations.selectStage")}</option>
                           {STAGE_VALUES.map((stage) => (
                             <option key={stage} value={stage}>{stage}</option>
                           ))}
@@ -858,7 +861,7 @@ export function AutomationRulePanel() {
                       variant="outline"
                         size="sm"
                     >
-                      {`Quitar acción ${index + 1}`}
+                      {`${t("automations.removeAction")}${index + 1}`}
                     </Button>
                   </li>
                 ))}
@@ -870,7 +873,7 @@ export function AutomationRulePanel() {
                 variant="outline"
             size="sm"
               >
-                Agregar acción
+                {t("automations.addAction")}
               </Button>
             </fieldset>
             </Card>
@@ -882,22 +885,21 @@ export function AutomationRulePanel() {
               disabled={working}
               variant="default"
             >
-              {busy === "version" ? "Guardando versión…" : "Guardar versión"}
+              {busy === "version"
+                ? t("automations.savingVersion")
+                : t("automations.saveVersion")}
             </Button>
           </form>
 
           <section aria-labelledby="automation-execution-heading" className="space-y-3">
             <h3 id="automation-execution-heading" className="text-base font-semibold">
-              Probar y ejecutar
+              {t("automations.executeTitle")}
             </h3>
-            <p className="text-sm text-text-muted">
-              La prueba no produce efectos externos. La ejecución real se encola; un 503 implica
-              que no se creó ninguna ejecución.
-            </p>
+            <p className="text-sm text-text-muted">{t("automations.executeIntro")}</p>
             <div className="flex flex-wrap items-end gap-3">
               <div className="min-w-64 flex-1 space-y-1">
                 <Label htmlFor="automation-execution-application" className="block">
-                  ID de postulación
+                  {t("agentRun.applicationId")}
                 </Label>
                 <Input
                   id="automation-execution-application"
@@ -909,7 +911,7 @@ export function AutomationRulePanel() {
               </div>
               <div className="min-w-48 flex-1 space-y-1">
                 <Label htmlFor="automation-execution-key" className="block">
-                  Clave de idempotencia
+                  {t("agentRun.idempotencyKey")}
                 </Label>
                 <Input
                   id="automation-execution-key"
@@ -925,7 +927,9 @@ export function AutomationRulePanel() {
                 onClick={() => void execute("test")}
                 variant="outline"
               >
-                {busy === "execution:test" ? "Probando…" : "Test (dry-run)"}
+                {busy === "execution:test"
+                  ? t("automations.testingButton")
+                  : t("automations.testButton")}
               </Button>
               <Button
                 type="button"
@@ -933,7 +937,9 @@ export function AutomationRulePanel() {
                 onClick={() => void execute("live")}
                 variant="default"
               >
-                {busy === "execution:live" ? "Encolando…" : "Run (live)"}
+                {busy === "execution:live"
+                  ? t("automations.queuingButton")
+                  : t("automations.runButton")}
               </Button>
             </div>
 
@@ -941,25 +947,31 @@ export function AutomationRulePanel() {
               <Card className="p-3 text-sm">
             <dl className="flex flex-wrap gap-x-6 gap-y-1">
                 <div>
-                  <dt className="text-xs font-semibold text-text-muted">Modo: </dt>
-                  <dd className="inline">{execution.kind === "test" ? "Prueba" : "Real"}</dd>
+                  <dt className="text-xs font-semibold text-text-muted">{t("automations.execution.mode")}</dt>
+                  <dd className="inline">
+                    {t(execution.kind === "test" ? "runTimeline.mode.test" : "runTimeline.mode.live")}
+                  </dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold text-text-muted">Status: </dt>
-                  <dd className="inline">{RUN_STATUS_LABELS[execution.status]}</dd>
+                  <dt className="text-xs font-semibold text-text-muted">{t("automations.execution.status")}</dt>
+                  <dd className="inline">{t(RUN_STATUS_LABEL_KEYS[execution.status])}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold text-text-muted">Versión: </dt>
+                  <dt className="text-xs font-semibold text-text-muted">{t("automations.execution.version")}</dt>
                   <dd className="inline">{detail.current_version}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold text-text-muted">Correlation ID: </dt>
+                  <dt className="text-xs font-semibold text-text-muted">{t("automations.execution.correlation")}</dt>
                   <dd className="inline">{execution.correlationId}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs font-semibold text-text-muted">Queued: </dt>
+                  <dt className="text-xs font-semibold text-text-muted">{t("automations.execution.queued")}</dt>
                   <dd className="inline">
-                    {execution.queued === null ? "no aplica (dry-run)" : execution.queued ? "sí" : "no"}
+                    {execution.queued === null
+                      ? t("automations.execution.na")
+                      : execution.queued
+                        ? t("automations.yes")
+                        : t("automations.no")}
                   </dd>
                 </div>
               </dl>
