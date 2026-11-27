@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session as DBSession
 
 from app.applications.models import Application
+from app.assessment.models import Assessment
 from app.audit.models import AuditLog
 from app.audit.service import list_resource_events, record_audit
 from app.candidates.models import (
@@ -27,6 +28,7 @@ from app.candidates.repositories import (
 from app.candidates.repositories import (
     list_notes as list_note_rows,
 )
+from app.documents import service as documents_service
 from app.documents.models import Document
 
 MAX_NOTE_BODY_LENGTH = 2000
@@ -321,3 +323,53 @@ def export_candidates(
             if document.candidate_id in candidate_ids
         ],
     }
+
+
+def delete_candidate(
+    db: DBSession,
+    *,
+    organization_id: uuid.UUID,
+    candidate_id: uuid.UUID,
+    actor_id: uuid.UUID,
+) -> None:
+    """Borra datos propios del tenant y registra auditoría sin payload."""
+    candidate = _require_candidate(db, organization_id, candidate_id)
+
+    documents = list(
+        db.scalars(
+            select(Document).where(
+                Document.organization_id == organization_id,
+                Document.candidate_id == candidate_id,
+            )
+        ).all()
+    )
+    for document in documents:
+        documents_service.delete_document(
+            db,
+            organization_id=organization_id,
+            document_id=document.id,
+            actor_id=actor_id,
+        )
+
+    db.query(Assessment).where(
+        Assessment.organization_id == organization_id,
+        Assessment.candidate_id == candidate_id,
+    ).delete(synchronize_session=False)
+    db.query(Application).where(
+        Application.organization_id == organization_id,
+        Application.candidate_id == candidate_id,
+    ).delete(synchronize_session=False)
+    db.query(CandidateNote).where(
+        CandidateNote.candidate_id == candidate_id
+    ).delete(synchronize_session=False)
+
+    record_audit(
+        db,
+        organization_id=organization_id,
+        actor_id=actor_id,
+        action="candidate.deleted",
+        resource_type="candidate",
+        resource_id=candidate.id,
+    )
+    db.delete(candidate)
+    db.commit()

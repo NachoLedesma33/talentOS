@@ -118,6 +118,26 @@ def export_candidates(
         raise _http_error(exc) from None
 
 
+@router.delete("/{candidate_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_candidate(
+    _origin: OriginChecked,
+    candidate_id: uuid.UUID,
+    actor: CurrentUser,
+    active_organization: CurrentOrganization,
+    _member: WriteMember,
+    db: DbDependency,
+) -> None:
+    try:
+        candidates_service.delete_candidate(
+            db,
+            organization_id=active_organization.id,
+            candidate_id=candidate_id,
+            actor_id=actor.id,
+        )
+    except candidates_service.CandidatesDomainError as exc:
+        raise _http_error(exc) from None
+
+
 @router.get("/{candidate_id}", response_model=CandidateResponse)
 def get_candidate(
     candidate_id: uuid.UUID,
