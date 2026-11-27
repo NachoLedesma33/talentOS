@@ -7,6 +7,7 @@ import { ApiError, apiFetch } from "../../lib/api";
 import type { MessageResponse, PasswordResetConfirm } from "../../lib/types";
 import { Button } from "../../components/ui/shadcn/button";
 import { Card } from "../../components/ui/shadcn/card";
+import { Checkbox } from "../../components/ui/shadcn/checkbox";
 import { Input } from "../../components/ui/shadcn/input";
 import { Label } from "../../components/ui/shadcn/label";
 
@@ -24,6 +25,7 @@ function ResetPasswordForm() {
     const payload: PasswordResetConfirm = {
       token: String(data.get("token") ?? "").trim(),
       password: String(data.get("password") ?? ""),
+      accept_privacy: data.get("accept_privacy") === "true",
     };
 
     setStatus("loading");
@@ -84,6 +86,38 @@ function ResetPasswordForm() {
                 required
               />
               <p className="text-xs text-text-muted">Mínimo 8 caracteres.</p>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-start gap-2">
+                <Checkbox
+                  id="reset-consent"
+                  name="accept_privacy"
+                  value="true"
+                  aria-describedby="reset-consent-help"
+                  required
+                />
+                <Label htmlFor="reset-consent" className="text-sm font-normal">
+                  Acepto la política de privacidad y los términos de servicio.
+                </Label>
+              </div>
+              <p id="reset-consent-help" className="text-xs text-text-muted">
+                Revisá la{" "}
+                <a
+                  href="https://github.com/NachoLedesma33/talentOS/blob/main/docs/privacy-policy.md"
+                  className="font-medium text-accent hover:opacity-80"
+                >
+                  política de privacidad
+                </a>{" "}
+                y los{" "}
+                <a
+                  href="https://github.com/NachoLedesma33/talentOS/blob/main/docs/terms-of-service.md"
+                  className="font-medium text-accent hover:opacity-80"
+                >
+                  términos de servicio
+                </a>
+                .
+              </p>
             </div>
 
             <Button type="submit" disabled={status === "loading"}>

@@ -173,6 +173,7 @@ test("tarea: recuperar contraseña y definir una nueva", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Nueva contraseña" })).toBeVisible();
   await expect(page.getByLabel("Token de recuperación")).toHaveValue("demo-reset-token");
   await page.getByLabel("Contraseña nueva").fill("NuevaClaveSegura123");
+  await page.getByRole("checkbox", { name: /Acepto la política de privacidad/i }).check();
   await page.getByRole("button", { name: "Actualizar contraseña" }).click();
   await expect(page.getByRole("link", { name: "Ir a iniciar sesión" })).toBeVisible();
 });
