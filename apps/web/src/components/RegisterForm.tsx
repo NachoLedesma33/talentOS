@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
 import type { AuthResponse, RegisterRequest } from "../lib/types";
 import { Button } from "./ui/shadcn/button";
+import { Checkbox } from "./ui/shadcn/checkbox";
 import { Input } from "./ui/shadcn/input";
 import { Label } from "./ui/shadcn/label";
 
@@ -20,6 +21,7 @@ export function RegisterForm() {
       name: String(data.get("name") ?? "").trim(),
       email: String(data.get("email") ?? "").trim(),
       password: String(data.get("password") ?? ""),
+      accept_privacy: data.get("accept_privacy") === "true",
     };
 
     setStatus("loading");
@@ -78,6 +80,38 @@ export function RegisterForm() {
           required
         />
         <p className="text-xs text-text-muted">Mínimo 8 caracteres.</p>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-start gap-2">
+          <Checkbox
+            id="register-consent"
+            name="accept_privacy"
+            value="true"
+            aria-describedby="register-consent-help"
+            required
+          />
+          <Label htmlFor="register-consent" className="text-sm font-normal">
+            Acepto la política de privacidad y los términos de servicio.
+          </Label>
+        </div>
+        <p id="register-consent-help" className="text-xs text-text-muted">
+          Revisá la{" "}
+          <a
+            href="https://github.com/NachoLedesma33/talentOS/blob/main/docs/privacy-policy.md"
+            className="font-medium text-accent hover:opacity-80"
+          >
+            política de privacidad
+          </a>{" "}
+          y los{" "}
+          <a
+            href="https://github.com/NachoLedesma33/talentOS/blob/main/docs/terms-of-service.md"
+            className="font-medium text-accent hover:opacity-80"
+          >
+            términos de servicio
+          </a>
+          .
+        </p>
       </div>
 
       <Button type="submit" disabled={status === "loading"}>

@@ -127,6 +127,9 @@ describe("formularios de identidad", () => {
     fireEvent.change(screen.getByLabelText("Contraseña"), {
       target: { value: "password123" },
     });
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /Acepto la política de privacidad/i }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Crear cuenta" }));
 
     expect(
@@ -143,6 +146,7 @@ describe("formularios de identidad", () => {
       name: authenticatedUser.name,
       email: authenticatedUser.email,
       password: "password123",
+      accept_privacy: true,
     });
   });
 
@@ -221,6 +225,9 @@ describe("formularios de identidad", () => {
     fireEvent.change(screen.getByLabelText("Contraseña"), {
       target: { value: "password123" },
     });
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /Acepto la política de privacidad/i }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Crear cuenta" }));
 
     const alert = await screen.findByRole("alert");
