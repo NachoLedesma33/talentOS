@@ -1026,7 +1026,7 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 16-09 | Consentimiento informado | formularios de alta y recuperación | `NOT_STARTED` | — |
 | 16-10 | Borrado de datos de usuario | endpoint tenant-scoped + test + auditoría | `NOT_STARTED` | — |
 | 16-11 | Audit de vulnerabilidades | revisión de hallazgos y correcciones | `DONE` | Verificado en `8008b9e`; CI `45937828805` success; checklist y riesgos en `docs/security-review.md:19-54`; riesgos `RM-01`–`RM-05` aceptados solo para demo/local. |
-| 16-12 | Claves expuestas y secretos en git | escaneo + `.gitignore`/docs | `NOT_STARTED` | — |
+| 16-12 | Claves expuestas y secretos en git | escaneo + `.gitignore`/docs | `DONE` | Commit `008d2ce`; CI `45943801440` success; job `secrets` en `.github/workflows/ci.yml` con `git grep` de patrones AWS/GitHub/Slack/JWT/claves privadas; YAML validado; sin dependencias nuevas. |
 | 16-13 | Cifrado de datos sensibles | verificar Fernet + ampliar campos si aplica | `DONE` | Verificado en `8008b9e`; `apps/api/app/integrations/crypto.py:16-60`; Fernet por organización; `RM-03` queda como condición de staging/producción. |
 | 16-14 | Autorización del lado del servidor | revisión de endpoints y tests negativos | `DONE` | Verificado en `8008b9e`; `apps/api/app/identity/dependencies.py:48-119`; tests negativos en `apps/api/tests/test_authorization.py:78,89,113,147,177,205,227`. |
 | 16-15 | Acceso a registros restringido | roles + tenant en cada recurso | `DONE` | Verificado en `8008b9e`; membresía y roles en `apps/api/app/identity/dependencies.py:48-119`; tests cross-tenant en `apps/api/tests/test_authorization.py`. |
@@ -1046,15 +1046,15 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 16-29 | Webhooks verificados | firma, replay y dedupe con tests | `DONE` | Verificado en `8008b9e`; `apps/api/app/integrations/webhooks.py:130-142,202`; dedupe por organización; tests en `apps/api/tests/test_inbound_webhooks.py`. |
 | 16-30 | Prompt injection y límite de IA | defensas + cuotas + tests | `DONE` | Verificado en `8008b9e`; defensas en `apps/api/app/agents/cv_analyst.py`; cuota de llamadas por tool en `apps/api/app/agents/tools.py:640,707-757`; tests en `test_cv_analyst.py` y `test_agent_tools.py`. No mide gasto LLM. |
 | 16-31 | Tamaño de solicitudes | límite global y por upload | `DONE` | Commit `f9ba3da`; CI `45925962276` success; 2 MiB global para `POST`/`PUT`/`PATCH` no multipart, 413 con envelope; uploads siguen limitados a 10 MiB; 527 tests. |
-| 16-32 | Límite de recuperación de contraseña | rate limit + auditoría | `NOT_STARTED` | — |
-| 16-33 | CORS restrictivo | orígenes por entorno + tests | `NOT_STARTED` | — |
+| 16-32 | Límite de recuperación de contraseña | rate limit + auditoría | `DONE` | Commit `4b7f6ce`; CI `45941003001` success; eventos `auth_password_reset_requested`, `auth_password_reset_succeeded`, `auth_password_reset_failed` con `request_id`/`correlation_id`, sin email/token/password; 531 tests. |
+| 16-33 | CORS restrictivo | orígenes por entorno + tests | `DONE` | Commit `951daf2`; CI `45941805680` success; preflight solo para `WEB_BASE_URL`, credenciales permitidas y origen externo sin header; `ruff`/`mypy`/`pytest` OK. |
 | 16-34 | Rutas de administrador por defecto | revisión de rutas y cierre | `DONE` | Verificado en `8008b9e`; docs y esquema deshabilitados en producción (`apps/api/app/main.py:37-44`); sin rutas `/admin` en `apps/api/app/api/routes`. |
 | 16-35 | Eventos de seguridad | logging de fallos y correlación | `DONE` | Commit `7dc55ff`; CI `45929163932` success; `auth_login_failed` y `auth_password_reset_failed` con `request_id`/`correlation_id`, sin email/token/password; 529 tests. |
-| 16-36 | Datos estructurados | JSON-LD y metadatos | `NOT_STARTED` | — |
+| 16-36 | Datos estructurados | JSON-LD y metadatos | `DONE` | Commit `01075ea`; CI `45942842954` success; `metadataBase`, OpenGraph, Twitter y JSON-LD escapado en `apps/web/src/app/layout.tsx`; `NEXT_PUBLIC_WEB_BASE_URL` documentado en `.env.example`; `tsc`/`lint`/121 tests/`build` OK. |
 | 16-37 | Escaneo de dependencias | `npm audit` + `pip-audit` | `DONE` | Verificado en `8008b9e`; `.github/workflows/ci.yml:45-50,83-85` ejecuta `pip-audit` y `npm audit --audit-level=high`. |
 | 16-38 | Sin sourcemaps | configuración de build + verificación | `DONE` | Verificado en `8008b9e`; build `8008b9e`/CI `45937828805`; 0 `.map` en `.next/static` y 0 `sourceMappingURL` en assets públicos. |
 | 16-39 | APIs y secretos en servidor | revisión de cliente y servidor | `DONE` | Verificado en `8008b9e`; `apps/web/src/lib/api.ts` sin secretos; `apps/api/app/core/config.py:21-29` solo entorno; `.gitignore:1-5`. |
-| 16-40 | Demo completa | seed sintético reproducible + reset | `NOT_STARTED` | — |
+| 16-40 | Demo completa | seed sintético reproducible + reset | `DONE` | Commit `dff215d`; CI `45946044427` success; `apps/api/scripts/seed_demo.py` con `seed`/`reset` solo en `local`/`test`; `tests/test_demo_seed.py` verifica idempotencia y preservación de otros tenants; `ruff`/`mypy`/`pytest` OK. |
 | 16-41 | Empty states | pantallas con lista vacía | `DONE` | Verificado en `8008b9e`; inventario en `docs/ui-ux-inventory.md:132`; estados vacíos en paneles de `apps/web/src/components`. |
 | 16-42 | Loading states | pantallas con carga | `DONE` | Verificado en `8008b9e`; `apps/web/src/app/loading.tsx:4-9`; `role="status"`/`aria-busy` en paneles. |
 | 16-43 | Hover states | controles interactivos | `DONE` | Verificado en `8008b9e`; variantes en `apps/web/src/components/ui/shadcn/button.tsx:12-18`; inventario en `docs/ui-ux-inventory.md:173`. |
@@ -1081,3 +1081,8 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 2026-11-27 | 16-25 | `b7ddfed` | `45932408840` | `Origin` obligatorio en mutaciones desplegadas y rechazo de orígenes externos. |
 | 2026-11-27 | 16-06 | `8008b9e` | `45937828805` | Menú de comandos traducido; i18n sigue parcial. |
 | 2026-11-27 | 16-11/13/14/15/18/19/21/22/23/26/27/28/29/30/34/37/38/39/41/42/43/44 | `8008b9e` | `45937828805` | Auditoría de controles ya presentes; estados y evidencia actualizados. |
+| 2026-11-27 | 16-32 | `4b7f6ce` | `45941003001` | Auditoría de recuperación de contraseña sin PII; 531 tests. |
+| 2026-11-27 | 16-33 | `951daf2` | `45941805680` | Test de preflight CORS con origen permitido y externo. |
+| 2026-11-27 | 16-36 | `01075ea` | `45942842954` | Metadatos OpenGraph/Twitter y JSON-LD con `<` escapado. |
+| 2026-11-27 | 16-12 | `008d2ce` | `45943801440` | Escaneo de secretos en archivos versionados, sin dependencias nuevas. |
+| 2026-11-27 | 16-40 | `dff215d` | `45946044427` | Seed/reset de demo sintética; idempotente y limitado a `local`/`test`. |
