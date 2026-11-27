@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
+import { useI18n, type MessageKey } from "../lib/i18n";
 import type {
   Assessment,
   AssessmentStatus,
@@ -14,18 +15,18 @@ import { Input } from "./ui/shadcn/input";
 import { Label } from "./ui/shadcn/label";
 import { RequirementEvaluationCard } from "./RequirementEvaluationCard";
 
-const STATUS_LABELS: Record<AssessmentStatus, string> = {
-  pending: "Pendiente",
-  completed: "Completada",
-  failed: "Fallida",
-  needs_review: "Requiere revisión",
+const STATUS_KEYS: Record<AssessmentStatus, MessageKey> = {
+  pending: "assessment.status.pending",
+  completed: "assessment.status.completed",
+  failed: "assessment.status.failed",
+  needs_review: "assessment.status.needs_review",
 };
 
-function describeError(error: unknown): string {
+function describeError(error: unknown, fallback: string): string {
   if (error instanceof ApiError) {
     return `${error.status}: ${error.message}`;
   }
-  return "No se pudo completar la evaluación.";
+  return fallback;
 }
 
 function List({ title, items, empty }: { title: string; items: string[]; empty: string }) {
@@ -46,6 +47,7 @@ function List({ title, items, empty }: { title: string; items: string[]; empty: 
 }
 
 export function AssessmentPanel() {
+  const { t } = useI18n();
   const [applicationId, setApplicationId] = useState("");
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [loading, setLoading] = useState(false);
@@ -73,11 +75,11 @@ export function AssessmentPanel() {
       setAssessment(detail);
       setNotice(
         assessment?.id === result.id
-          ? "Evaluación existente recuperada."
-          : "Evaluación creada.",
+          ? t("assessment.recovered")
+          : t("assessment.created"),
       );
     } catch (cause) {
-      setError(describeError(cause));
+      setError(describeError(cause, t("assessment.error")));
     } finally {
       setLoading(false);
     }
@@ -100,17 +102,15 @@ export function AssessmentPanel() {
     <section aria-labelledby="assessment-panel-heading" aria-busy={loading} className="space-y-4">
       <div className="space-y-1">
         <h2 id="assessment-panel-heading" className="text-lg font-semibold">
-          Evaluar postulación
+          {t("assessment.title")}
         </h2>
-        <p className="text-sm text-text-muted">
-          Resultados explicables por requisito. Sin puntuación ni decisión automática.
-        </p>
+        <p className="text-sm text-text-muted">{t("assessment.note")}</p>
       </div>
 
       <form onSubmit={(event) => void run(event)} className="flex flex-wrap items-end gap-3">
         <div className="min-w-64 flex-1 space-y-1">
           <Label htmlFor="assessment-application-id" className="block">
-            ID de postulación
+            {t("assessment.applicationId")}
           </Label>
           <Input
             id="assessment-application-id"
@@ -121,12 +121,12 @@ export function AssessmentPanel() {
           />
         </div>
         <Button type="submit" disabled={loading}>
-          {loading ? "Evaluando…" : "Evaluar postulación"}
+          {loading ? t("assessment.running") : t("assessment.run")}
         </Button>
       </form>
 
       <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
-        {loading ? "Evaluando evidencia confirmada…" : notice}
+        {loading ? t("assessment.processing") : notice}
       </p>
       {error ? (
         <Card role="alert" className="space-y-2 p-3">
@@ -140,13 +140,13 @@ export function AssessmentPanel() {
               setNotice(null);
             }}
           >
-            Reintentar con otra postulación
+            {t("assessment.retry")}
           </Button>
         </Card>
       ) : null}
       {!assessment && !error && !loading ? (
         <Card className="bg-secondary p-3 text-sm text-text-muted">
-          Ingresa el ID de una postulación para ver sus criterios, evidencias y limitaciones.
+          {t("assessment.empty")}
         </Card>
       ) : null}
 
@@ -154,50 +154,50 @@ export function AssessmentPanel() {
         <div className="space-y-4">
           <section aria-labelledby="assessment-summary-heading" className="space-y-3">
             <h3 id="assessment-summary-heading" className="text-base font-semibold">
-              Resumen de la evaluación
+              {t("assessment.summary")}
             </h3>
             <dl className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-text-muted">
               <div>
-                <dt className="inline font-semibold">Estado: </dt>
-                <dd className="inline">{STATUS_LABELS[assessment.status]}</dd>
+                <dt className="inline font-semibold">{t("assessment.statusLabel")} </dt>
+                <dd className="inline">{t(STATUS_KEYS[assessment.status])}</dd>
               </div>
               <div>
-                <dt className="inline font-semibold">Modelo: </dt>
+                <dt className="inline font-semibold">{t("assessment.model")} </dt>
                 <dd className="inline">{assessment.model_version}</dd>
               </div>
               <div>
-                <dt className="inline font-semibold">Prompt: </dt>
+                <dt className="inline font-semibold">{t("assessment.prompt")} </dt>
                 <dd className="inline">{assessment.prompt_version}</dd>
               </div>
             </dl>
             {assessment.review_required ? (
               <Card role="status" className="px-3 py-2 text-sm">
-                Esta evaluación requiere revisión humana antes de considerarse cerrada.
+                {t("assessment.reviewRequired")}
               </Card>
             ) : null}
             <div className="grid gap-3 md:grid-cols-2">
               <Card className="space-y-3 p-3">
                 <List
-                  title="Fortalezas"
+                  title={t("assessment.strengths")}
                   items={assessment.summary.strengths}
-                  empty="Sin fortalezas registradas."
+                  empty={t("assessment.strengthsEmpty")}
                 />
                 <List
-                  title="Brechas"
+                  title={t("assessment.gaps")}
                   items={assessment.summary.gaps}
-                  empty="Sin brechas registradas."
+                  empty={t("assessment.gapsEmpty")}
                 />
               </Card>
               <Card className="space-y-3 p-3">
                 <List
-                  title="Preguntas sugeridas"
+                  title={t("assessment.questions")}
                   items={assessment.summary.questions}
-                  empty="Sin preguntas registradas."
+                  empty={t("assessment.questionsEmpty")}
                 />
                 <List
-                  title="Limitaciones"
+                  title={t("assessment.limitations")}
                   items={assessment.limitations}
-                  empty="Sin limitaciones registradas."
+                  empty={t("assessment.limitationsEmpty")}
                 />
               </Card>
             </div>
@@ -205,7 +205,7 @@ export function AssessmentPanel() {
 
           <section aria-labelledby="assessment-requirements-heading" className="space-y-2">
             <h3 id="assessment-requirements-heading" className="text-base font-semibold">
-              Requisitos evaluados
+              {t("assessment.requirements")}
             </h3>
             {assessment.evaluations.length > 0 ? (
               <ul className="space-y-3">
@@ -223,7 +223,7 @@ export function AssessmentPanel() {
               </ul>
             ) : (
               <p className="text-sm text-text-muted">
-                La evaluación no contiene criterios por requisito.
+                {t("assessment.noCriteria")}
               </p>
             )}
           </section>
