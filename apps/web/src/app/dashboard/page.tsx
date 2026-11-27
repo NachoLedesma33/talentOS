@@ -372,10 +372,10 @@ export default function DashboardPage() {
                     <Link
                       href={module.href}
                       aria-label={module.label}
-                      className="flex flex-col items-start gap-1 py-1"
+                      className="group flex flex-col items-start gap-1 py-1"
                     >
                       <span className="text-sm font-semibold">{module.label}</span>
-                      <span className="text-xs font-normal text-text-muted">{module.detail}</span>
+                      <span className="text-xs font-normal text-text-muted group-hover:text-text">{module.detail}</span>
                     </Link>
                   </Button>
                 </li>

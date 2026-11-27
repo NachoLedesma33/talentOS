@@ -157,7 +157,7 @@ export function WorkspaceShell({
           <nav aria-label={t("shell.breadcrumb")} className="order-3 w-full md:order-none md:w-auto md:flex-1">
             <ol className="flex gap-2 text-xs text-text-muted">
               <li>
-                <a href="/dashboard">{t("shell.home")}</a>
+                <a href="/dashboard" className="text-sm">{t("shell.home")}</a>
               </li>
               <li aria-current="page" className="font-medium text-text">
                 {sectionLabel}
@@ -345,7 +345,7 @@ export function WorkspaceShell({
       </div>
 
       <footer className="border-t border-border-subtle bg-surface-muted">
-        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-xs text-text-muted sm:px-6">
+        <div className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-sm text-text-muted sm:px-6">
           <p>{t("shell.footerTagline")}</p>
           <nav aria-label={t("shell.footerLinks")} className="flex flex-wrap gap-4">
             <Link href="/">{t("shell.homeLink")}</Link>
