@@ -1137,8 +1137,8 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 17-05 | Endpoint de mensajes y ack | `apps/api/app/api/routes/agents.py`, `apps/api/tests/test_assistant_api.py` | `DONE` | `8c959d1`; CI `46069838247` success; 6 tests nuevos; `pytest` 573 passed; `ruff`/`mypy` limpios; `401`, `403`, `not_available`, ack sin efectos no confirmados. |
 | 17-06 | Panel UI y acciones | `apps/web/src/components/AssistantPanel.tsx`, `apps/web/tests/assistant_panel.test.tsx` | `DONE` | `113e411`; CI `46071440022` success; 5 tests nuevos; `npm test -- --run` 126 passed; `tsc`/`lint` limpios; citas, `Aplicar`/`Descartar`, sin JS arbitrario. |
 | 17-07 | Integración en shell e i18n | `apps/web/src/components/WorkspaceShell.tsx`, `apps/web/src/lib/i18n.tsx` | `DONE` | `0f92d70`; CI `46072892199` success; panel montado en 11 superficies permitidas; claves `assistant.title`/`assistant.note` en `es`/`en`; `npm test -- --run` 126 passed; `tsc`/`lint` limpios. |
-| 17-08 | Seed demo ampliado | `apps/api/scripts/seed_demo.py`, `apps/api/tests/test_demo_seed.py` | `IN_REVIEW` | `bf8ca85`; 1 test nuevo (3 en el archivo); `pytest` 574 passed; `ruff`/`mypy` limpios; 2 versiones, 3 requisitos, 5 candidatos, 4 estados de evidencia, borradores, regla `draft`, 1 aprobación resuelta y 1 rechazada; CI pendiente. |
-| 17-09 | Evaluación con mock | `apps/api/tests/test_assistant_evaluations.py` | `NOT_STARTED` | Groundedness, off-scope, inyección, latencia y tokens. |
+| 17-08 | Seed demo ampliado | `apps/api/scripts/seed_demo.py`, `apps/api/tests/test_demo_seed.py` | `DONE` | `bf8ca85`; CI `46077876061` success; 1 test nuevo (3 en el archivo); `pytest` 574 passed; `ruff`/`mypy` limpios; 2 versiones, 3 requisitos, 5 candidatos, 4 estados de evidencia, borradores, regla `draft`, 1 aprobación resuelta y 1 rechazada. |
+| 17-09 | Evaluación con mock | `apps/api/tests/test_assistant_evaluations.py` | `IN_REVIEW` | `f5e640a`; 7 tests nuevos; `pytest` 581 passed; `ruff`/`mypy` limpios; dataset versionado `assistant-eval-1.0.0`; groundedness, off-scope, inyección, timeout determinista y tokens sin PII; CI pendiente. |
 | 17-10 | E2E y cierre | `apps/web/e2e/assistant.spec.ts`, `TalentOS_ROADMAP.md` | `NOT_STARTED` | `build` + E2E `CI=1`, `WEB_BASE_URL`, puerto libre `4346+`. |
 
 ## 27.4 Criterios de cierre
@@ -1163,3 +1163,4 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 2026-11-27 | 17-05 | `8c959d1` | `46069838247` | success; endpoints de mensaje y ack con aislamiento por tenant, idempotencia y aprobación persistida; 6 tests nuevos; `pytest` 573 passed. |
 | 2026-11-27 | 17-06 | `113e411` | `46071440022` | success; panel con citas verificables, ack confirmado y sin JS arbitrario; 5 tests nuevos; `vitest` 126 passed. |
 | 2026-11-27 | 17-07 | `0f92d70` | `46072892199` | success; panel integrado en shell con superficies permitidas y textos `es`/`en` centralizados; `vitest` 126 passed. |
+| 2026-11-27 | 17-08 | `bf8ca85` | `46077876061` | success; seed sintético con evidencia verificable, borradores, regla `draft` y aprobaciones resueltas; 1 test nuevo; `pytest` 574 passed. |
