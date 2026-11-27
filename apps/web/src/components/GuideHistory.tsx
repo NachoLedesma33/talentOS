@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, apiFetch } from "../lib/api";
+import { useI18n, type MessageKey } from "../lib/i18n";
 import type { GuideRevision, GuideRevisionList } from "../lib/types";
 import { Button } from "./ui/shadcn/button";
 import { Card } from "./ui/shadcn/card";
@@ -15,25 +16,31 @@ import {
   TableRow,
 } from "./ui/shadcn/table";
 
-function describeError(cause: unknown): string {
+type Translate = (key: MessageKey) => string;
+
+function describeError(cause: unknown, fallback: string): string {
   if (cause instanceof ApiError) {
     return `${cause.status}: ${cause.message}`;
   }
-  return "No se pudo cargar el historial.";
+  return fallback;
 }
 
 /** Sólo agregados: nunca se renderiza el snapshot crudo, CV ni secretos. */
-function summarizeSnapshot(snapshot: Record<string, unknown>): string {
+function summarizeSnapshot(snapshot: Record<string, unknown>, t: Translate): string {
   const questions = Array.isArray(snapshot.questions) ? snapshot.questions.length : 0;
   const rejected = Array.isArray(snapshot.rejected_questions)
     ? snapshot.rejected_questions.length
     : 0;
   const limitations = Array.isArray(snapshot.limitations) ? snapshot.limitations.length : 0;
-  const review = snapshot.review_required === true ? "requerida" : "no requerida";
-  return `${questions} preguntas · ${rejected} rechazadas · ${limitations} limitaciones · revisión ${review}`;
+  const review =
+    snapshot.review_required === true
+      ? t("history.required")
+      : t("history.notRequired");
+  return `${questions} ${t("history.questions")} · ${rejected} ${t("history.rejected")} · ${limitations} ${t("history.limitations")} · ${t("history.review")} ${review}`;
 }
 
 export function GuideHistory({ guideId }: { guideId: string }) {
+  const { t } = useI18n();
   const [revisions, setRevisions] = useState<GuideRevision[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -54,7 +61,7 @@ export function GuideHistory({ guideId }: { guideId: string }) {
       const result = await requestRevisions();
       setRevisions(result.items);
     } catch (cause) {
-      setError(describeError(cause));
+      setError(describeError(cause, t("history.error")));
     } finally {
       setRefreshing(false);
       setLoading(false);
@@ -71,20 +78,20 @@ export function GuideHistory({ guideId }: { guideId: string }) {
       },
       (cause: unknown) => {
         if (!active) return;
-        setError(describeError(cause));
+        setError(describeError(cause, t("history.error")));
         setLoading(false);
       },
     );
     return () => {
       active = false;
     };
-  }, [requestRevisions]);
+  }, [requestRevisions, t]);
 
   return (
     <section aria-labelledby={`guide-history-heading-${guideId}`} className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 id={`guide-history-heading-${guideId}`} className="text-base font-semibold">
-          Historial de cambios
+          {t("history.title")}
         </h3>
         <Button
           type="button"
@@ -93,11 +100,11 @@ export function GuideHistory({ guideId }: { guideId: string }) {
           disabled={refreshing}
           onClick={() => void load()}
         >
-          {refreshing ? "Actualizando…" : "Actualizar historial"}
+          {refreshing ? t("history.refreshing") : t("history.refresh")}
         </Button>
       </div>
       <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
-        {loading ? "Cargando historial de la guía…" : null}
+        {loading ? t("history.loading") : null}
       </p>
       {error ? (
         <Card role="alert" className="p-2 text-sm">
@@ -107,24 +114,24 @@ export function GuideHistory({ guideId }: { guideId: string }) {
 
       {!loading && revisions.length === 0 && !error ? (
         <Card className="bg-secondary p-3 text-sm text-text-muted">
-          Todavía no hay revisiones registradas para esta guía.
+          {t("history.empty")}
         </Card>
       ) : revisions.length > 0 ? (
         <Table className="text-left text-xs">
-          <TableCaption className="sr-only">Revisiones de la guía</TableCaption>
+          <TableCaption className="sr-only">{t("history.caption")}</TableCaption>
           <TableHeader>
             <TableRow className="border-b border-border">
               <TableHead scope="col" className="py-1 pr-3 font-semibold">
-                Versión
+                {t("history.col.version")}
               </TableHead>
               <TableHead scope="col" className="py-1 pr-3 font-semibold">
-                Creado por
+                {t("history.col.createdBy")}
               </TableHead>
               <TableHead scope="col" className="py-1 pr-3 font-semibold">
-                Fecha
+                {t("history.col.date")}
               </TableHead>
               <TableHead scope="col" className="py-1 font-semibold">
-                Resumen del snapshot saneado
+                {t("history.col.summary")}
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -134,7 +141,7 @@ export function GuideHistory({ guideId }: { guideId: string }) {
                 <TableCell className="py-1 pr-3">v{item.version}</TableCell>
                 <TableCell className="py-1 pr-3">{item.created_by}</TableCell>
                 <TableCell className="py-1 pr-3">{item.created_at}</TableCell>
-                <TableCell className="py-1">{summarizeSnapshot(item.snapshot)}</TableCell>
+                <TableCell className="py-1">{summarizeSnapshot(item.snapshot, t)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
