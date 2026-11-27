@@ -10,6 +10,25 @@ permissions:
   contents: read
 
 jobs:
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Secret pattern scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git grep -nEI \
+            -e 'AKIA[0-9A-Z]{16}' \
+            -e '(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36}' \
+            -e '-----BEGIN (RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----' \
+            -e 'xox[baprs]-[A-Za-z0-9-]{10,}' \
+            -e 'eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}' \
+            -- .; then
+            echo "::error::Possible secret found in tracked files"
+            exit 1
+          fi
+
   backend:
     runs-on: ubuntu-latest
     services:

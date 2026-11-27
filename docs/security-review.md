@@ -37,7 +37,7 @@ Flujo crítico: `cookie + X-Organization-ID` → sesión → membresía → rol 
 | Logs y datos personales | Revisado | `JsonFormatter` solo metadatos (`core/logging.py:12-24`); eventos `auth_login_failed` y `auth_password_reset_failed` con `request_id`/`correlation_id` (`api/routes/auth.py:43-51,82,123`); tests de redacción en `test_documents_tasks.py`, `test_email_sandbox.py`, `test_inbound_webhooks.py` y `test_auth.py`. |
 | Retención y eliminación | Parcial | Purga de eventos de agente a 30 días (`agents/tasks.py:150-180`). Sin exportación/eliminación de candidatos: riesgo `RM-04`. |
 | Escaneo de dependencias | Revisado | `npm audit --audit-level=high` y `pip-audit` en CI con venv aislada; `cryptography` subido a `>=50,<51`. |
-| Secret scanning en CI | Pendiente | Sin step de `gitleaks`/equivalente en `.github/workflows/ci.yml`; lote `16-12`. |
+| Secret scanning en CI | Revisado | Job `secrets` en `.github/workflows/ci.yml`: `git grep` sobre archivos versionados para AWS, GitHub, Slack, JWT y claves privadas; sin dependencias nuevas. No detecta secretos con formato desconocido. |
 | Rutas de administrador | Revisado | `/docs`, `/redoc` y `/openapi.json` deshabilitados en producción (`app/main.py:37-44`); sin rutas `/admin` en `app/api/routes`. |
 | Sourcemaps | Revisado | Build `8008b9e` sin `.map` en `.next/static` ni `sourceMappingURL` en assets públicos. |
 | Backup y restauración | Pendiente | Sin procedimiento automatizado: riesgo `RM-05`. |
