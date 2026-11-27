@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
+import { useI18n } from "../lib/i18n";
 import type {
   Job,
   RequirementCategory,
@@ -35,6 +36,7 @@ function describeError(error: unknown, fallback: string): string {
 }
 
 export function RequirementsEditor({ job }: { job: Job | null }) {
+  const { t } = useI18n();
   const [submitting, setSubmitting] = useState(false);
   const [requirements, setRequirements] = useState<JobRequirement[]>([]);
   const [loadedJobId, setLoadedJobId] = useState<string | null>(null);
@@ -70,9 +72,9 @@ export function RequirementsEditor({ job }: { job: Job | null }) {
       );
       setLoadedJobId(job.id);
       form.reset();
-      setMessage("Requisito añadido.");
+      setMessage(t("requirements.added"));
     } catch (cause) {
-      setError(describeError(cause, "No se pudo añadir el requisito."));
+      setError(describeError(cause, t("requirements.error")));
     } finally {
       setSubmitting(false);
     }
@@ -83,14 +85,14 @@ export function RequirementsEditor({ job }: { job: Job | null }) {
   return (
     <section aria-labelledby="requirements-heading" className="space-y-3">
       <h3 id="requirements-heading" className="text-sm font-semibold">
-        Requisitos
+        {t("requirements.title")}
       </h3>
       {job ? (
-        <p className="text-sm text-text-muted">Vacante seleccionada: {job.title}</p>
-      ) : (
         <p className="text-sm text-text-muted">
-          Selecciona una vacante para añadir requisitos.
+          {t("requirements.selected")} {job.title}
         </p>
+      ) : (
+        <p className="text-sm text-text-muted">{t("requirements.selectJob")}</p>
       )}
 
       <form onSubmit={handleSubmit} aria-busy={submitting}>
@@ -98,7 +100,7 @@ export function RequirementsEditor({ job }: { job: Job | null }) {
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <Label htmlFor="requirement-category" className="block">
-                Categoría
+                {t("requirements.category")}
               </Label>
               <Select
                 id="requirement-category"
@@ -115,7 +117,7 @@ export function RequirementsEditor({ job }: { job: Job | null }) {
             </div>
             <div className="space-y-1">
               <Label htmlFor="requirement-importance" className="block">
-                Importancia
+                {t("requirements.importance")}
               </Label>
               <Select
                 id="requirement-importance"
@@ -133,7 +135,7 @@ export function RequirementsEditor({ job }: { job: Job | null }) {
           </div>
           <div className="space-y-1">
             <Label htmlFor="requirement-description" className="block">
-              Descripción del requisito
+              {t("requirements.description")}
             </Label>
             <Textarea
               id="requirement-description"
@@ -146,7 +148,7 @@ export function RequirementsEditor({ job }: { job: Job | null }) {
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1">
               <Label htmlFor="requirement-weight" className="block">
-                Peso (0 a 1)
+                {t("requirements.weight")}
               </Label>
               <Input
                 id="requirement-weight"
@@ -161,7 +163,7 @@ export function RequirementsEditor({ job }: { job: Job | null }) {
             </div>
             <div className="space-y-1">
               <Label htmlFor="requirement-justification" className="block">
-                Justificación del peso
+                {t("requirements.justification")}
               </Label>
               <Input
                 id="requirement-justification"
@@ -172,7 +174,7 @@ export function RequirementsEditor({ job }: { job: Job | null }) {
             </div>
           </div>
           <Button type="submit" disabled={submitting || !job}>
-            {submitting ? "Añadiendo requisito…" : "Añadir requisito"}
+            {submitting ? t("requirements.adding") : t("requirements.add")}
           </Button>
           <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
             {error ? (
@@ -192,7 +194,8 @@ export function RequirementsEditor({ job }: { job: Job | null }) {
             <li key={requirement.id}>
               <Card className="p-3 text-sm text-text-muted">
                 <span className="font-semibold text-text">{requirement.category}</span>:{" "}
-                {requirement.description} ({requirement.importance}, peso {requirement.weight})
+                {requirement.description} ({requirement.importance},{" "}
+                {t("requirements.weightShort")} {requirement.weight})
               </Card>
             </li>
           ))}
