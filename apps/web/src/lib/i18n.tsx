@@ -298,6 +298,18 @@ const es = {
   "comparison.unchanged": "Sin cambios",
   "comparison.yes": "Sí",
   "comparison.no": "No",
+  "document.error": "No se pudo completar la carga del documento.",
+  "document.selectCandidateFile": "Selecciona un candidato y un archivo PDF o DOCX.",
+  "document.title": "Subir CV",
+  "document.candidate": "Candidato",
+  "document.selectCandidate": "Selecciona un candidato",
+  "document.candidateUuid": "UUID del candidato",
+  "document.file": "Archivo PDF o DOCX",
+  "document.uploading": "Subiendo…",
+  "document.extracting": "Extrayendo…",
+  "document.uploadExtract": "Subir y extraer",
+  "document.done": "Documento cargado; extracción solicitada.",
+  "document.retry": "Reintentar",
 };
 
 const en: typeof es = {
@@ -585,6 +597,18 @@ const en: typeof es = {
   "comparison.unchanged": "No changes",
   "comparison.yes": "Yes",
   "comparison.no": "No",
+  "document.error": "Could not complete the document upload.",
+  "document.selectCandidateFile": "Select a candidate and a PDF or DOCX file.",
+  "document.title": "Upload CV",
+  "document.candidate": "Candidate",
+  "document.selectCandidate": "Select a candidate",
+  "document.candidateUuid": "Candidate UUID",
+  "document.file": "PDF or DOCX file",
+  "document.uploading": "Uploading…",
+  "document.extracting": "Extracting…",
+  "document.uploadExtract": "Upload and extract",
+  "document.done": "Document uploaded; extraction requested.",
+  "document.retry": "Retry",
 };
 
 const messages: Record<Locale, typeof es> = { es, en };

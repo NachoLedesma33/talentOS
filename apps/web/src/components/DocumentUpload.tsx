@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
+import { useI18n } from "../lib/i18n";
 import type { Candidate, Document as DocumentDto } from "../lib/types";
 import { Button } from "./ui/shadcn/button";
 import { Card } from "./ui/shadcn/card";
@@ -14,11 +15,11 @@ type Phase = "idle" | "uploading" | "extracting" | "done" | "error";
 const ACCEPTED_TYPES =
   ".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-function describeError(error: unknown): string {
+function describeError(error: unknown, fallback: string): string {
   if (error instanceof ApiError) {
     return `${error.status}: ${error.message}`;
   }
-  return "No se pudo completar la carga del documento.";
+  return fallback;
 }
 
 export function DocumentUpload({
@@ -28,6 +29,7 @@ export function DocumentUpload({
   candidates: Candidate[];
   onUploaded?: (document: DocumentDto) => void;
 }) {
+  const { t } = useI18n();
   const [candidateId, setCandidateId] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -51,7 +53,7 @@ export function DocumentUpload({
       setFile(null);
       onUploaded?.(document);
     } catch (cause) {
-      setError(describeError(cause));
+      setError(describeError(cause, t("document.error")));
       setPhase("error");
     }
   }
@@ -59,7 +61,7 @@ export function DocumentUpload({
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!candidateId || !file) {
-      setError("Selecciona un candidato y un archivo PDF o DOCX.");
+      setError(t("document.selectCandidateFile"));
       setPhase("error");
       return;
     }
@@ -78,10 +80,10 @@ export function DocumentUpload({
   return (
     <form onSubmit={handleSubmit} aria-busy={busy}>
       <Card className="space-y-3 p-4">
-      <h2 className="text-lg font-semibold">Subir CV</h2>
+      <h2 className="text-lg font-semibold">{t("document.title")}</h2>
       <div className="space-y-1">
         <Label htmlFor="document-candidate" className="block">
-          Candidato
+          {t("document.candidate")}
         </Label>
         {candidates.length > 0 ? (
           <Select
@@ -91,7 +93,7 @@ export function DocumentUpload({
             required
             disabled={busy}
           >
-            <option value="">Selecciona un candidato</option>
+            <option value="">{t("document.selectCandidate")}</option>
             {candidates.map((candidate) => (
               <option key={candidate.id} value={candidate.id}>
                 {candidate.name}
@@ -103,7 +105,7 @@ export function DocumentUpload({
             id="document-candidate"
             value={candidateId}
             onChange={(event) => setCandidateId(event.target.value)}
-            placeholder="UUID del candidato"
+            placeholder={t("document.candidateUuid")}
             required
             disabled={busy}
           />
@@ -111,7 +113,7 @@ export function DocumentUpload({
       </div>
       <div className="space-y-1">
         <Label htmlFor="document-file" className="block">
-          Archivo PDF o DOCX
+          {t("document.file")}
         </Label>
         <Input
           id="document-file"
@@ -125,13 +127,13 @@ export function DocumentUpload({
       </div>
       <Button type="submit" disabled={busy}>
         {phase === "uploading"
-          ? "Subiendo…"
+          ? t("document.uploading")
           : phase === "extracting"
-            ? "Extrayendo…"
-            : "Subir y extraer"}
+            ? t("document.extracting")
+            : t("document.uploadExtract")}
       </Button>
       <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
-        {phase === "done" ? "Documento cargado; extracción solicitada." : null}
+        {phase === "done" ? t("document.done") : null}
         {error ? (
           <span role="alert" className="text-text">
             {error}
@@ -140,7 +142,7 @@ export function DocumentUpload({
       </p>
       {phase === "error" && pending ? (
         <Button type="button" variant="secondary" onClick={handleRetry}>
-          Reintentar
+          {t("document.retry")}
         </Button>
       ) : null}
       </Card>
