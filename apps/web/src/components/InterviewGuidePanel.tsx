@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
+import { useI18n, type MessageKey } from "../lib/i18n";
 import type {
   GenerateGuideRequest,
   GuideGeneration,
@@ -18,10 +19,10 @@ import { Label } from "./ui/shadcn/label";
 import { GuideHistory } from "./GuideHistory";
 import { QuestionEditor } from "./QuestionEditor";
 
-const GUIDE_STATUS_LABELS: Record<InterviewGuideStatus, string> = {
-  draft: "Borrador",
-  published: "Publicada",
-  archived: "Archivada",
+const GUIDE_STATUS_KEYS: Record<InterviewGuideStatus, MessageKey> = {
+  draft: "guide.status.draft",
+  published: "guide.status.published",
+  archived: "guide.status.archived",
 };
 
 function describeError(error: unknown, fallback: string): string {
@@ -32,6 +33,7 @@ function describeError(error: unknown, fallback: string): string {
 }
 
 export function InterviewGuidePanel() {
+  const { t } = useI18n();
   const [applicationId, setApplicationId] = useState("");
   const [guides, setGuides] = useState<InterviewGuideSummary[] | null>(null);
   const [guide, setGuide] = useState<InterviewGuideDetail | null>(null);
@@ -50,17 +52,17 @@ export function InterviewGuidePanel() {
     setGuides(list.items);
   }
 
-  async function openGuide(id: string, successNotice = "Guía cargada."): Promise<void> {
+  async function openGuide(id: string, successNotice?: string): Promise<void> {
     setDetailLoading(true);
     try {
       const detail = await apiFetch<InterviewGuideDetail>(
         `/api/v1/interviews/guides/${encodeURIComponent(id)}`,
       );
       setGuide(detail);
-      setNotice(successNotice);
+      setNotice(successNotice ?? t("guide.loaded"));
     } catch (cause) {
       setGuide(null);
-      setError(describeError(cause, "No se pudo cargar la guía."));
+      setError(describeError(cause, t("guide.error.load")));
     } finally {
       setDetailLoading(false);
     }
@@ -85,10 +87,10 @@ export function InterviewGuidePanel() {
       await loadGuides(id);
       await openGuide(
         result.guide_id,
-        result.created ? "Guía creada." : "Guía existente recuperada.",
+        result.created ? t("guide.created") : t("guide.reused"),
       );
     } catch (cause) {
-      setError(describeError(cause, "No se pudo generar la guía."));
+      setError(describeError(cause, t("guide.error.generate")));
     } finally {
       setGenerating(false);
     }
@@ -115,9 +117,9 @@ export function InterviewGuidePanel() {
             )
           : current,
       );
-      setNotice("Guía publicada.");
+      setNotice(t("guide.published"));
     } catch (cause) {
-      setError(describeError(cause, "No se pudo publicar la guía."));
+      setError(describeError(cause, t("guide.error.publish")));
     } finally {
       setPublishing(false);
     }
@@ -138,18 +140,15 @@ export function InterviewGuidePanel() {
     <section aria-labelledby="interview-panel-heading" aria-busy={busy} className="space-y-4">
       <div className="space-y-1">
         <h2 id="interview-panel-heading" className="text-lg font-semibold">
-          Guías de entrevista
+          {t("guide.title")}
         </h2>
-        <p className="text-sm text-text-muted">
-          Preguntas vinculadas a requisitos, revisión humana y evidencia observada. Sin puntuación
-          ni decisión automática. Los permisos los valida el servidor.
-        </p>
+        <p className="text-sm text-text-muted">{t("guide.note")}</p>
       </div>
 
       <form onSubmit={(event) => void generate(event)} className="flex flex-wrap items-end gap-3">
         <div className="min-w-64 flex-1 space-y-1">
           <Label htmlFor="interview-application-id" className="block">
-            ID de postulación
+            {t("guide.applicationId")}
           </Label>
           <Input
             id="interview-application-id"
@@ -160,17 +159,17 @@ export function InterviewGuidePanel() {
           />
         </div>
         <Button type="submit" disabled={busy}>
-          {generating ? "Generando…" : "Generar guía"}
+          {generating ? t("guide.generating") : t("guide.generate")}
         </Button>
       </form>
 
       <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
         {generating
-          ? "Generando guía y validando políticas…"
+          ? t("guide.generatingLong")
           : detailLoading
-            ? "Cargando detalle de la guía…"
+            ? t("guide.loadingDetail")
             : publishing
-              ? "Publicando guía…"
+              ? t("guide.publishing")
               : notice}
       </p>
       {error ? (
@@ -185,7 +184,7 @@ export function InterviewGuidePanel() {
               setNotice(null);
             }}
           >
-            Revisar y reintentar
+            {t("guide.retry")}
           </Button>
         </Card>
       ) : null}
@@ -193,7 +192,7 @@ export function InterviewGuidePanel() {
       {guides ? (
         <section aria-labelledby="interview-guides-heading" className="space-y-2">
           <h3 id="interview-guides-heading" className="text-base font-semibold">
-            Guías de la postulación
+            {t("guide.listTitle")}
           </h3>
           {guides.length > 0 ? (
             <ul className="flex flex-wrap gap-2">
@@ -213,7 +212,7 @@ export function InterviewGuidePanel() {
             </ul>
           ) : (
             <Card className="bg-secondary p-3 text-sm text-text-muted">
-              No hay guías registradas para esta postulación.
+              {t("guide.empty")}
             </Card>
           )}
         </section>
@@ -221,7 +220,7 @@ export function InterviewGuidePanel() {
 
       {!guide && !error && !busy ? (
         <Card className="bg-secondary p-3 text-sm text-text-muted">
-          Ingresa el ID de una postulación para generar o recuperar su guía de entrevista.
+          {t("guide.prompt")}
         </Card>
       ) : null}
 
@@ -233,26 +232,29 @@ export function InterviewGuidePanel() {
             </h3>
             <dl className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-text-muted">
               <div>
-                <dt className="inline font-semibold">Estado: </dt>
-                <dd className="inline">{GUIDE_STATUS_LABELS[guide.status]}</dd>
+                <dt className="inline font-semibold">{t("guide.statusLabel")}</dt>
+                <dd className="inline">{t(GUIDE_STATUS_KEYS[guide.status])}</dd>
               </div>
               <div>
-                <dt className="inline font-semibold">Versión: </dt>
+                <dt className="inline font-semibold">{t("guide.versionLabel")}</dt>
                 <dd className="inline">v{guide.version}</dd>
               </div>
               <div>
-                <dt className="inline font-semibold">Modelo: </dt>
+                <dt className="inline font-semibold">{t("guide.modelLabel")}</dt>
                 <dd className="inline">{guide.model_version ?? "—"}</dd>
               </div>
               <div>
-                <dt className="inline font-semibold">Prompt: </dt>
+                <dt className="inline font-semibold">{t("guide.promptVersionLabel")}</dt>
                 <dd className="inline">{guide.prompt_version ?? "—"}</dd>
               </div>
             </dl>
-            <p className="text-sm">{`Revisión requerida: ${guide.review_required ? "sí" : "no"}`}</p>
+            <p className="text-sm">
+              {t("guide.reviewRequired")}
+              {guide.review_required ? t("guide.yes") : t("guide.no")}
+            </p>
             {guide.needs_review ? (
               <Card role="status" className="px-3 py-2 text-sm">
-                La guía conserva observaciones pendientes de revisión humana.
+                {t("guide.needsReview")}
               </Card>
             ) : null}
             <Button
@@ -261,10 +263,10 @@ export function InterviewGuidePanel() {
               onClick={() => void publish()}
             >
               {guide.status === "published"
-                ? "Guía ya publicada"
+                ? t("guide.publishedButton")
                 : publishing
-                  ? "Publicando…"
-                  : "Publicar guía"}
+                  ? t("guide.publishing")
+                  : t("guide.publish")}
             </Button>
           </section>
 
