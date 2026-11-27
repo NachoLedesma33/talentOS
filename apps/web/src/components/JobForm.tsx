@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
+import { useI18n } from "../lib/i18n";
 import type { Job, JobCreate } from "../lib/types";
 import { Button } from "./ui/shadcn/button";
 import { Card } from "./ui/shadcn/card";
@@ -17,6 +18,7 @@ function describeError(error: unknown, fallback: string): string {
 }
 
 export function JobForm({ onCreated }: { onCreated?: (job: Job) => void }) {
+  const { t } = useI18n();
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -44,10 +46,10 @@ export function JobForm({ onCreated }: { onCreated?: (job: Job) => void }) {
         body: JSON.stringify(payload),
       });
       form.reset();
-      setMessage(`Vacante creada: ${job.title}.`);
+      setMessage(`${t("jobs.form.created")} ${job.title}.`);
       onCreated?.(job);
     } catch (cause) {
-      setError(describeError(cause, "No se pudo crear la vacante."));
+      setError(describeError(cause, t("jobs.form.error")));
     } finally {
       setSubmitting(false);
     }
@@ -56,10 +58,10 @@ export function JobForm({ onCreated }: { onCreated?: (job: Job) => void }) {
   return (
     <form onSubmit={handleSubmit} aria-busy={submitting}>
       <Card className="space-y-3 p-4">
-        <h3 className="text-sm font-semibold">Nueva vacante</h3>
+        <h3 className="text-sm font-semibold">{t("jobs.form.new")}</h3>
         <div className="space-y-1">
           <Label htmlFor="job-title" className="block">
-            Título
+            {t("jobs.form.titleField")}
           </Label>
           <Input
             id="job-title"
@@ -72,7 +74,7 @@ export function JobForm({ onCreated }: { onCreated?: (job: Job) => void }) {
         </div>
         <div className="space-y-1">
           <Label htmlFor="job-description" className="block">
-            Descripción
+            {t("jobs.form.descriptionField")}
           </Label>
           <Textarea
             id="job-description"
@@ -84,7 +86,7 @@ export function JobForm({ onCreated }: { onCreated?: (job: Job) => void }) {
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="space-y-1">
             <Label htmlFor="job-modality" className="block">
-              Modalidad
+              {t("jobs.form.modality")}
             </Label>
             <Input
               id="job-modality"
@@ -95,7 +97,7 @@ export function JobForm({ onCreated }: { onCreated?: (job: Job) => void }) {
           </div>
           <div className="space-y-1">
             <Label htmlFor="job-location" className="block">
-              Ubicación
+              {t("jobs.form.location")}
             </Label>
             <Input
               id="job-location"
@@ -106,7 +108,7 @@ export function JobForm({ onCreated }: { onCreated?: (job: Job) => void }) {
           </div>
           <div className="space-y-1">
             <Label htmlFor="job-seniority" className="block">
-              Seniority
+              {t("jobs.form.seniority")}
             </Label>
             <Input
               id="job-seniority"
@@ -118,7 +120,7 @@ export function JobForm({ onCreated }: { onCreated?: (job: Job) => void }) {
         </div>
         <div className="space-y-1">
           <Label htmlFor="job-owner" className="block">
-            ID del responsable (UUID)
+            {t("jobs.form.owner")}
           </Label>
           <Input
             id="job-owner"
@@ -129,7 +131,7 @@ export function JobForm({ onCreated }: { onCreated?: (job: Job) => void }) {
           />
         </div>
         <Button type="submit" disabled={submitting}>
-          {submitting ? "Creando vacante…" : "Crear vacante"}
+          {submitting ? t("jobs.form.creating") : t("jobs.form.create")}
         </Button>
         <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
           {error ? (
