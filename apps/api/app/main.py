@@ -6,6 +6,7 @@ from collections import defaultdict, deque
 from collections.abc import Awaitable, Callable
 from time import monotonic
 
+import email_validator
 from fastapi import FastAPI, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,6 +33,8 @@ from app.core.config import get_settings
 from app.core.logging import configure_logging, log_structured
 
 settings = get_settings()
+if settings.APP_ENV in {"local", "test"}:
+    email_validator.TEST_ENVIRONMENT = True
 configure_logging(settings.LOG_LEVEL)
 
 _production = settings.APP_ENV == "production"

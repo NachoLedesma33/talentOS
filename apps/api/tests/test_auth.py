@@ -163,6 +163,16 @@ def test_wrong_password_returns_401_without_cookie(client: TestClient, db: DBSes
     assert db.scalars(select(UserSession)).all() == []
 
 
+def test_local_allows_demo_reserved_email_login(client: TestClient) -> None:
+    response = client.post(
+        "/api/v1/auth/login",
+        json={"email": "superadmin.demo@example.test", "password": "SyntheticSuperPass789"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "unauthorized"
+
+
 def test_me_without_cookie_returns_401(client: TestClient) -> None:
     response = client.get("/api/v1/auth/me")
 
