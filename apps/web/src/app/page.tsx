@@ -54,11 +54,11 @@ const steps: ReadonlyArray<{
   },
 ];
 
-const evidenceStates: ReadonlyArray<{ label: string; detailKey: MessageKey }> = [
-  { label: "supported", detailKey: "evidence.supported" },
-  { label: "partial", detailKey: "evidence.partial" },
-  { label: "not_found", detailKey: "evidence.notFound" },
-  { label: "needs_review", detailKey: "evidence.needsReview" },
+const evidenceStates: ReadonlyArray<{ stateKey: MessageKey; detailKey: MessageKey }> = [
+  { stateKey: "evidence.state.supported", detailKey: "evidence.supported" },
+  { stateKey: "evidence.state.partial", detailKey: "evidence.partial" },
+  { stateKey: "evidence.state.notFound", detailKey: "evidence.notFound" },
+  { stateKey: "evidence.state.needsReview", detailKey: "evidence.needsReview" },
 ];
 
 const pipeline: ReadonlyArray<{
@@ -112,7 +112,7 @@ export default function Home() {
           </Link>
 
           <nav aria-label="Navegación de la portada">
-            <ul className="flex flex-wrap items-center gap-5 text-sm text-text-muted">
+            <ul className="flex flex-wrap items-center gap-5 text-base text-text-muted">
               <li><Link href="#producto">{t("nav.producto")}</Link></li>
               <li><Link href="#metodo">{t("nav.metodo")}</Link></li>
               <li><Link href="#evidencia">{t("nav.evidencia")}</Link></li>
@@ -212,7 +212,7 @@ export default function Home() {
             <dt className="text-xs uppercase tracking-wider text-text-muted">{t("stats.evidence")}</dt>
             <dd className="text-3xl font-semibold tracking-tight text-text">
               4
-              <span className="mt-1 block text-xs font-normal text-text-muted">
+              <span className="mt-1 block text-sm font-normal text-text-muted">
                 {t("stats.evidenceDetail")}
               </span>
             </dd>
@@ -221,7 +221,7 @@ export default function Home() {
             <dt className="text-xs uppercase tracking-wider text-text-muted">{t("stats.human")}</dt>
             <dd className="text-3xl font-semibold tracking-tight text-text">
               {t("stats.humanValue")}
-              <span className="mt-1 block text-xs font-normal text-text-muted">
+              <span className="mt-1 block text-sm font-normal text-text-muted">
                 {t("stats.humanDetail")}
               </span>
             </dd>
@@ -230,7 +230,7 @@ export default function Home() {
             <dt className="text-xs uppercase tracking-wider text-text-muted">{t("stats.automatic")}</dt>
             <dd className="text-3xl font-semibold tracking-tight text-text">
               0
-              <span className="mt-1 block text-xs font-normal text-text-muted">
+              <span className="mt-1 block text-sm font-normal text-text-muted">
                 {t("stats.automaticDetail")}
               </span>
             </dd>
@@ -293,10 +293,10 @@ export default function Home() {
           <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {evidenceStates.map((state) => (
               <li
-                key={state.label}
+                key={state.stateKey}
                 className="rounded-xl bg-surface-muted px-4 py-3 text-sm text-text"
               >
-                <span className="block font-mono text-xs text-accent">{state.label}</span>
+                <span className="block font-mono text-xs text-accent">{t(state.stateKey)}</span>
                 <span className="text-text-muted">{t(state.detailKey)}</span>
               </li>
             ))}
@@ -319,7 +319,7 @@ export default function Home() {
             </ul>
           </div>
         </div>
-        <div className="mx-auto w-full max-w-[1440px] px-4 pb-8 text-xs text-text-muted sm:px-6 lg:px-10">
+        <div className="mx-auto w-full max-w-[1440px] px-4 pb-8 text-sm text-text-muted sm:px-6 lg:px-10">
           <p>{t("footer.note")}</p>
         </div>
       </footer>
