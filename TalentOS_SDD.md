@@ -230,6 +230,10 @@ No mostrar razonamiento interno privado del modelo. Registrar entradas relevante
 - RF-074 (P1): comparar resultados entre versiones de prompts o flujos.
 - RF-075 (P1): evitar que datos sintéticos se mezclen con datos reales.
 
+## 4.9 Asistente de workspace
+
+- RF-ASSIST-001 (P1): asistir al usuario autenticado sobre la organización activa con respuestas con citas verificables y acciones propuestas; sin ejecución sin confirmación ni efectos externos sin aprobación (ADR-020, Fase 17).
+
 ---
 
 # 5. Requerimientos no funcionales
