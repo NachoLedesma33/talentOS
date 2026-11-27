@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
+import { useI18n, type MessageKey } from "../lib/i18n";
 import type {
   AutomationApproval,
   AutomationApprovalDecisionResult,
@@ -17,17 +18,17 @@ import { Select } from "./ui/shadcn/select";
 
 type Decision = Exclude<AutomationApprovalStatus, "pending">;
 
-const STATUS_LABELS: Record<AutomationApprovalStatus, string> = {
-  pending: "Pendiente",
-  approved: "Aprobada",
-  rejected: "Rechazada",
+const STATUS_KEYS: Record<AutomationApprovalStatus, MessageKey> = {
+  pending: "approval.status.pending",
+  approved: "approval.status.approved",
+  rejected: "approval.status.rejected",
 };
 
-function describeError(cause: unknown): string {
+function describeError(cause: unknown, fallback: string): string {
   if (cause instanceof ApiError) {
     return `${cause.status}: ${cause.message}`;
   }
-  return "No se pudo completar la acción.";
+  return fallback;
 }
 
 function formatUtc(value: string): string {
@@ -48,6 +49,7 @@ export function AutomationApprovalControls({
   onRunChange?: (run: AutomationRunDetail) => void;
   onRefresh?: () => Promise<void> | void;
 }) {
+  const { t } = useI18n();
   const [selections, setSelections] = useState<Record<string, Decision | "">>({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [confirmed, setConfirmed] = useState<Record<string, Decision>>({});
@@ -77,11 +79,13 @@ export function AutomationApprovalControls({
         { method: "POST", body: JSON.stringify(body) },
       );
       setConfirmed((current) => ({ ...current, [approval.id]: decision }));
-      setNotice(`Decisión registrada: ${result.status === "approved" ? "aprobada" : "rechazada"}.`);
+      setNotice(
+        `${t("approval.decisionRecorded")}${result.status === "approved" ? t("approval.decision.approved") : t("approval.decision.rejected")}.`,
+      );
       onDecision?.(result);
       await onRefresh?.();
     } catch (cause) {
-      setError(describeError(cause));
+      setError(describeError(cause, t("approval.error")));
     } finally {
       setBusy(null);
     }
@@ -89,7 +93,7 @@ export function AutomationApprovalControls({
 
   async function cancel() {
     if (!runId || isBusy) return;
-    if (!window.confirm("¿Cancelar la ejecución? Esta acción no se puede deshacer.")) return;
+    if (!window.confirm(t("approval.cancelConfirm"))) return;
 
     setBusy("cancel");
     setError(null);
@@ -100,10 +104,10 @@ export function AutomationApprovalControls({
         { method: "POST" },
       );
       onRunChange?.(updated);
-      setNotice("Ejecución cancelada.");
+      setNotice(t("approval.cancelled"));
       await onRefresh?.();
     } catch (cause) {
-      setError(describeError(cause));
+      setError(describeError(cause, t("approval.error")));
     } finally {
       setBusy(null);
     }
@@ -113,16 +117,13 @@ export function AutomationApprovalControls({
     <section aria-labelledby="automation-approvals-heading" aria-busy={isBusy} className="space-y-3">
       <div className="space-y-1">
         <h3 id="automation-approvals-heading" className="text-base font-semibold">
-          Aprobaciones humanas
+          {t("approval.title")}
         </h3>
-        <p className="text-sm text-text-muted">
-          La decisión la valida y persiste el servidor. No se aprueba ni se reanuda nada
-          automáticamente.
-        </p>
+        <p className="text-sm text-text-muted">{t("approval.noteAutomation")}</p>
       </div>
 
       <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
-        {notice ?? "Sin decisiones registradas en esta vista."}
+        {notice ?? t("approval.noDecisionsView")}
       </p>
       {error ? (
         <Card role="alert" className="p-3 text-sm">
@@ -132,7 +133,7 @@ export function AutomationApprovalControls({
 
       {approvals.length === 0 ? (
         <Card className="bg-secondary p-3 text-sm text-text-muted">
-          No hay aprobaciones para esta ejecución.
+          {t("approval.empty")}
         </Card>
       ) : (
         <ul className="space-y-3">
@@ -144,22 +145,24 @@ export function AutomationApprovalControls({
                 <Card className="space-y-2 p-3">
                   <dl className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-text-muted">
                     <div>
-                      <dt className="inline font-semibold">Acción: </dt>
+                      <dt className="inline font-semibold">{t("approval.actionLabel")}</dt>
                       <dd className="inline">{approval.action_type}</dd>
                     </div>
                     <div>
-                      <dt className="inline font-semibold">Creada UTC: </dt>
+                      <dt className="inline font-semibold">{t("approval.createdUtcLabel")}</dt>
                       <dd className="inline">{formatUtc(approval.created_at)}</dd>
                     </div>
                     <div>
-                      <dt className="inline font-semibold">Estado: </dt>
-                      <dd className="inline">{STATUS_LABELS[current]}</dd>
+                      <dt className="inline font-semibold">{t("approval.statusLabel")}</dt>
+                      <dd className="inline">{t(STATUS_KEYS[current])}</dd>
                     </div>
                   </dl>
 
                   {decided ? (
                     <p role="status" className="text-sm text-text-muted">
-                      Decisión registrada: {STATUS_LABELS[current]}. No se puede repetir.
+                      {t("approval.decisionRecorded")}
+                      {t(STATUS_KEYS[current])}
+                      {t("approval.cannotRepeat")}
                     </p>
                   ) : (
                     <form
@@ -168,7 +171,8 @@ export function AutomationApprovalControls({
                     >
                       <div className="space-y-1">
                         <Label htmlFor={`automation-decision-${approval.id}`} className="block">
-                          Decisión para {approval.action_type}
+                          {t("approval.decisionFor")}
+                          {approval.action_type}
                         </Label>
                         <Select
                           id={`automation-decision-${approval.id}`}
@@ -182,14 +186,15 @@ export function AutomationApprovalControls({
                           disabled={isBusy}
                           required
                         >
-                          <option value="">Selecciona decisión</option>
-                          <option value="approved">Aprobar acción</option>
-                          <option value="rejected">Rechazar y devolver a revisión</option>
+                          <option value="">{t("approval.selectDecision")}</option>
+                          <option value="approved">{t("approval.approveAction")}</option>
+                          <option value="rejected">{t("approval.rejectReview")}</option>
                         </Select>
                       </div>
                       <div className="min-w-48 flex-1 space-y-1">
                         <Label htmlFor={`automation-note-${approval.id}`} className="block">
-                          Nota opcional para {approval.action_type}
+                          {t("approval.noteFor")}
+                          {approval.action_type}
                         </Label>
                         <Input
                           id={`automation-note-${approval.id}`}
@@ -207,9 +212,11 @@ export function AutomationApprovalControls({
                       <Button
                         type="submit"
                         disabled={isBusy || !selections[approval.id]}
-                        aria-label={`Registrar decisión para ${approval.action_type}`}
+                        aria-label={`${t("approval.registerFor")}${approval.action_type}`}
                       >
-                        {busy === `decide:${approval.id}` ? "Registrando…" : "Registrar decisión"}
+                        {busy === `decide:${approval.id}`
+                          ? t("approval.registering")
+                          : t("approval.register")}
                       </Button>
                     </form>
                   )}
@@ -227,7 +234,7 @@ export function AutomationApprovalControls({
           onClick={() => void cancel()}
           disabled={isBusy || !runId}
         >
-          {busy === "cancel" ? "Cancelando…" : "Cancelar ejecución"}
+          {busy === "cancel" ? t("approval.cancelling") : t("approval.cancel")}
         </Button>
       </div>
     </section>
