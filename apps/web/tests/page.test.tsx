@@ -12,7 +12,7 @@ afterEach(() => {
 });
 
 describe("portada pública", () => {
-  it("muestra propuesta, CTAs jerarquizados y enlaces de estado sin llamadas de red", () => {
+  it("muestra propuesta, CTAs jerarquizados y nota de demo sin llamadas de red", () => {
     render(<Home />);
 
     expect(
@@ -28,10 +28,9 @@ describe("portada pública", () => {
     expect(registerLink.getAttribute("href")).toBe("/register");
     expect(dashboardLink.getAttribute("href")).toBe("/dashboard");
 
-    const healthLink = screen.getByRole("link", { name: "/health" });
-    const readyLink = screen.getByRole("link", { name: "/ready" });
-    expect(healthLink.getAttribute("href")).toBe("http://localhost:8000/health");
-    expect(readyLink.getAttribute("href")).toBe("http://localhost:8000/ready");
+    expect(
+      screen.getByText(/Demostración local con datos sintéticos/),
+    ).toBeTruthy();
   });
 
   it("cambia a inglés con el botón de idioma y persiste la preferencia", () => {
@@ -41,7 +40,7 @@ describe("portada pública", () => {
       </LocaleProvider>,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Cambiar a inglés" }));
+    fireEvent.click(screen.getByRole("button", { name: /Cambiar a inglés/ }));
 
     expect(
       screen.getByRole("heading", { level: 1, name: /Hiring decisions backed by evidence/ }),

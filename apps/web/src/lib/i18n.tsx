@@ -83,7 +83,6 @@ const es = {
   "footer.login": "Iniciar sesión",
   "footer.register": "Registro",
   "footer.dashboard": "Panel",
-  "footer.environment": "Estado del entorno",
   "footer.note": "TalentOS · interfaz de demostración · sin datos personales reales.",
   "shell.workspace": "Workspace",
   "shell.home": "Inicio",
@@ -663,6 +662,10 @@ const es = {
   "pipeline.changeError": "No se pudo cambiar la etapa.",
   "pipeline.conflict": "Conflicto (409): ",
   "pipeline.forbidden": "Permisos insuficientes (403): ",
+  "auth.socialGoogle": "Continuar con Google",
+  "auth.socialMicrosoft": "Continuar con Microsoft",
+  "auth.socialUnavailable": "Proveedor no configurado en esta demo.",
+  "auth.socialDivider": "o continúa con tu correo",
 };
 
 const en: typeof es = {
@@ -735,7 +738,6 @@ const en: typeof es = {
   "footer.login": "Sign in",
   "footer.register": "Register",
   "footer.dashboard": "Dashboard",
-  "footer.environment": "Environment status",
   "footer.note": "TalentOS · demo interface · no real personal data.",
   "shell.workspace": "Workspace",
   "shell.home": "Home",
@@ -1315,6 +1317,10 @@ const en: typeof es = {
   "pipeline.changeError": "Could not change the stage.",
   "pipeline.conflict": "Conflict (409): ",
   "pipeline.forbidden": "Insufficient permissions (403): ",
+  "auth.socialGoogle": "Continue with Google",
+  "auth.socialMicrosoft": "Continue with Microsoft",
+  "auth.socialUnavailable": "Provider not configured in this demo.",
+  "auth.socialDivider": "or continue with email",
 };
 
 const messages: Record<Locale, typeof es> = { es, en };
@@ -1370,16 +1376,17 @@ export function useI18n(): I18nValue {
 export function LocaleToggle() {
   const { locale, toggleLocale, t } = useI18n();
   const label = locale === "es" ? t("locale.toEn") : t("locale.toEs");
+  const visible = locale === "es" ? "EN" : "ES";
 
   return (
     <button
       type="button"
       onClick={toggleLocale}
-      aria-label={label}
+      aria-label={`${label}: ${visible}`}
       title={label}
       className="rounded-md border border-border-subtle px-2 py-1 text-xs font-semibold text-text-muted transition-colors hover:bg-surface-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
     >
-      {locale === "es" ? "EN" : "ES"}
+      {visible}
     </button>
   );
 }
