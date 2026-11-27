@@ -1,6 +1,6 @@
 # TalentOS — Revisión de seguridad y privacidad (Fase 14)
 
-Estado: 2026-11-27. Alcance evaluado: repositorio en modo `local`/`test` con datos sintéticos. No constituye asesoramiento legal. Evidencia de CI: dependencias `45880065546`, cabeceras y HTTPS `45915102956`, rate limit de autenticación `45919600293`, esquemas estrictos `45922837838`, límite de tamaño `45925962276`, eventos de seguridad `45929163932`, CSRF `45932408840` y `45933203449`; todos success.
+Estado: 2026-11-27. Alcance evaluado: repositorio en modo `local`/`test` con datos sintéticos. No constituye asesoramiento legal. Evidencia de CI: dependencias `45880065546`, cabeceras y HTTPS `45915102956`, rate limit de autenticación `45919600293`, esquemas estrictos `45922837838`, límite de tamaño `45925962276`, eventos de seguridad `45929163932`, CSRF `45932408840`, `45933203449` y auditoría de controles `45937828805`; todos success.
 
 ## Threat model mínimo
 
@@ -37,6 +37,9 @@ Flujo crítico: `cookie + X-Organization-ID` → sesión → membresía → rol 
 | Logs y datos personales | Revisado | `JsonFormatter` solo metadatos (`core/logging.py:12-24`); eventos `auth_login_failed` y `auth_password_reset_failed` con `request_id`/`correlation_id` (`api/routes/auth.py:43-51,82,123`); tests de redacción en `test_documents_tasks.py`, `test_email_sandbox.py`, `test_inbound_webhooks.py` y `test_auth.py`. |
 | Retención y eliminación | Parcial | Purga de eventos de agente a 30 días (`agents/tasks.py:150-180`). Sin exportación/eliminación de candidatos: riesgo `RM-04`. |
 | Escaneo de dependencias | Revisado | `npm audit --audit-level=high` y `pip-audit` en CI con venv aislada; `cryptography` subido a `>=50,<51`. |
+| Secret scanning en CI | Pendiente | Sin step de `gitleaks`/equivalente en `.github/workflows/ci.yml`; lote `16-12`. |
+| Rutas de administrador | Revisado | `/docs`, `/redoc` y `/openapi.json` deshabilitados en producción (`app/main.py:37-44`); sin rutas `/admin` en `app/api/routes`. |
+| Sourcemaps | Revisado | Build `8008b9e` sin `.map` en `.next/static` ni `sourceMappingURL` en assets públicos. |
 | Backup y restauración | Pendiente | Sin procedimiento automatizado: riesgo `RM-05`. |
 | Checklist OWASP aplicable | Revisado | ASVS V2/V3/V4/V5/V6/V8/V10/V12/V14 cubiertos por controles anteriores; brechas en `RM-01`, `RM-03`, `RM-05`. |
 | Documentación de riesgos pendientes | Revisado | Sección siguiente; aceptación explícita solo para alcance demo/local. |

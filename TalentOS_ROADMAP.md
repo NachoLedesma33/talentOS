@@ -1020,45 +1020,45 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 16-03 | Imagen hero propia | SVG propio + `apps/web/src/app/page.tsx` | `DONE` | Commit `ca27081`; CI `45903296474` success; `build` y E2E OK. |
 | 16-04 | Favicon característico | icon SVG + metadata | `DONE` | Commit `c8ae354`; CI `45904442600` success; ruta `/icon.svg` generada. |
 | 16-05 | Sitemap y `robots` | rutas Next `sitemap.ts`/`robots.ts` | `DONE` | Commit `f938b2d`; CI `45905612312` success; rutas `/sitemap.xml` y `/robots.txt` generadas. |
-| 16-06 | Idioma `es`/`en` + botón | módulo de textos + selector + `lang` | `IN_REVIEW` | Commits `5d52c7e`, `ddf10aa`, `4a8a850`, `dd798b1`; landing, shell y encabezado de panel traducidos; falta cubrir módulos internos. |
+| 16-06 | Idioma `es`/`en` + botón | módulo de textos + selector + `lang` | `IN_REVIEW` | Commits `5d52c7e`, `ddf10aa`, `4a8a850`, `dd798b1`, `8008b9e`; CI `45937828805` success; landing, shell, encabezado de panel y menú de comandos traducidos; faltan paneles de negocio. |
 | 16-07 | Política de privacidad | `docs/privacy-policy.md` | `DONE` | Commit `4a8a850`; CI `45911085332` success; enlace en footer del workspace. |
 | 16-08 | Términos y condiciones | `docs/terms-of-service.md` | `DONE` | Commit `4a8a850`; CI `45911085332` success; enlace en footer del workspace. |
 | 16-09 | Consentimiento informado | formularios de alta y recuperación | `NOT_STARTED` | — |
 | 16-10 | Borrado de datos de usuario | endpoint tenant-scoped + test + auditoría | `NOT_STARTED` | — |
-| 16-11 | Audit de vulnerabilidades | revisión de hallazgos y correcciones | `NOT_STARTED` | — |
+| 16-11 | Audit de vulnerabilidades | revisión de hallazgos y correcciones | `DONE` | Verificado en `8008b9e`; CI `45937828805` success; checklist y riesgos en `docs/security-review.md:19-54`; riesgos `RM-01`–`RM-05` aceptados solo para demo/local. |
 | 16-12 | Claves expuestas y secretos en git | escaneo + `.gitignore`/docs | `NOT_STARTED` | — |
-| 16-13 | Cifrado de datos sensibles | verificar Fernet + ampliar campos si aplica | `NOT_STARTED` | — |
-| 16-14 | Autorización del lado del servidor | revisión de endpoints y tests negativos | `NOT_STARTED` | — |
-| 16-15 | Acceso a registros restringido | roles + tenant en cada recurso | `NOT_STARTED` | — |
+| 16-13 | Cifrado de datos sensibles | verificar Fernet + ampliar campos si aplica | `DONE` | Verificado en `8008b9e`; `apps/api/app/integrations/crypto.py:16-60`; Fernet por organización; `RM-03` queda como condición de staging/producción. |
+| 16-14 | Autorización del lado del servidor | revisión de endpoints y tests negativos | `DONE` | Verificado en `8008b9e`; `apps/api/app/identity/dependencies.py:48-119`; tests negativos en `apps/api/tests/test_authorization.py:78,89,113,147,177,205,227`. |
+| 16-15 | Acceso a registros restringido | roles + tenant en cada recurso | `DONE` | Verificado en `8008b9e`; membresía y roles en `apps/api/app/identity/dependencies.py:48-119`; tests cross-tenant en `apps/api/tests/test_authorization.py`. |
 | 16-16 | Google login | ADR + configuración + endpoint + UI | `NOT_STARTED` | — |
 | 16-17 | Campos manipulables | schemas estrictos y `extra=forbid` | `DONE` | Commit `82a9a58`; CI `45922837838` success; `extra=forbid` en identidad (registro, login, organización, invitación, reset, cambio de rol); 525 tests. |
-| 16-18 | Cookies de sesión | `HttpOnly`/`Secure`/`SameSite`/expiry | `NOT_STARTED` | — |
-| 16-19 | Hash de contraseñas | verificar bcrypt + coste | `NOT_STARTED` | — |
+| 16-18 | Cookies de sesión | `HttpOnly`/`Secure`/`SameSite`/expiry | `DONE` | Verificado en `8008b9e`; `apps/api/app/api/routes/auth.py:87-95`; tests en `apps/api/tests/test_auth.py:130-144`. |
+| 16-19 | Hash de contraseñas | verificar bcrypt + coste | `DONE` | Verificado en `8008b9e`; bcrypt con tope 72 bytes en `apps/api/app/identity/security.py:8-21`; tests en `apps/api/tests/test_auth.py:121-128`. |
 | 16-20 | Límite de login y bots | rate limit por IP/usuario + eventos | `DONE` | Commit `0b2bac3`; CI `45919600293` success; 60 intentos/minuto por IP en `login`/`forgot-password`/`reset-password` solo en `staging`/`production`; 429 con `Retry-After`; 519 tests. |
-| 16-21 | Consultas DB parametrizadas/monitorizadas | ORM + logging sin PII | `NOT_STARTED` | — |
-| 16-22 | Validación y saneado de entradas | Pydantic + escapes antes de persistir | `NOT_STARTED` | — |
-| 16-23 | Límite de respuestas de API | paginación y cotas de salida | `NOT_STARTED` | — |
+| 16-21 | Consultas DB parametrizadas/monitorizadas | ORM + logging sin PII | `DONE` | Verificado en `8008b9e`; ORM SQLAlchemy en todo `apps/api/app`; sin `text(` en dominio; `apps/api/app/core/logging.py:12-24`. |
+| 16-22 | Validación y saneado de entradas | Pydantic + escapes antes de persistir | `DONE` | Verificado en `8008b9e`; `apps/api/app/documents/validation.py:8-14,50-71`; saneado en `apps/api/app/integrations/schemas.py:168-179,258-273`. |
+| 16-23 | Límite de respuestas de API | paginación y cotas de salida | `DONE` | Verificado en `8008b9e`; paginación en rutas de `jobs`, `candidates`, `applications` y `documents`; tests en `apps/api/tests/test_applications_api.py:218-234`. |
 | 16-24 | Cabeceras de seguridad, HTTPS y HSTS | middleware + tests | `DONE` | Commit `edb42db`; CI `45915102956` success; `nosniff`, `DENY`, `Referrer-Policy`, `Permissions-Policy`, CSP en producción, redirect 307 y HSTS; 518 tests. |
 | 16-25 | CSRF | tokens/origen según estrategia | `DONE` | Commits `b7ddfed`/`c45a046`; CI `45932408840`/`45933203449` success; `Origin` obligatorio en mutaciones bajo `staging`/`production`, orígenes permitidos por configuración; 530 tests. |
-| 16-26 | Sesiones al cambiar contraseña | invalidación + test | `NOT_STARTED` | — |
-| 16-27 | Caducidad de enlaces | URLs firmadas con TTL y test | `NOT_STARTED` | — |
-| 16-28 | Sin numeración de usuarios | UUID y respuestas uniformes | `NOT_STARTED` | — |
-| 16-29 | Webhooks verificados | firma, replay y dedupe con tests | `NOT_STARTED` | — |
-| 16-30 | Prompt injection y límite de IA | defensas + cuotas + tests | `NOT_STARTED` | — |
+| 16-26 | Sesiones al cambiar contraseña | invalidación + test | `DONE` | Verificado en `8008b9e`; `apps/api/app/identity/service.py:140-167`; test en `apps/api/tests/test_auth.py:367-384`. |
+| 16-27 | Caducidad de enlaces | URLs firmadas con TTL y test | `DONE` | Verificado en `8008b9e`; `apps/api/app/documents/tokens.py:42-96` con HMAC, `exp` y tenant; tests en `apps/api/tests/test_documents_api.py:366-386`; `RM-02` sigue para producción. |
+| 16-28 | Sin numeración de usuarios | UUID y respuestas uniformes | `DONE` | Verificado en `8008b9e`; UUID en `apps/api/app/identity/models.py:49,92,106`; respuesta uniforme en `apps/api/tests/test_auth.py:353-364`. |
+| 16-29 | Webhooks verificados | firma, replay y dedupe con tests | `DONE` | Verificado en `8008b9e`; `apps/api/app/integrations/webhooks.py:130-142,202`; dedupe por organización; tests en `apps/api/tests/test_inbound_webhooks.py`. |
+| 16-30 | Prompt injection y límite de IA | defensas + cuotas + tests | `DONE` | Verificado en `8008b9e`; defensas en `apps/api/app/agents/cv_analyst.py`; cuota de llamadas por tool en `apps/api/app/agents/tools.py:640,707-757`; tests en `test_cv_analyst.py` y `test_agent_tools.py`. No mide gasto LLM. |
 | 16-31 | Tamaño de solicitudes | límite global y por upload | `DONE` | Commit `f9ba3da`; CI `45925962276` success; 2 MiB global para `POST`/`PUT`/`PATCH` no multipart, 413 con envelope; uploads siguen limitados a 10 MiB; 527 tests. |
 | 16-32 | Límite de recuperación de contraseña | rate limit + auditoría | `NOT_STARTED` | — |
 | 16-33 | CORS restrictivo | orígenes por entorno + tests | `NOT_STARTED` | — |
-| 16-34 | Rutas de administrador por defecto | revisión de rutas y cierre | `NOT_STARTED` | — |
+| 16-34 | Rutas de administrador por defecto | revisión de rutas y cierre | `DONE` | Verificado en `8008b9e`; docs y esquema deshabilitados en producción (`apps/api/app/main.py:37-44`); sin rutas `/admin` en `apps/api/app/api/routes`. |
 | 16-35 | Eventos de seguridad | logging de fallos y correlación | `DONE` | Commit `7dc55ff`; CI `45929163932` success; `auth_login_failed` y `auth_password_reset_failed` con `request_id`/`correlation_id`, sin email/token/password; 529 tests. |
 | 16-36 | Datos estructurados | JSON-LD y metadatos | `NOT_STARTED` | — |
-| 16-37 | Escaneo de dependencias | `npm audit` + `pip-audit` | `NOT_STARTED` | — |
-| 16-38 | Sin sourcemaps | configuración de build + verificación | `NOT_STARTED` | — |
-| 16-39 | APIs y secretos en servidor | revisión de cliente y servidor | `NOT_STARTED` | — |
+| 16-37 | Escaneo de dependencias | `npm audit` + `pip-audit` | `DONE` | Verificado en `8008b9e`; `.github/workflows/ci.yml:45-50,83-85` ejecuta `pip-audit` y `npm audit --audit-level=high`. |
+| 16-38 | Sin sourcemaps | configuración de build + verificación | `DONE` | Verificado en `8008b9e`; build `8008b9e`/CI `45937828805`; 0 `.map` en `.next/static` y 0 `sourceMappingURL` en assets públicos. |
+| 16-39 | APIs y secretos en servidor | revisión de cliente y servidor | `DONE` | Verificado en `8008b9e`; `apps/web/src/lib/api.ts` sin secretos; `apps/api/app/core/config.py:21-29` solo entorno; `.gitignore:1-5`. |
 | 16-40 | Demo completa | seed sintético reproducible + reset | `NOT_STARTED` | — |
-| 16-41 | Empty states | pantallas con lista vacía | `NOT_STARTED` | — |
-| 16-42 | Loading states | pantallas con carga | `NOT_STARTED` | — |
-| 16-43 | Hover states | controles interactivos | `NOT_STARTED` | — |
-| 16-44 | Licencias de imágenes | verificación documentada | `NOT_STARTED` | — |
+| 16-41 | Empty states | pantallas con lista vacía | `DONE` | Verificado en `8008b9e`; inventario en `docs/ui-ux-inventory.md:132`; estados vacíos en paneles de `apps/web/src/components`. |
+| 16-42 | Loading states | pantallas con carga | `DONE` | Verificado en `8008b9e`; `apps/web/src/app/loading.tsx:4-9`; `role="status"`/`aria-busy` en paneles. |
+| 16-43 | Hover states | controles interactivos | `DONE` | Verificado en `8008b9e`; variantes en `apps/web/src/components/ui/shadcn/button.tsx:12-18`; inventario en `docs/ui-ux-inventory.md:173`. |
+| 16-44 | Licencias de imágenes | verificación documentada | `DONE` | Verificado en `8008b9e`; `apps/web/public/hero-talentos.svg` e `icon.svg` propios; sin assets de terceros. |
 | 16-45 | Cierre y evidencia final | docs + CI final verde | `NOT_STARTED` | — |
 
 ## 26.4 Progreso del loop
@@ -1079,3 +1079,5 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 2026-11-26 | 16-31 | `f9ba3da` | `45925962276` | Límite global de 2 MiB por solicitud con 413 uniforme. |
 | 2026-11-26 | 16-35 | `7dc55ff` | `45929163932` | Eventos de seguridad de autenticación con correlación y sin PII. |
 | 2026-11-27 | 16-25 | `b7ddfed` | `45932408840` | `Origin` obligatorio en mutaciones desplegadas y rechazo de orígenes externos. |
+| 2026-11-27 | 16-06 | `8008b9e` | `45937828805` | Menú de comandos traducido; i18n sigue parcial. |
+| 2026-11-27 | 16-11/13/14/15/18/19/21/22/23/26/27/28/29/30/34/37/38/39/41/42/43/44 | `8008b9e` | `45937828805` | Auditoría de controles ya presentes; estados y evidencia actualizados. |
