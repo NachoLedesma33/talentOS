@@ -4,18 +4,33 @@ import logging
 import uuid
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse
+from langchain_core.runnables import RunnableConfig
+from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.errors import GraphInterrupt
+from langgraph.types import Command
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session as DBSession
 
 from app.agents import service as agents_service
+from app.agents.assistant import (
+    AssistantDependencies,
+    build_assistant_response,
+    build_workspace_assistant_graph,
+    initial_assistant_state,
+)
+from app.agents.checkpoints import SQLAgentCheckpointSaver
 from app.agents.contracts import (
     MATCHING_REVIEW_WORKFLOW,
     RECRUITMENT_ORCHESTRATION_WORKFLOW,
+    WORKSPACE_ASSISTANT_WORKFLOW,
+    AssistantActionAck,
+    AssistantMessageRequest,
+    AssistantMessageResponse,
 )
 from app.agents.models import (
     AgentDomainError,
@@ -24,13 +39,20 @@ from app.agents.models import (
     AgentRun,
     AgentRunStatus,
     AgentTenantMismatchError,
+    Approval,
     ApprovalStatus,
+)
+from app.agents.repositories import (
+    decide_approval as persist_approval_decision,
 )
 from app.agents.repositories import (
     get_agent_run,
     get_agent_run_by_idempotency_key,
+    get_approval,
+    get_or_create_agent_run,
     list_agent_events,
     list_approvals_for_run,
+    update_agent_run_status,
 )
 from app.agents.schemas import (
     DecideApprovalRequest,
@@ -39,11 +61,13 @@ from app.agents.schemas import (
     validate_safe_payload,
 )
 from app.agents.tasks import resume_agent_workflow
+from app.agents.tools import build_assistant_registry
+from app.agents.workflow import build_config
 from app.applications.models import Application
 from app.audit.service import record_audit
 from app.core.config import get_settings
 from app.core.logging import log_structured
-from app.db.session import get_db
+from app.db.session import SessionLocal, get_db
 from app.identity.dependencies import (
     get_current_organization,
     get_current_user,
@@ -51,6 +75,7 @@ from app.identity.dependencies import (
     verify_origin,
 )
 from app.identity.models import Membership, MembershipRole, Organization, User
+from app.llm.registry import get_llm_provider
 
 router = APIRouter(prefix="/api/v1/agents", tags=["agents"])
 
@@ -65,6 +90,17 @@ WriteMember = Annotated[
             MembershipRole.OWNER,
             MembershipRole.ADMIN,
             MembershipRole.RECRUITER,
+        )
+    ),
+]
+AssistantMember = Annotated[
+    Membership,
+    Depends(
+        require_roles(
+            MembershipRole.OWNER,
+            MembershipRole.ADMIN,
+            MembershipRole.RECRUITER,
+            MembershipRole.VIEWER,
         )
     ),
 ]
@@ -305,6 +341,110 @@ def _log(
     )
 
 
+def _assistant_checkpointer() -> BaseCheckpointSaver[str]:
+    """Checkpointer aislado por tenant; tests lo fijan sobre SQLite en memoria."""
+    return SQLAgentCheckpointSaver(SessionLocal)
+
+
+def _assistant_config(run: AgentRun) -> RunnableConfig:
+    return build_config(organization_id=run.organization_id, agent_run_id=run.id)
+
+
+def _assistant_dependencies(
+    db: DBSession,
+    run: AgentRun,
+    member: Membership,
+    *,
+    message: str = "",
+    recent_messages: tuple[str, ...] = (),
+) -> AssistantDependencies:
+    """Une la sesión autenticada con el grafo; el mensaje no se persiste."""
+    return AssistantDependencies(
+        db=db,
+        organization_id=run.organization_id,
+        actor_id=run.actor_id,
+        actor_role=member.role,
+        correlation_id=run.correlation_id,
+        agent_run_id=run.id,
+        idempotency_key=run.idempotency_key,
+        registry=build_assistant_registry(),
+        provider=get_llm_provider(),
+        checkpointer=_assistant_checkpointer(),
+        prompt_context={
+            "message": message,
+            "recent_messages": list(recent_messages),
+        },
+    )
+
+
+def _assistant_initial_state(
+    payload: AssistantMessageRequest, run: AgentRun
+) -> dict[str, object]:
+    return dict(
+        initial_assistant_state(
+            organization_id=run.organization_id,
+            actor_id=run.actor_id,
+            correlation_id=run.correlation_id,
+            agent_run_id=run.id,
+            idempotency_key=run.idempotency_key,
+            message=payload.message,
+            recent_messages=tuple(item.content for item in payload.recent_messages),
+            surface=payload.surface,
+            resource_ref=payload.resource_ref,
+        )
+    )
+
+
+def _read_assistant_state(graph: Any, config: RunnableConfig) -> dict[str, object]:
+    snapshot = graph.get_state(config)
+    return dict(snapshot.values or {})
+
+
+def _assistant_status(state: Mapping[str, object]) -> AgentRunStatus:
+    raw = state.get("status")
+    try:
+        return AgentRunStatus(str(raw)) if raw else AgentRunStatus.PENDING
+    except ValueError:
+        return AgentRunStatus.FAILED
+
+
+def _ensure_assistant_approval(
+    db: DBSession, run: AgentRun, state: Mapping[str, object]
+) -> Approval:
+    approval_id = uuid.UUID(str(state.get("approval_id") or ""))
+    existing = get_approval(db, run.organization_id, approval_id)
+    if existing is not None:
+        return existing
+    approval = Approval(
+        id=approval_id,
+        organization_id=run.organization_id,
+        agent_run_id=run.id,
+        action_type=WORKSPACE_ASSISTANT_WORKFLOW.approval_action_type,
+        payload=validate_safe_payload(
+            {
+                "workflow": WORKSPACE_ASSISTANT_WORKFLOW.workflow,
+                "version": WORKSPACE_ASSISTANT_WORKFLOW.version,
+                "action_type": WORKSPACE_ASSISTANT_WORKFLOW.approval_action_type,
+                "approval_id": str(approval_id),
+                "run_id": str(run.id),
+            }
+        ),
+        status=ApprovalStatus.PENDING,
+    )
+    db.add(approval)
+    db.flush()
+    return approval
+
+
+def _sync_assistant_run(
+    db: DBSession, run: AgentRun, state: Mapping[str, object]
+) -> AgentRunStatus:
+    status = _assistant_status(state)
+    if status not in {AgentRunStatus.PENDING, AgentRunStatus.RUNNING}:
+        update_agent_run_status(db, run, status)
+    return status
+
+
 def _start_run_response(
     request: Request,
     response: Response,
@@ -358,6 +498,164 @@ def _start_run_response(
         status.HTTP_201_CREATED if created else status.HTTP_200_OK
     )
     return _detail(db, run)
+
+
+@router.post("/assistant/messages", response_model=AssistantMessageResponse)
+def post_assistant_message(
+    request: Request,
+    response: Response,
+    _origin: OriginChecked,
+    payload: AssistantMessageRequest,
+    actor: CurrentUser,
+    active_organization: CurrentOrganization,
+    member: AssistantMember,
+    db: DbDependency,
+) -> AssistantMessageResponse:
+    """Ejecuta el asistente; sin effects hasta aprobación, sin mensaje persistido."""
+    existing = get_agent_run_by_idempotency_key(
+        db, active_organization.id, payload.idempotency_key
+    )
+    if existing is not None and existing.workflow != WORKSPACE_ASSISTANT_WORKFLOW.workflow:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Solicitud inválida.")
+    run = existing or get_or_create_agent_run(
+        db,
+        organization_id=active_organization.id,
+        workflow=WORKSPACE_ASSISTANT_WORKFLOW.workflow,
+        version=WORKSPACE_ASSISTANT_WORKFLOW.version,
+        idempotency_key=payload.idempotency_key,
+        correlation_id=uuid.uuid4(),
+        actor_id=actor.id,
+    )
+    deps = _assistant_dependencies(
+        db,
+        run,
+        member,
+        message=payload.message,
+        recent_messages=tuple(item.content for item in payload.recent_messages),
+    )
+    graph = build_workspace_assistant_graph(deps)
+    config = _assistant_config(run)
+    created = existing is None
+    if created:
+        update_agent_run_status(db, run, AgentRunStatus.RUNNING)
+        try:
+            graph.invoke(_assistant_initial_state(payload, run), config)
+        except GraphInterrupt:
+            pass
+        state = _read_assistant_state(graph, config)
+        run_status = _sync_assistant_run(db, run, state)
+        if run_status is AgentRunStatus.WAITING_APPROVAL:
+            _ensure_assistant_approval(db, run, state)
+        record_audit(
+            db,
+            organization_id=active_organization.id,
+            actor_id=actor.id,
+            action="assistant.message_requested",
+            resource_type=_RESOURCE_TYPE,
+            resource_id=run.id,
+        )
+        db.commit()
+        _log(
+            "assistant.message",
+            request_id=_request_id(request),
+            organization_id=active_organization.id,
+            agent_run_id=run.id,
+            correlation_id=run.correlation_id,
+            result=run_status.value,
+        )
+    else:
+        state = _read_assistant_state(graph, config)
+    response.status_code = (
+        status.HTTP_201_CREATED if created else status.HTTP_200_OK
+    )
+    return build_assistant_response(state, run_id=run.id)
+
+
+@router.post("/assistant/actions/{action_id}/ack", response_model=AssistantMessageResponse)
+def ack_assistant_action(
+    request: Request,
+    _origin: OriginChecked,
+    action_id: uuid.UUID,
+    payload: AssistantActionAck,
+    actor: CurrentUser,
+    active_organization: CurrentOrganization,
+    member: WriteMember,
+    db: DbDependency,
+) -> AssistantMessageResponse:
+    """Confirma o descarta una acción propuesta; sin effects hasta la decisión."""
+    run = get_agent_run_by_idempotency_key(
+        db, active_organization.id, payload.idempotency_key
+    )
+    if run is None or run.workflow != WORKSPACE_ASSISTANT_WORKFLOW.workflow:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=_NOT_FOUND)
+    deps = _assistant_dependencies(db, run, member)
+    graph = build_workspace_assistant_graph(deps)
+    config = _assistant_config(run)
+    state = _read_assistant_state(graph, config)
+    actions = cast(list[Mapping[str, object]], state.get("proposed_actions") or [])
+    if not any(str(item.get("action_id")) == str(action_id) for item in actions):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=_NOT_FOUND)
+    approval_id = uuid.UUID(str(state.get("approval_id") or ""))
+    approval = get_approval(db, active_organization.id, approval_id)
+    if approval is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=_NOT_FOUND)
+    target = (
+        ApprovalStatus.APPROVED
+        if payload.decision == "applied"
+        else ApprovalStatus.REJECTED
+    )
+    if _assistant_status(state) is not AgentRunStatus.WAITING_APPROVAL:
+        if approval.status is target and approval.decided_by == actor.id:
+            return build_assistant_response(state, run_id=run.id)
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="Estado de la ejecución incompatible."
+        )
+    try:
+        persist_approval_decision(
+            db,
+            approval,
+            decision=target,
+            decided_by=actor.id,
+            decided_at=datetime.now(UTC),
+        )
+    except (AgentDomainError, ValueError) as exc:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, detail="Estado de la ejecución incompatible."
+        ) from exc
+    resumed = graph.invoke(
+        Command(
+            resume={
+                "decision": target.value,
+                "approval_id": str(approval_id),
+                "decided_by": str(actor.id),
+            }
+        ),
+        config,
+    )
+    final_state = (
+        dict(resumed)
+        if isinstance(resumed, Mapping)
+        else _read_assistant_state(graph, config)
+    )
+    _sync_assistant_run(db, run, final_state)
+    record_audit(
+        db,
+        organization_id=active_organization.id,
+        actor_id=actor.id,
+        action="assistant.action_ack",
+        resource_type="approval",
+        resource_id=approval.id,
+    )
+    db.commit()
+    _log(
+        "assistant.action_ack",
+        request_id=_request_id(request),
+        organization_id=active_organization.id,
+        agent_run_id=run.id,
+        correlation_id=run.correlation_id,
+        result=payload.decision,
+    )
+    return build_assistant_response(final_state, run_id=run.id)
 
 
 @router.post("/runs", response_model=AgentRunDetail)
