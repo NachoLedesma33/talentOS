@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
+import { useI18n, type MessageKey } from "../lib/i18n";
 import type {
   Application,
   ApplicationList,
@@ -29,13 +30,17 @@ const STAGES: readonly ApplicationStage[] = [
 type LoadStatus = "loading" | "ready" | "error";
 type ActionStatus = "idle" | "loading" | "success" | "forbidden" | "error";
 
-function describeError(error: unknown, fallback: string): string {
+function describeError(
+  error: unknown,
+  fallback: string,
+  t: (key: MessageKey) => string,
+): string {
   if (error instanceof ApiError) {
     if (error.status === 409) {
-      return `Conflicto (409): ${error.message}`;
+      return `${t("pipeline.conflict")}${error.message}`;
     }
     if (error.status === 403) {
-      return `Permisos insuficientes (403): ${error.message}`;
+      return `${t("pipeline.forbidden")}${error.message}`;
     }
     return `${error.status}: ${error.message}`;
   }
@@ -43,6 +48,7 @@ function describeError(error: unknown, fallback: string): string {
 }
 
 export function PipelineBoard() {
+  const { t } = useI18n();
   const [jobFilter, setJobFilter] = useState("");
   const [stageFilter, setStageFilter] = useState("");
   const [appliedJobId, setAppliedJobId] = useState("");
@@ -93,7 +99,7 @@ export function PipelineBoard() {
         setApplications([]);
         setTotal(0);
         setLoadStatus("error");
-        setLoadError(describeError(error, "No se pudieron cargar las postulaciones."));
+        setLoadError(describeError(error, t("pipeline.loadError"), t));
         setLoadedRequestKey(requestKey);
       },
     );
@@ -101,7 +107,7 @@ export function PipelineBoard() {
     return () => {
       active = false;
     };
-  }, [appliedJobId, appliedStage, offset, refreshToken, requestKey]);
+  }, [appliedJobId, appliedStage, offset, refreshToken, requestKey, t]);
 
   const isCurrentRequest = loadedRequestKey === requestKey;
   const visibleLoadStatus: LoadStatus = isCurrentRequest ? loadStatus : "loading";
@@ -134,11 +140,11 @@ export function PipelineBoard() {
         { method: "POST", body: JSON.stringify(payload) },
       );
       setActionStatus("success");
-      setActionMessage(`Etapa actualizada a ${change.to_stage}.`);
+      setActionMessage(`${t("pipeline.updated")}${change.to_stage}.`);
       setRefreshToken((current) => current + 1);
     } catch (error) {
       setActionStatus(error instanceof ApiError && error.status === 403 ? "forbidden" : "error");
-      setActionMessage(describeError(error, "No se pudo cambiar la etapa."));
+      setActionMessage(describeError(error, t("pipeline.changeError"), t));
     } finally {
       setBusyId(null);
     }
@@ -148,12 +154,12 @@ export function PipelineBoard() {
     <div className="space-y-6">
       <section aria-labelledby="pipeline-filters-heading" className="space-y-3">
         <h2 id="pipeline-filters-heading" className="text-lg font-semibold">
-          Filtros del pipeline
+          {t("pipeline.filtersTitle")}
         </h2>
         <form onSubmit={handleFilters} className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
             <Label htmlFor="pipeline-job-filter" className="block">
-              ID de vacante (UUID)
+              {t("pipeline.jobFilter")}
             </Label>
             <Input
               id="pipeline-job-filter"
@@ -166,7 +172,7 @@ export function PipelineBoard() {
           </div>
           <div className="space-y-1">
             <Label htmlFor="pipeline-stage-filter" className="block">
-              Etapa
+              {t("pipeline.stageFilter")}
             </Label>
             <Select
               id="pipeline-stage-filter"
@@ -175,7 +181,7 @@ export function PipelineBoard() {
                 setStageFilter(event.target.value);
               }}
             >
-              <option value="">Todas</option>
+              <option value="">{t("pipeline.all")}</option>
               {STAGES.map((stage) => (
                 <option key={stage} value={stage}>
                   {stage}
@@ -183,8 +189,11 @@ export function PipelineBoard() {
               ))}
             </Select>
           </div>
-          <Button type="submit">Aplicar filtros</Button>
-          <p className="text-sm text-text-muted">Total: {visibleTotal}</p>
+          <Button type="submit">{t("pipeline.apply")}</Button>
+          <p className="text-sm text-text-muted">
+            {t("pipeline.total")}
+            {visibleTotal}
+          </p>
         </form>
 
         <div className="flex items-center gap-3">
@@ -196,7 +205,7 @@ export function PipelineBoard() {
             }}
             disabled={offset === 0}
           >
-            Anterior
+            {t("pipeline.previous")}
           </Button>
           <Button
             type="button"
@@ -206,14 +215,14 @@ export function PipelineBoard() {
             }}
             disabled={visibleLoadStatus !== "ready" || offset + PAGE_SIZE >= visibleTotal}
           >
-            Siguiente
+            {t("pipeline.next")}
           </Button>
         </div>
 
         <div aria-live="polite">
           {visibleLoadStatus === "loading" ? (
             <p role="status" className="text-sm text-text-muted">
-              Cargando postulaciones…
+              {t("pipeline.loading")}
             </p>
           ) : null}
           {visibleLoadStatus === "error" ? (
@@ -222,7 +231,7 @@ export function PipelineBoard() {
             </p>
           ) : null}
           {visibleLoadStatus === "ready" && visibleApplications.length === 0 ? (
-            <p className="text-sm text-text-muted">No hay postulaciones para estos filtros.</p>
+            <p className="text-sm text-text-muted">{t("pipeline.empty")}</p>
           ) : null}
           <p
             role={
@@ -234,14 +243,14 @@ export function PipelineBoard() {
             }
             className="min-h-5 text-sm text-text"
           >
-            {actionStatus === "loading" ? "Cambiando etapa…" : actionMessage}
+            {actionStatus === "loading" ? t("pipeline.changing") : actionMessage}
           </p>
         </div>
       </section>
 
       <section aria-labelledby="pipeline-board-heading" aria-busy={busyId !== null} className="space-y-3">
         <h2 id="pipeline-board-heading" className="text-lg font-semibold">
-          Pipeline
+          {t("pipeline.boardTitle")}
         </h2>
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {STAGES.map((stage) => {
@@ -249,36 +258,43 @@ export function PipelineBoard() {
               (application) => application.stage === stage,
             );
             return (
-              <section key={stage} aria-label={`Etapa ${stage}`} className="space-y-2">
+              <section
+                key={stage}
+                aria-label={`${t("pipeline.stageAria")}${stage}`}
+                className="space-y-2"
+              >
                 <Card className="space-y-2 bg-secondary p-3">
                   <h3 className="text-sm font-semibold">
                     {stage}
                     <span className="ml-2 text-xs text-text-muted">({columnItems.length})</span>
                   </h3>
                   {columnItems.length === 0 ? (
-                    <p className="text-sm text-text-muted">Sin postulaciones.</p>
+                    <p className="text-sm text-text-muted">{t("pipeline.noApplications")}</p>
                   ) : null}
                   {columnItems.map((application) => (
                     <Card role="article" key={application.id} className="space-y-2 p-3">
                     <p className="text-sm font-semibold" title={application.id}>
-                      Postulación {application.id.slice(0, 8)}
+                      {t("pipeline.applicationPrefix")}
+                      {application.id.slice(0, 8)}
                     </p>
                     <p className="text-xs text-text-muted" title={application.candidate_id}>
-                      Candidato: {application.candidate_id.slice(0, 8)}
+                      {t("pipeline.candidateLabel")}
+                      {application.candidate_id.slice(0, 8)}
                     </p>
                     <p className="text-xs text-text-muted" title={application.job_id}>
-                      Vacante: {application.job_id.slice(0, 8)}
+                      {t("pipeline.jobLabel")}
+                      {application.job_id.slice(0, 8)}
                     </p>
                     <div className="space-y-1">
                       <Label
                         htmlFor={`stage-target-${application.id}`}
                         className="block text-xs"
                       >
-                        Etapa destino
+                        {t("pipeline.targetLabel")}
                       </Label>
                       <Select
                         id={`stage-target-${application.id}`}
-                        aria-label={`Etapa destino para ${application.id}`}
+                        aria-label={`${t("pipeline.targetAria")}${application.id}`}
                         value={targets[application.id] ?? application.stage}
                         onChange={(event) => {
                           const next = event.target.value as ApplicationStage;
@@ -298,13 +314,13 @@ export function PipelineBoard() {
                         htmlFor={`stage-note-${application.id}`}
                         className="block text-xs"
                       >
-                        Nota (opcional)
+                        {t("pipeline.noteLabel")}
                       </Label>
                       <Input
                         id={`stage-note-${application.id}`}
                         type="text"
                         maxLength={1000}
-                        aria-label={`Nota para ${application.id}`}
+                        aria-label={`${t("pipeline.noteAria")}${application.id}`}
                         value={notes[application.id] ?? ""}
                         onChange={(event) => {
                           const next = event.target.value;
@@ -316,13 +332,15 @@ export function PipelineBoard() {
                     <Button
                       type="button"
                       size="sm"
-                      aria-label={`Avanzar etapa de postulación ${application.id}`}
+                      aria-label={`${t("pipeline.advanceAria")}${application.id}`}
                       onClick={() => {
                         void handleStageChange(application);
                       }}
                       disabled={busyId !== null}
                     >
-                      {busyId === application.id ? "Cambiando…" : "Avanzar etapa"}
+                      {busyId === application.id
+                        ? t("pipeline.advancing")
+                        : t("pipeline.advance")}
                     </Button>
                     </Card>
                   ))}
