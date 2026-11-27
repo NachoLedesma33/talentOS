@@ -1038,7 +1038,7 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 16-21 | Consultas DB parametrizadas/monitorizadas | ORM + logging sin PII | `NOT_STARTED` | — |
 | 16-22 | Validación y saneado de entradas | Pydantic + escapes antes de persistir | `NOT_STARTED` | — |
 | 16-23 | Límite de respuestas de API | paginación y cotas de salida | `NOT_STARTED` | — |
-| 16-24 | Cabeceras de seguridad, HTTPS y HSTS | middleware + tests | `NOT_STARTED` | — |
+| 16-24 | Cabeceras de seguridad, HTTPS y HSTS | middleware + tests | `DONE` | Commit `edb42db`; CI `45915102956` success; `nosniff`, `DENY`, `Referrer-Policy`, `Permissions-Policy`, CSP en producción, redirect 307 y HSTS; 518 tests. |
 | 16-25 | CSRF | tokens/origen según estrategia | `NOT_STARTED` | — |
 | 16-26 | Sesiones al cambiar contraseña | invalidación + test | `NOT_STARTED` | — |
 | 16-27 | Caducidad de enlaces | URLs firmadas con TTL y test | `NOT_STARTED` | — |
@@ -1073,3 +1073,4 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 2026-11-26 | 16-06 | `dd798b1` | `45912168237` | Selector `es`/`en`, `lang` y textos de landing/shell; cobertura parcial. |
 | 2026-11-26 | 16-07 | `4a8a850` | `45911085332` | Política de privacidad enlazada desde el workspace. |
 | 2026-11-26 | 16-08 | `4a8a850` | `45911085332` | Términos enlazados desde el workspace. |
+| 2026-11-26 | 16-24 | `edb42db` | `45915102956` | Cabeceras de seguridad, CSP, redirect HTTPS y HSTS en producción. |
