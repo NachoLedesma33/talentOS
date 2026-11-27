@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from enum import Enum, StrEnum
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -12,6 +13,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     Uuid,
+    false,
 )
 from sqlalchemy import (
     Enum as SAEnum,
@@ -60,6 +62,9 @@ class User(Base):
         ),
         nullable=False,
         default=UserStatus.ACTIVE,
+    )
+    is_superadmin: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=false()
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=_utcnow

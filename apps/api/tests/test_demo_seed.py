@@ -11,10 +11,10 @@ from sqlalchemy.pool import StaticPool
 from app.applications.models import Application
 from app.candidates.models import Candidate
 from app.db.base import Base
-from app.identity.models import Organization, User
+from app.identity.models import Membership, MembershipRole, Organization, User
 from app.identity.service import create_organization, register_user
 from app.jobs.models import Job
-from scripts.seed_demo import reset_demo, seed_demo
+from scripts.seed_demo import SUPERADMIN_EMAIL, reset_demo, seed_demo
 
 _OTHER_EMAIL = "owner.other@example.test"
 _OTHER_PASSWORD = "OtherSynthetic123"
@@ -75,3 +75,29 @@ def test_seed_demo_is_reproducible_and_reset_only_removes_demo(db_session: DBSes
     assert _count(db_session, Candidate) == 0
     assert _count(db_session, Application) == 0
     assert db_session.get(Organization, other_org.id) is not None
+
+
+def test_seed_demo_creates_superadmin_only_when_password_env_is_set(
+    monkeypatch: pytest.MonkeyPatch, db_session: DBSession
+) -> None:
+    password = "SyntheticSuperPass789"
+    monkeypatch.setenv("TALENTOS_SUPERADMIN_PASSWORD", password)
+
+    result = seed_demo(db_session)
+
+    assert result["superadmin"] is True
+    superadmin = db_session.scalar(select(User).where(User.email == SUPERADMIN_EMAIL))
+    assert superadmin is not None
+    assert superadmin.is_superadmin is True
+    assert superadmin.password_hash != password
+    assert password not in superadmin.password_hash
+    membership = db_session.scalar(
+        select(Membership).where(Membership.user_id == superadmin.id)
+    )
+    assert membership is not None
+    assert membership.role is MembershipRole.VIEWER
+
+    monkeypatch.delenv("TALENTOS_SUPERADMIN_PASSWORD")
+    reset_demo(db_session)
+
+    assert db_session.scalar(select(User).where(User.email == SUPERADMIN_EMAIL)) is None

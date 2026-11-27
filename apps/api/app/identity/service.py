@@ -215,6 +215,13 @@ class InvitationEmailMismatchError(Exception):
     """El email autenticado no coincide con el invitado."""
 
 
+_DEPLOYED_ENVS = frozenset({"staging", "production"})
+
+
+def _is_superadmin(actor: User) -> bool:
+    return actor.is_superadmin and config.get_settings().APP_ENV not in _DEPLOYED_ENVS
+
+
 def _assert_active_organization(
     active_organization_id: uuid.UUID, requested_organization_id: uuid.UUID
 ) -> None:
@@ -229,7 +236,7 @@ def _require_actor_role(
     allowed: frozenset[MembershipRole],
 ) -> Membership:
     membership = get_membership(db, actor.id, organization_id)
-    if membership is None or membership.role not in allowed:
+    if membership is None or (membership.role not in allowed and not _is_superadmin(actor)):
         raise InsufficientRoleError
     return membership
 
@@ -320,7 +327,11 @@ def invite_member(
         raise CannotInviteSelfError
     if get_membership(db, invited_user.id, active_organization_id) is not None:
         raise MemberAlreadyExistsError
-    if role is MembershipRole.OWNER and actor_membership.role is not MembershipRole.OWNER:
+    if (
+        role is MembershipRole.OWNER
+        and actor_membership.role is not MembershipRole.OWNER
+        and not _is_superadmin(actor)
+    ):
         raise RoleAssignmentForbiddenError
 
     membership = Membership(
@@ -365,7 +376,11 @@ def change_member_role(
         raise MemberNotFoundError
     if target.role is new_role:
         raise RoleUnchangedError
-    if new_role is MembershipRole.OWNER and actor_membership.role is not MembershipRole.OWNER:
+    if (
+        new_role is MembershipRole.OWNER
+        and actor_membership.role is not MembershipRole.OWNER
+        and not _is_superadmin(actor)
+    ):
         raise RoleAssignmentForbiddenError
     if target.role is MembershipRole.OWNER:
         owners = db.scalars(
@@ -411,7 +426,11 @@ def create_invitation(
     actor_membership = _require_actor_role(
         db, actor, active_organization_id, frozenset({MembershipRole.OWNER, MembershipRole.ADMIN})
     )
-    if role is MembershipRole.OWNER and actor_membership.role is not MembershipRole.OWNER:
+    if (
+        role is MembershipRole.OWNER
+        and actor_membership.role is not MembershipRole.OWNER
+        and not _is_superadmin(actor)
+    ):
         raise RoleAssignmentForbiddenError
 
     normalized_email = email.strip().lower()

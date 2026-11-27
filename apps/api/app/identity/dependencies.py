@@ -112,8 +112,20 @@ def require_roles(*roles: MembershipRole) -> Callable[..., Membership]:
         db: DbDependency,
     ) -> Membership:
         membership = get_membership(db, user.id, organization.id)
-        if membership is None or membership.role not in allowed:
+        if membership is None or (
+            membership.role not in allowed
+            and not (user.is_superadmin and config.get_settings().APP_ENV not in _DEPLOYED_ENVS)
+        ):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=_ROLE_MESSAGE)
+        if user.is_superadmin and config.get_settings().APP_ENV not in _DEPLOYED_ENVS:
+            return Membership(
+                id=membership.id,
+                organization_id=membership.organization_id,
+                user_id=membership.user_id,
+                role=MembershipRole.OWNER,
+                created_at=membership.created_at,
+                updated_at=membership.updated_at,
+            )
         return membership
 
     return _require_roles

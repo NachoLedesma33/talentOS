@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import email_validator
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine, create_engine
+from sqlalchemy import Engine, create_engine, select
 from sqlalchemy.orm import Session as DBSession
 from sqlalchemy.pool import StaticPool
 
@@ -16,6 +16,7 @@ from app.core.config import Settings, get_settings
 from app.db.base import Base
 from app.db.session import get_db
 from app.identity import dependencies as identity_dependencies
+from app.identity.models import Membership, MembershipRole, User
 from app.main import app
 
 _PASSWORD = "SyntheticPass123"
@@ -267,3 +268,82 @@ def test_cors_preflight_allows_only_configured_web_origin(client: TestClient) ->
     assert allowed.headers["access-control-allow-credentials"] == "true"
     assert rejected.status_code == 400
     assert "access-control-allow-origin" not in rejected.headers
+
+
+def _setup_superadmin(
+    client: TestClient, engine: Engine
+) -> tuple[str, str, str]:
+    owner_email = "owner-superadmin@example.test"
+    superadmin_email = "superadmin-auth@example.test"
+    extra_email = "extra-superadmin@example.test"
+    for email, name in (
+        (owner_email, "Owner"),
+        (superadmin_email, "Superadmin"),
+        (extra_email, "Extra"),
+    ):
+        _register(client, email, name)
+    _login(client, owner_email)
+    org_id = _create_org(client, "Superadmin Org", "superadmin-org")
+
+    with DBSession(engine, expire_on_commit=False) as db:
+        superadmin = db.scalar(select(User).where(User.email == superadmin_email))
+        assert superadmin is not None
+        superadmin.is_superadmin = True
+        db.add(
+            Membership(
+                organization_id=UUID(org_id),
+                user_id=superadmin.id,
+                role=MembershipRole.VIEWER,
+            )
+        )
+        db.commit()
+
+    _login(client, superadmin_email)
+    return org_id, superadmin_email, extra_email
+
+
+def test_superadmin_uses_owner_role_view_in_local_environment(
+    client: TestClient, engine: Engine
+) -> None:
+    org_id, _, extra_email = _setup_superadmin(client, engine)
+    headers = {"X-Organization-ID": org_id}
+
+    invited = client.post(
+        f"{_ORG_URL}{org_id}/members",
+        json={"email": extra_email, "role": "viewer"},
+        headers=headers,
+    )
+
+    assert invited.status_code == 201
+    user_id = invited.json()["user_id"]
+    promoted = client.patch(
+        f"{_ORG_URL}{org_id}/members/{user_id}",
+        json={"role": "owner"},
+        headers=headers,
+    )
+
+    assert promoted.status_code == 200
+    assert promoted.json()["role"] == "owner"
+
+
+def test_superadmin_flag_is_ignored_in_deployed_environments(
+    client: TestClient, engine: Engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    org_id, _, extra_email = _setup_superadmin(client, engine)
+    monkeypatch.setattr(
+        identity_dependencies.config,
+        "get_settings",
+        lambda: Settings(APP_ENV="production"),
+    )
+
+    invited = client.post(
+        f"{_ORG_URL}{org_id}/members",
+        json={"email": extra_email, "role": "viewer"},
+        headers={
+            "X-Organization-ID": org_id,
+            "Origin": "http://localhost:3000",
+        },
+    )
+
+    assert invited.status_code == 403
+    assert invited.json()["error"]["code"] == "forbidden"

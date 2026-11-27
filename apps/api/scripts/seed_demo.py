@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 
 from sqlalchemy import delete, select
@@ -12,13 +13,24 @@ from app.candidates.service import create_candidate
 from app.core.config import get_settings
 from app.db.base import Base
 from app.db.session import SessionLocal
-from app.identity.models import Invitation, Organization, PasswordResetToken, Session, User
+from app.identity.models import (
+    Invitation,
+    Membership,
+    MembershipRole,
+    Organization,
+    PasswordResetToken,
+    Session,
+    User,
+)
 from app.identity.service import create_organization, register_user
 from app.jobs.service import create_job
 
 DEMO_EMAIL = "demo.owner@example.test"
 DEMO_PASSWORD = "DemoSynthetic123"
 DEMO_NAME = "Propietario demo"
+SUPERADMIN_EMAIL = "superadmin.demo@example.test"
+SUPERADMIN_NAME = "Superadmin demo"
+SUPERADMIN_PASSWORD_ENV = "TALENTOS_SUPERADMIN_PASSWORD"
 DEMO_ORG_NAME = "Organización demo"
 DEMO_ORG_SLUG = "demo-talentos"
 DEMO_JOB_TITLE = "Analista de selección · demo"
@@ -32,13 +44,17 @@ DEMO_CANDIDATES = (
 def reset_demo(db: DBSession) -> None:
     """Borra solo la organización y el usuario de demo; nunca toca otros tenants."""
     organization = db.scalar(select(Organization).where(Organization.slug == DEMO_ORG_SLUG))
-    users = list(db.scalars(select(User).where(User.email == DEMO_EMAIL)).all())
+    users = list(
+        db.scalars(select(User).where(User.email.in_({DEMO_EMAIL, SUPERADMIN_EMAIL}))).all()
+    )
     user_ids = [user.id for user in users]
 
     if user_ids:
         db.execute(delete(PasswordResetToken).where(PasswordResetToken.user_id.in_(user_ids)))
         db.execute(delete(Session).where(Session.user_id.in_(user_ids)))
-        db.execute(delete(Invitation).where(Invitation.email == DEMO_EMAIL))
+        db.execute(
+            delete(Invitation).where(Invitation.email.in_({DEMO_EMAIL, SUPERADMIN_EMAIL}))
+        )
 
     if organization is not None:
         for table in reversed(Base.metadata.sorted_tables):
@@ -59,6 +75,25 @@ def seed_demo(db: DBSession) -> dict[str, str | int]:
     organization = create_organization(
         db, creator=user, name=DEMO_ORG_NAME, slug=DEMO_ORG_SLUG
     )
+    superadmin_password = os.environ.get(SUPERADMIN_PASSWORD_ENV, "").strip()
+    if superadmin_password:
+        if len(superadmin_password) < 12:
+            raise SystemExit("La contraseña del superadmin debe tener al menos 12 caracteres.")
+        superadmin = register_user(
+            db,
+            email=SUPERADMIN_EMAIL,
+            password=superadmin_password,
+            name=SUPERADMIN_NAME,
+        )
+        superadmin.is_superadmin = True
+        db.add(
+            Membership(
+                organization_id=organization.id,
+                user_id=superadmin.id,
+                role=MembershipRole.VIEWER,
+            )
+        )
+        db.commit()
     job = create_job(
         db,
         organization_id=organization.id,
@@ -96,6 +131,7 @@ def seed_demo(db: DBSession) -> dict[str, str | int]:
         "user_id": str(user.id),
         "job_id": str(job.id),
         "candidates": len(candidates),
+        "superadmin": bool(superadmin_password),
     }
 
 
