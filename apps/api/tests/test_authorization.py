@@ -12,9 +12,10 @@ from sqlalchemy.pool import StaticPool
 
 import app.audit.models  # noqa: F401  # registra audit_log en Base.metadata
 import app.identity.models  # noqa: F401  # registra identity en Base.metadata
-from app.core.config import get_settings
+from app.core.config import Settings, get_settings
 from app.db.base import Base
 from app.db.session import get_db
+from app.identity import dependencies as identity_dependencies
 from app.main import app
 
 _PASSWORD = "SyntheticPass123"
@@ -221,3 +222,23 @@ def test_foreign_origin_cannot_write_organization_or_members(client: TestClient)
 
     assert org_response.status_code == 403
     assert member_response.status_code == 403
+
+
+def test_missing_origin_is_rejected_in_deployed_environments(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(
+        identity_dependencies.config,
+        "get_settings",
+        lambda: Settings(APP_ENV="production"),
+    )
+    payload = {"email": "csrf-auth@example.test", "password": _PASSWORD}
+
+    missing = client.post("/api/v1/auth/login", json=payload)
+    allowed = client.post(
+        "/api/v1/auth/login", json=payload, headers={"Origin": "http://localhost:3000"}
+    )
+
+    assert missing.status_code == 403
+    assert missing.json()["error"]["code"] == "forbidden"
+    assert allowed.status_code == 401

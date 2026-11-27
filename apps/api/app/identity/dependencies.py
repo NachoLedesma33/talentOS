@@ -35,6 +35,7 @@ _FORBIDDEN_MESSAGE = "Origen no permitido."
 _ROLE_MESSAGE = "Rol insuficiente."
 _ORGANIZATION_MESSAGE = "Organización no disponible."
 _MUTATING_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+_DEPLOYED_ENVS = frozenset({"staging", "production"})
 
 DbDependency = Annotated[DBSession, Depends(get_db)]
 
@@ -134,11 +135,13 @@ def verify_origin(request: Request) -> None:
     """Defensa CSRF para métodos mutantes cuando el cliente envía Origin."""
     if request.method not in _MUTATING_METHODS:
         return
+    settings = config.get_settings()
     origin = request.headers.get("origin")
     if not origin:
+        if settings.APP_ENV in _DEPLOYED_ENVS:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=_FORBIDDEN_MESSAGE)
         return
 
-    settings = config.get_settings()
     allowed: set[tuple[str, str]] = set()
     for base in (settings.WEB_BASE_URL, settings.API_BASE_URL):
         key = _origin_key(str(base))
