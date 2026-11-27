@@ -1139,7 +1139,7 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 17-07 | Integración en shell e i18n | `apps/web/src/components/WorkspaceShell.tsx`, `apps/web/src/lib/i18n.tsx` | `DONE` | `0f92d70`; CI `46072892199` success; panel montado en 11 superficies permitidas; claves `assistant.title`/`assistant.note` en `es`/`en`; `npm test -- --run` 126 passed; `tsc`/`lint` limpios. |
 | 17-08 | Seed demo ampliado | `apps/api/scripts/seed_demo.py`, `apps/api/tests/test_demo_seed.py` | `DONE` | `bf8ca85`; CI `46077876061` success; 1 test nuevo (3 en el archivo); `pytest` 574 passed; `ruff`/`mypy` limpios; 2 versiones, 3 requisitos, 5 candidatos, 4 estados de evidencia, borradores, regla `draft`, 1 aprobación resuelta y 1 rechazada. |
 | 17-09 | Evaluación con mock | `apps/api/tests/test_assistant_evaluations.py` | `DONE` | `f5e640a`; CI `46080547217` success; 7 tests nuevos; `pytest` 581 passed; `ruff`/`mypy` limpios; dataset versionado `assistant-eval-1.0.0`; groundedness, off-scope, inyección, timeout determinista y tokens sin PII. |
-| 17-10 | E2E y cierre | `apps/web/e2e/assistant.spec.ts`, `TalentOS_ROADMAP.md` | `IN_REVIEW` | `8c2c4da`; 3 tests E2E nuevos (evidencia citada + ack aprobado, descarte con confirmación, error 403 sin respuesta simulada); `tsc`/`lint` limpios; `vitest` 126 passed; `build` OK; E2E local `CI=1` 23 passed/1 skipped; CI pendiente. |
+| 17-10 | E2E y cierre | `apps/web/e2e/assistant.spec.ts`, `TalentOS_ROADMAP.md` | `DONE` | `8c2c4da`; CI `46082047742` success; 3 tests E2E nuevos (evidencia citada + ack aprobado, descarte con confirmación, error 403 sin respuesta simulada); `tsc`/`lint` limpios; `vitest` 126 passed; `build` OK; E2E local `CI=1` 23 passed/1 skipped; Fase 17 cerrada. |
 
 ## 27.4 Criterios de cierre
 
@@ -1165,3 +1165,4 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 2026-11-27 | 17-07 | `0f92d70` | `46072892199` | success; panel integrado en shell con superficies permitidas y textos `es`/`en` centralizados; `vitest` 126 passed. |
 | 2026-11-27 | 17-08 | `bf8ca85` | `46077876061` | success; seed sintético con evidencia verificable, borradores, regla `draft` y aprobaciones resueltas; 1 test nuevo; `pytest` 574 passed. |
 | 2026-11-27 | 17-09 | `f5e640a` | `46080547217` | success; evaluación determinista con dataset `assistant-eval-1.0.0`, 7 tests nuevos; `pytest` 581 passed. |
+| 2026-11-27 | 17-10 | `8c2c4da` | `46082047742` | success; E2E del asistente en shell real con evidencia citada, ack aprobado, descarte confirmado y error 403 sin respuesta simulada; `vitest` 126 passed; 23 passed/1 skipped. |
