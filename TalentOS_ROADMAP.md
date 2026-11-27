@@ -1009,7 +1009,7 @@ TalentOS está listo para presentarse como portfolio cuando:
 - **"Registrar la base de datos":** ya existe Alembic con migraciones versionadas y auditoría de dominio. No se crea un registro nuevo; se documenta su estado y se comprueba `alembic check`.
 - **RLS:** no se habilita mientras todo acceso pase por la API con `organization_id` de sesión; se documenta la decisión y el punto de revisión si aparece acceso directo a PostgreSQL.
 - **Google login:** se implementa con configuración por entorno y modo demo sin credenciales; queda deshabilitado si faltan variables. Requiere ADR antes de tocar autenticación.
-- **Imagen hero y favicon:** se generan como SVG propios en el repo, sin recursos de terceros; por eso no hay licencia de foto que revisar.
+- **Imagen hero y favicon:** hero `apps/web/public/hero-talentos.jpg` propio; favicon `apps/web/public/icon.svg` propio; sin recursos de terceros ni licencia de foto que revisar.
 
 ## 26.3 Backlog y estado
 
@@ -1017,7 +1017,7 @@ TalentOS está listo para presentarse como portfolio cuando:
 |---|---|---|---|---|
 | 16-01 | Roadmap y loop | `TalentOS_ROADMAP.md` | `DONE` | Commits `70c2667`, `1b96d65`; CI `45899845419` success. |
 | 16-02 | Logout vuelve a landing | logout en shell + test E2E/unit | `DONE` | Commit `1adbe42`; CI `45901374970` success; `vitest` 120 passed, `build` OK, E2E OK. |
-| 16-03 | Imagen hero propia | SVG propio + `apps/web/src/app/page.tsx` | `DONE` | Commit `ca27081`; CI `45903296474` success; `build` y E2E OK. |
+| 16-03 | Imagen hero propia | SVG propio + `apps/web/src/app/page.tsx` | `DONE` | Commits `ca27081`, `2870178`; CI `45903296474`, `46028725638` success; hero JPG propio con `build` y E2E OK. |
 | 16-04 | Favicon característico | icon SVG + metadata | `DONE` | Commit `c8ae354`; CI `45904442600` success; ruta `/icon.svg` generada. |
 | 16-05 | Sitemap y `robots` | rutas Next `sitemap.ts`/`robots.ts` | `DONE` | Commit `f938b2d`; CI `45905612312` success; rutas `/sitemap.xml` y `/robots.txt` generadas. |
 | 16-06 | Idioma `es`/`en` + botón | módulo de textos + selector + `lang` | `IN_REVIEW` | Commits `5d52c7e`, `ddf10aa`, `4a8a850`, `dd798b1`, `8008b9e`; CI `45937828805` success; landing, shell, encabezado de panel y menú de comandos traducidos; faltan paneles de negocio. |
@@ -1059,6 +1059,7 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 16-42 | Loading states | pantallas con carga | `DONE` | Verificado en `8008b9e`; `apps/web/src/app/loading.tsx:4-9`; `role="status"`/`aria-busy` en paneles. |
 | 16-43 | Hover states | controles interactivos | `DONE` | Verificado en `8008b9e`; variantes en `apps/web/src/components/ui/shadcn/button.tsx:12-18`; inventario en `docs/ui-ux-inventory.md:173`. |
 | 16-44 | Licencias de imágenes | verificación documentada | `DONE` | Verificado en `8008b9e`; `apps/web/public/hero-talentos.svg` e `icon.svg` propios; sin assets de terceros. |
+| 16-46 | Superadmin de demo | bandera global + seed por env + ADR-019 | `DONE` | Commit `ba9a305`; CI `46034226576` success; `ruff`/`mypy`/`pytest` 543 passed, `alembic check` OK; sin login bypass ni contraseña fija. |
 | 16-45 | Cierre y evidencia final | docs + CI final verde | `NOT_STARTED` | — |
 
 ## 26.4 Progreso del loop
@@ -1098,3 +1099,6 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 2026-11-27 | 16-09 | `a290fa7`, `fd2cb4e` | `45958045628`, `45959329932` | `accept_privacy` estricto en backend; rechazo de `false` y consentimiento explícito en `staging`/`production`. |
 | 2026-11-27 | 16-09 | `b7b543d`, `902f645`, `4d4aed7` | `45960491271`, `45961566726`, `45962611490` | DTOs y checkbox en registro, invitación y recuperación; E2E de recuperación falló por checkbox ausente. |
 | 2026-11-27 | 16-09 | `7fe2132`, `100f168`, `907b3b3`, `65b82c7` | `45964236168`, `45965598613`, `45967026729` | E2E corregido; checkbox en reset e invitación; `tsc`/`lint`/121 tests/`build`/E2E OK. |
+| 2026-11-27 | 16-06/UI polish | `200ca5a`, `848e972`, `5357251` | `46023858586`, `46026836911` | IntegrationsPanel y AutomationRulePanel traducidos; UI polish cerrado. |
+| 2026-11-27 | 16-03 | `2870178` | `46028725638` | Hero JPG propio; `naturalWidth=1200`, `naturalHeight=896`, sin console errors. |
+| 2026-11-27 | 16-46 | `ba9a305` | `46034226576` | Superadmin de demo con bandera persistida, seed por `TALENTOS_SUPERADMIN_PASSWORD`; elevación solo en `local`/`test`. |
