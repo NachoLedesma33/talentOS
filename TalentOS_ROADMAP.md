@@ -1024,7 +1024,7 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 16-07 | Política de privacidad | `docs/privacy-policy.md` | `DONE` | Commit `4a8a850`; CI `45911085332` success; enlace en footer del workspace. |
 | 16-08 | Términos y condiciones | `docs/terms-of-service.md` | `DONE` | Commit `4a8a850`; CI `45911085332` success; enlace en footer del workspace. |
 | 16-09 | Consentimiento informado | formularios de alta y recuperación | `NOT_STARTED` | — |
-| 16-10 | Borrado de datos de usuario | endpoint tenant-scoped + test + auditoría | `NOT_STARTED` | — |
+| 16-10 | Borrado de datos de usuario | exportación y borrado tenant-scoped + tests + auditoría | `DONE` | Commits `b4c4e99`, `bfdd0ab`, `fcf400f`, `e92465f`; CI `45951468264`, `45952486615`, `45953481519`, `45954654670` success. |
 | 16-11 | Audit de vulnerabilidades | revisión de hallazgos y correcciones | `DONE` | Verificado en `8008b9e`; CI `45937828805` success; checklist y riesgos en `docs/security-review.md:19-54`; riesgos `RM-01`–`RM-05` aceptados solo para demo/local. |
 | 16-12 | Claves expuestas y secretos en git | escaneo + `.gitignore`/docs | `DONE` | Commit `008d2ce`; CI `45943801440` success; job `secrets` en `.github/workflows/ci.yml` con `git grep` de patrones AWS/GitHub/Slack/JWT/claves privadas; YAML validado; sin dependencias nuevas. |
 | 16-13 | Cifrado de datos sensibles | verificar Fernet + ampliar campos si aplica | `DONE` | Verificado en `8008b9e`; `apps/api/app/integrations/crypto.py:16-60`; Fernet por organización; `RM-03` queda como condición de staging/producción. |
@@ -1090,3 +1090,7 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 2026-11-27 | 16-06 | `9835bbe` | `45947918916` | Panel de vacantes traducido; `tsc`/`lint`/121 tests/`build`/E2E OK. |
 | 2026-11-27 | — | `6e8bd7a` | `45948670139` | Reglas generadas por `next dev` versionadas para árbol limpio. |
 | 2026-11-27 | 16-16 | `def051f` | `45949479351` | ADR-018: Google OIDC con PKCE y activación solo con env en `staging`/`production`. |
+| 2026-11-27 | — | `8e85a8e` | `45950237843` | Sincronización de memoria y evidencia del loop. |
+| 2026-11-27 | 16-10 | `b4c4e99`, `bfdd0ab` | `45951468264`, `45952486615` | Exportación tenant-scoped de candidatos, notas, postulaciones y documentos; auditoría y test. |
+| 2026-11-27 | 16-10 | `fcf400f`, `e92465f` | `45953481519`, `45954654670` | Borrado tenant-scoped con roles, borrado de bytes y auditoría; test cross-tenant. |
+| 2026-11-27 | 16-10 | `e88a0c6` | `45955716802` | Política de privacidad y revisión de seguridad sincronizadas. |
