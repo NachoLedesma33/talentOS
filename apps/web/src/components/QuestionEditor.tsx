@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { ACTIVE_ORG_STORAGE_KEY, ApiError, apiFetch } from "../lib/api";
+import { useI18n, type MessageKey } from "../lib/i18n";
 import type {
   InterviewQuestion,
   InterviewQuestionCategory,
@@ -19,16 +20,18 @@ import { Label } from "./ui/shadcn/label";
 import { Select } from "./ui/shadcn/select";
 import { Textarea } from "./ui/shadcn/textarea";
 
-const CATEGORY_LABELS: Record<InterviewQuestionCategory, string> = {
-  technical: "Técnica",
-  deep_dive: "Profundización",
+type Translate = (key: MessageKey) => string;
+
+const CATEGORY_KEYS: Record<InterviewQuestionCategory, MessageKey> = {
+  technical: "question.category.technical",
+  deep_dive: "question.category.deep_dive",
 };
 
-const STATUS_LABELS: Record<InterviewQuestionStatus, string> = {
-  draft: "Borrador",
-  approved: "Aprobada",
-  rejected: "Rechazada",
-  archived: "Archivada",
+const STATUS_KEYS: Record<InterviewQuestionStatus, MessageKey> = {
+  draft: "question.status.draft",
+  approved: "question.status.approved",
+  rejected: "question.status.rejected",
+  archived: "question.status.archived",
 };
 
 const EDITABLE_STATUSES: InterviewQuestionStatus[] = ["draft", "approved", "rejected"];
@@ -78,6 +81,7 @@ async function requestQuestion<T>(
   path: string,
   method: "POST" | "PATCH",
   body: InterviewQuestionCreateRequest | InterviewQuestionUpdateRequest,
+  fallback: string,
 ): Promise<T> {
   const headers = new Headers({ "Content-Type": "application/json" });
   const activeOrganizationId =
@@ -100,14 +104,14 @@ async function requestQuestion<T>(
     }
     throw new QuestionRequestError(
       response.status,
-      envelope?.error.message ?? "No se pudo guardar la pregunta.",
+      envelope?.error.message ?? fallback,
       envelope?.error.reason_code,
     );
   }
   return (await response.json()) as T;
 }
 
-function describeError(error: unknown): { text: string; reasonCode?: string } {
+function describeError(error: unknown, fallback: string): { text: string; reasonCode?: string } {
   if (error instanceof QuestionRequestError) {
     return {
       text: `${error.status}: ${error.message}`,
@@ -117,15 +121,24 @@ function describeError(error: unknown): { text: string; reasonCode?: string } {
   if (error instanceof ApiError) {
     return { text: `${error.status}: ${error.message}` };
   }
-  return { text: "No se pudo guardar la pregunta." };
+  return { text: fallback };
 }
 
-function ErrorNotice({ error }: { error: { text: string; reasonCode?: string } }) {
+function ErrorNotice({
+  error,
+  t,
+}: {
+  error: { text: string; reasonCode?: string };
+  t: Translate;
+}) {
   return (
     <Card role="alert" className="space-y-1 p-2">
       <p className="text-sm">{error.text}</p>
       {error.reasonCode ? (
-        <p className="text-sm">Motivo de política: {error.reasonCode}</p>
+        <p className="text-sm">
+          {t("question.policyReason")}
+          {error.reasonCode}
+        </p>
       ) : null}
     </Card>
   );
@@ -137,6 +150,7 @@ interface QuestionRowProps {
 }
 
 function QuestionRow({ question, onChanged }: QuestionRowProps) {
+  const { t } = useI18n();
   const [editing, setEditing] = useState(false);
   const [questionText, setQuestionText] = useState(question.question);
   const [evidenceFocus, setEvidenceFocus] = useState(question.evidence_focus);
@@ -167,12 +181,13 @@ function QuestionRow({ question, onChanged }: QuestionRowProps) {
         `/api/v1/interviews/questions/${encodeURIComponent(question.id)}`,
         "PATCH",
         payload,
+        t("question.saveError"),
       );
       setEditing(false);
-      setNotice("Pregunta actualizada.");
+      setNotice(t("question.updated"));
       onChanged?.(updated);
     } catch (cause) {
-      setError(describeError(cause));
+      setError(describeError(cause, t("question.saveError")));
     } finally {
       setBusy(false);
     }
@@ -181,9 +196,7 @@ function QuestionRow({ question, onChanged }: QuestionRowProps) {
   async function archive(): Promise<void> {
     if (busy) return;
     if (
-      !window.confirm(
-        "¿Archivar esta pregunta? Dejará de estar disponible en la guía activa.",
-      )
+      !window.confirm(t("question.archiveConfirm"))
     ) {
       return;
     }
@@ -196,10 +209,10 @@ function QuestionRow({ question, onChanged }: QuestionRowProps) {
         `/api/v1/interviews/questions/${encodeURIComponent(question.id)}`,
         { method: "DELETE" },
       );
-      setNotice("Pregunta archivada.");
+      setNotice(t("question.archived"));
       onChanged?.(updated);
     } catch (cause) {
-      setError(describeError(cause));
+      setError(describeError(cause, t("question.saveError")));
     } finally {
       setBusy(false);
     }
@@ -213,35 +226,36 @@ function QuestionRow({ question, onChanged }: QuestionRowProps) {
     >
       <div className="space-y-1">
         <h4 id={`interview-question-${question.id}`} className="text-sm font-semibold">
-          Posición {question.position} · {CATEGORY_LABELS[question.category]}
+          {t("question.positionPrefix")}
+          {question.position} · {t(CATEGORY_KEYS[question.category])}
         </h4>
         <p className="break-words text-sm">{question.question}</p>
       </div>
 
       <dl className="grid gap-x-6 gap-y-1 text-xs text-text-muted md:grid-cols-2">
         <div>
-          <dt className="inline font-semibold">Requisito: </dt>
+          <dt className="inline font-semibold">{t("question.requirementLabel")}</dt>
           <dd className="inline">{question.requirement_id}</dd>
         </div>
         <div>
-          <dt className="inline font-semibold">Estado: </dt>
-          <dd className="inline">{STATUS_LABELS[question.status]}</dd>
+          <dt className="inline font-semibold">{t("question.statusLabel")}</dt>
+          <dd className="inline">{t(STATUS_KEYS[question.status])}</dd>
         </div>
         <div>
-          <dt className="inline font-semibold">Foco de evidencia: </dt>
+          <dt className="inline font-semibold">{t("question.focusLabel")}</dt>
           <dd className="inline">{question.evidence_focus}</dd>
         </div>
         <div>
-          <dt className="inline font-semibold">Competencia: </dt>
+          <dt className="inline font-semibold">{t("question.competencyLabel")}</dt>
           <dd className="inline">{question.competency}</dd>
         </div>
         <div>
-          <dt className="inline font-semibold">Posición: </dt>
+          <dt className="inline font-semibold">{t("question.positionLabel")}</dt>
           <dd className="inline">{question.position}</dd>
         </div>
         <div>
-          <dt className="inline font-semibold">Revisión requerida: </dt>
-          <dd className="inline">{question.review_required ? "sí" : "no"}</dd>
+          <dt className="inline font-semibold">{t("question.reviewLabel")}</dt>
+          <dd className="inline">{question.review_required ? t("question.yes") : t("question.no")}</dd>
         </div>
       </dl>
 
@@ -257,7 +271,7 @@ function QuestionRow({ question, onChanged }: QuestionRowProps) {
             setNotice(null);
           }}
         >
-          {editing ? "Cerrar edición" : "Editar pregunta"}
+          {editing ? t("question.closeEdit") : t("question.edit")}
         </Button>
         <Button
           type="button"
@@ -266,7 +280,7 @@ function QuestionRow({ question, onChanged }: QuestionRowProps) {
           disabled={busy || question.status === "archived"}
           onClick={() => void archive()}
         >
-          Archivar pregunta
+          {t("question.archive")}
         </Button>
         <Button
           type="button"
@@ -274,14 +288,15 @@ function QuestionRow({ question, onChanged }: QuestionRowProps) {
           size="sm"
           onClick={() => setFeedbackOpen((current) => !current)}
         >
-          {feedbackOpen ? "Cerrar feedback" : "Registrar feedback"}
+          {feedbackOpen ? t("question.closeFeedback") : t("feedback.submit")}
         </Button>
       </div>
 
       {editing ? (
         <form onSubmit={(event) => void save(event)} className="space-y-2">
           <Label htmlFor={`question-text-${question.id}`} className="block text-xs">
-            Pregunta {question.id}
+            {t("question.textLabelPrefix")}
+            {question.id}
           </Label>
           <Textarea
             id={`question-text-${question.id}`}
@@ -294,7 +309,8 @@ function QuestionRow({ question, onChanged }: QuestionRowProps) {
             htmlFor={`question-focus-${question.id}`}
             className="block text-xs"
           >
-            Foco de evidencia {question.id}
+            {t("question.focusEditPrefix")}
+            {question.id}
           </Label>
           <Input
             id={`question-focus-${question.id}`}
@@ -306,7 +322,8 @@ function QuestionRow({ question, onChanged }: QuestionRowProps) {
             htmlFor={`question-competency-${question.id}`}
             className="block text-xs"
           >
-            Competencia {question.id}
+            {t("question.competencyEditPrefix")}
+            {question.id}
           </Label>
           <Input
             id={`question-competency-${question.id}`}
@@ -320,7 +337,8 @@ function QuestionRow({ question, onChanged }: QuestionRowProps) {
                 htmlFor={`question-position-${question.id}`}
                 className="block text-xs"
               >
-                Posición {question.id}
+                {t("question.positionEditPrefix")}
+                {question.id}
               </Label>
               <Input
                 id={`question-position-${question.id}`}
@@ -337,7 +355,8 @@ function QuestionRow({ question, onChanged }: QuestionRowProps) {
                 htmlFor={`question-status-${question.id}`}
                 className="block text-xs"
               >
-                Estado {question.id}
+                {t("question.statusEditPrefix")}
+                {question.id}
               </Label>
               <Select
                 id={`question-status-${question.id}`}
@@ -347,14 +366,14 @@ function QuestionRow({ question, onChanged }: QuestionRowProps) {
               >
                 {EDITABLE_STATUSES.map((option) => (
                   <option key={option} value={option}>
-                    {STATUS_LABELS[option]}
+                    {t(STATUS_KEYS[option])}
                   </option>
                 ))}
               </Select>
             </div>
           </div>
           <Button type="submit" size="sm" disabled={busy}>
-            {busy ? "Guardando…" : "Guardar pregunta"}
+            {busy ? t("question.saving") : t("question.save")}
           </Button>
         </form>
       ) : null}
@@ -366,7 +385,7 @@ function QuestionRow({ question, onChanged }: QuestionRowProps) {
       <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
         {notice}
       </p>
-      {error ? <ErrorNotice error={error} /> : null}
+      {error ? <ErrorNotice error={error} t={t} /> : null}
     </Card>
   );
 }
@@ -386,6 +405,7 @@ export function QuestionEditor({
   promptVersion,
   onChanged,
 }: QuestionEditorProps) {
+  const { t } = useI18n();
   const [requirementId, setRequirementId] = useState("");
   const [position, setPosition] = useState(String(questions.length + 1));
   const [category, setCategory] = useState<InterviewQuestionCategory>("technical");
@@ -422,15 +442,16 @@ export function QuestionEditor({
         `/api/v1/interviews/guides/${encodeURIComponent(guideId)}/questions`,
         "POST",
         payload,
+        t("question.saveError"),
       );
-      setNotice("Pregunta agregada.");
+      setNotice(t("question.created"));
       setQuestion("");
       setEvidenceFocus("");
       setCompetency("");
       setPosition(String(created.position + 1));
       onChanged?.(created);
     } catch (cause) {
-      setError(describeError(cause));
+      setError(describeError(cause, t("question.saveError")));
     } finally {
       setBusy(false);
     }
@@ -440,11 +461,9 @@ export function QuestionEditor({
     <section aria-labelledby="question-editor-heading" className="space-y-3">
       <div className="space-y-1">
         <h3 id="question-editor-heading" className="text-base font-semibold">
-          Preguntas
+          {t("question.title")}
         </h3>
-        <p className="text-xs text-text-muted">
-          Cada pregunta queda vinculada a un requisito; la política se valida en el servidor.
-        </p>
+        <p className="text-xs text-text-muted">{t("question.note")}</p>
       </div>
 
       {questions.length > 0 ? (
@@ -457,17 +476,17 @@ export function QuestionEditor({
         </ul>
       ) : (
         <Card className="bg-secondary p-3 text-sm text-text-muted">
-          La guía todavía no tiene preguntas registradas.
+          {t("question.empty")}
         </Card>
       )}
 
       <form onSubmit={(event) => void create(event)} className="space-y-2">
         <Card className="space-y-2 p-3">
-          <h4 className="text-sm font-semibold">Agregar pregunta</h4>
+          <h4 className="text-sm font-semibold">{t("question.addTitle")}</h4>
           <div className="grid gap-3 md:grid-cols-2">
             <div className="space-y-1">
               <Label htmlFor="new-question-requirement" className="block text-xs">
-                ID de requisito
+                {t("question.requirementNew")}
               </Label>
               <Input
                 id="new-question-requirement"
@@ -478,7 +497,7 @@ export function QuestionEditor({
             </div>
             <div className="space-y-1">
               <Label htmlFor="new-question-position" className="block text-xs">
-                Posición
+                {t("question.positionNew")}
               </Label>
               <Input
                 id="new-question-position"
@@ -491,23 +510,23 @@ export function QuestionEditor({
             </div>
             <div className="space-y-1">
               <Label htmlFor="new-question-category" className="block text-xs">
-                Categoría
+                {t("question.categoryNew")}
               </Label>
               <Select
                 id="new-question-category"
                 value={category}
                 onChange={(event) => setCategory(event.target.value as InterviewQuestionCategory)}
               >
-                {(Object.keys(CATEGORY_LABELS) as InterviewQuestionCategory[]).map((option) => (
+                {(Object.keys(CATEGORY_KEYS) as InterviewQuestionCategory[]).map((option) => (
                   <option key={option} value={option}>
-                    {CATEGORY_LABELS[option]}
+                    {t(CATEGORY_KEYS[option])}
                   </option>
                 ))}
               </Select>
             </div>
             <div className="space-y-1">
               <Label htmlFor="new-question-competency" className="block text-xs">
-                Competencia
+                {t("question.competencyNew")}
               </Label>
               <Input
                 id="new-question-competency"
@@ -518,7 +537,7 @@ export function QuestionEditor({
             </div>
             <div className="space-y-1">
               <Label htmlFor="new-question-model" className="block text-xs">
-                Versión del modelo
+                {t("question.modelNew")}
               </Label>
               <Input
                 id="new-question-model"
@@ -529,7 +548,7 @@ export function QuestionEditor({
             </div>
             <div className="space-y-1">
               <Label htmlFor="new-question-prompt" className="block text-xs">
-                Versión del prompt
+                {t("question.promptNew")}
               </Label>
               <Input
                 id="new-question-prompt"
@@ -541,7 +560,7 @@ export function QuestionEditor({
           </div>
           <div className="space-y-1">
             <Label htmlFor="new-question-text" className="block text-xs">
-              Pregunta
+              {t("question.textNew")}
             </Label>
             <Textarea
               id="new-question-text"
@@ -553,7 +572,7 @@ export function QuestionEditor({
           </div>
           <div className="space-y-1">
             <Label htmlFor="new-question-focus" className="block text-xs">
-              Foco de evidencia
+              {t("question.focusNew")}
             </Label>
             <Input
               id="new-question-focus"
@@ -568,10 +587,10 @@ export function QuestionEditor({
               checked={reviewRequired}
               onChange={(event) => setReviewRequired(event.target.checked)}
             />
-            Requiere revisión humana
+            {t("question.reviewNew")}
           </Label>
           <Button type="submit" size="sm" disabled={busy}>
-            {busy ? "Guardando…" : "Agregar pregunta"}
+            {busy ? t("question.saving") : t("question.addTitle")}
           </Button>
         </Card>
       </form>
@@ -579,7 +598,7 @@ export function QuestionEditor({
       <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
         {notice}
       </p>
-      {error ? <ErrorNotice error={error} /> : null}
+      {error ? <ErrorNotice error={error} t={t} /> : null}
     </section>
   );
 }
