@@ -255,6 +255,9 @@ describe("formularios de identidad", () => {
     fireEvent.change(screen.getByLabelText("Contraseña nueva"), {
       target: { value: "NewSyntheticPass456" },
     });
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /Acepto la política de privacidad/i }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Actualizar contraseña" }));
 
     expect(await screen.findByText("Contraseña actualizada.")).toBeTruthy();
@@ -268,6 +271,7 @@ describe("formularios de identidad", () => {
     expect(JSON.parse(String(init?.body))).toEqual({
       token: "demo-reset-token",
       password: "NewSyntheticPass456",
+      accept_privacy: true,
     });
   });
 
@@ -288,6 +292,9 @@ describe("formularios de identidad", () => {
     fireEvent.change(screen.getByLabelText("Contraseña nueva"), {
       target: { value: "NewSyntheticPass456" },
     });
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: /Acepto la política de privacidad/i }),
+    );
     fireEvent.click(screen.getByRole("button", { name: "Actualizar contraseña" }));
 
     const alert = await screen.findByRole("alert");
