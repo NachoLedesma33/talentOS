@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
+import { useI18n } from "../lib/i18n";
 import type {
   ActivityList,
   Candidate,
@@ -26,6 +27,7 @@ function describeError(error: unknown, fallback: string): string {
 }
 
 export function CandidatesPanel() {
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
   const [appliedQuery, setAppliedQuery] = useState("");
   const [offset, setOffset] = useState(0);
@@ -82,7 +84,7 @@ export function CandidatesPanel() {
         setTotal(0);
         setSelectedId(null);
         setLoadStatus("error");
-        setLoadError(describeError(error, "No se pudieron cargar los candidatos."));
+        setLoadError(describeError(error, t("candidates.loadError")));
         setLoadedRequestKey(requestKey);
       },
     );
@@ -90,7 +92,7 @@ export function CandidatesPanel() {
     return () => {
       active = false;
     };
-  }, [appliedQuery, offset, refreshToken, requestKey]);
+  }, [appliedQuery, offset, refreshToken, requestKey, t]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -108,7 +110,7 @@ export function CandidatesPanel() {
       (error: unknown) => {
         if (active) {
           setNotesStatus("error");
-          setNotesError(describeError(error, "No se pudieron cargar las notas."));
+          setNotesError(describeError(error, t("candidates.notesError")));
           setNotesLoadedId(selectedId);
         }
       },
@@ -116,7 +118,7 @@ export function CandidatesPanel() {
     return () => {
       active = false;
     };
-  }, [selectedId]);
+  }, [selectedId, t]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -134,7 +136,7 @@ export function CandidatesPanel() {
       (error: unknown) => {
         if (active) {
           setActivityStatus("error");
-          setActivityError(describeError(error, "No se pudo cargar la actividad."));
+          setActivityError(describeError(error, t("candidates.activityError")));
           setActivityLoadedId(selectedId);
         }
       },
@@ -142,7 +144,7 @@ export function CandidatesPanel() {
     return () => {
       active = false;
     };
-  }, [selectedId]);
+  }, [selectedId, t]);
 
   const isCurrentRequest = loadedRequestKey === requestKey;
   const visibleLoadStatus: LoadStatus = isCurrentRequest ? loadStatus : "loading";
@@ -180,12 +182,12 @@ export function CandidatesPanel() {
     <div className="space-y-6">
       <section aria-labelledby="candidates-list-heading" className="space-y-3">
         <h2 id="candidates-list-heading" className="text-lg font-semibold">
-          Listado de candidatos
+          {t("candidates.title")}
         </h2>
         <form onSubmit={handleSearch} className="flex flex-wrap items-end gap-3">
           <div className="space-y-1">
             <Label htmlFor="candidate-search" className="block">
-              Búsqueda (nombre o correo)
+              {t("candidates.search")}
             </Label>
             <Input
               id="candidate-search"
@@ -197,14 +199,16 @@ export function CandidatesPanel() {
               }}
             />
           </div>
-          <Button type="submit">Buscar</Button>
-          <p className="text-sm text-text-muted">Total: {visibleTotal}</p>
+          <Button type="submit">{t("candidates.searchAction")}</Button>
+          <p className="text-sm text-text-muted">
+            {t("candidates.total")} {visibleTotal}
+          </p>
         </form>
 
         <div aria-live="polite">
           {visibleLoadStatus === "loading" ? (
             <p role="status" className="text-sm text-text-muted">
-              Cargando candidatos…
+              {t("candidates.loading")}
             </p>
           ) : null}
           {visibleLoadStatus === "error" ? (
@@ -213,7 +217,7 @@ export function CandidatesPanel() {
             </p>
           ) : null}
           {visibleLoadStatus === "ready" && visibleCandidates.length === 0 ? (
-            <p className="text-sm text-text-muted">No hay candidatos para esta búsqueda.</p>
+            <p className="text-sm text-text-muted">{t("candidates.empty")}</p>
           ) : null}
         </div>
 
@@ -233,13 +237,13 @@ export function CandidatesPanel() {
                     type="button"
                     variant={candidate.id === selectedId ? "secondary" : "outline"}
                     size="sm"
-                    aria-label={`Ver detalle de ${candidate.name}`}
+                    aria-label={`${t("candidates.detailAria")} ${candidate.name}`}
                     aria-pressed={candidate.id === selectedId}
                     onClick={() => {
                       setSelectedId(candidate.id);
                     }}
                   >
-                    Ver detalle
+                    {t("candidates.detailAction")}
                   </Button>
                 </Card>
               </li>
@@ -256,7 +260,7 @@ export function CandidatesPanel() {
             }}
             disabled={offset === 0}
           >
-            Anterior
+            {t("candidates.previous")}
           </Button>
           <Button
             type="button"
@@ -266,7 +270,7 @@ export function CandidatesPanel() {
             }}
             disabled={visibleLoadStatus !== "ready" || offset + PAGE_SIZE >= visibleTotal}
           >
-            Siguiente
+            {t("candidates.next")}
           </Button>
           <span className="text-sm text-text-muted">
             {visibleLoadStatus === "ready"
@@ -278,41 +282,41 @@ export function CandidatesPanel() {
 
       <section aria-labelledby="candidate-detail-heading" className="space-y-3">
         <h2 id="candidate-detail-heading" className="text-lg font-semibold">
-          Detalle del candidato
+          {t("candidates.detailTitle")}
         </h2>
         {selectedCandidate ? (
           <Card className="space-y-1 p-3">
             <p className="text-sm font-semibold">{selectedCandidate.name}</p>
             <p className="text-sm text-text-muted">{selectedCandidate.email}</p>
             <p className="text-sm text-text-muted">
-              {selectedCandidate.location ?? "Sin ubicación"} ·{" "}
+              {selectedCandidate.location ?? t("candidates.noLocation")} ·{" "}
               {selectedCandidate.profile_status}
             </p>
           </Card>
         ) : (
           <Card className="p-3 text-sm text-text-muted">
-            Selecciona un candidato para ver su detalle.
+            {t("candidates.selectDetail")}
           </Card>
         )}
 
         <div className="grid gap-4 md:grid-cols-2">
           <div aria-labelledby="candidate-notes-heading" className="space-y-2">
             <h3 id="candidate-notes-heading" className="text-sm font-semibold">
-              Notas internas
+              {t("candidates.notesTitle")}
             </h3>
             <div aria-live="polite">
               {!selectedCandidate ? (
-                <p className="text-sm text-text-muted">Sin candidato seleccionado.</p>
+                <p className="text-sm text-text-muted">{t("candidates.noCandidate")}</p>
               ) : visibleNotesStatus === "loading" ? (
                 <p role="status" className="text-sm text-text-muted">
-                  Cargando notas…
+                  {t("candidates.notesLoading")}
                 </p>
               ) : visibleNotesStatus === "error" ? (
                 <p role="alert" className="text-sm text-text">
                   {visibleNotesError}
                 </p>
               ) : visibleNotes.length === 0 ? (
-                <p className="text-sm text-text-muted">Sin notas registradas.</p>
+                <p className="text-sm text-text-muted">{t("candidates.notesEmpty")}</p>
               ) : (
                 <ul className="space-y-1">
                   {visibleNotes.map((note) => (
@@ -320,7 +324,7 @@ export function CandidatesPanel() {
                       <Card className="p-3 text-sm">
                         {note.body}
                         <span className="block text-xs text-text-muted">
-                          Autor: {note.author_id}
+                          {t("candidates.author")} {note.author_id}
                         </span>
                       </Card>
                     </li>
@@ -332,21 +336,21 @@ export function CandidatesPanel() {
 
           <div aria-labelledby="candidate-activity-heading" className="space-y-2">
             <h3 id="candidate-activity-heading" className="text-sm font-semibold">
-              Actividad
+              {t("candidates.activityTitle")}
             </h3>
             <div aria-live="polite">
               {!selectedCandidate ? (
-                <p className="text-sm text-text-muted">Sin candidato seleccionado.</p>
+                <p className="text-sm text-text-muted">{t("candidates.noCandidate")}</p>
               ) : visibleActivityStatus === "loading" ? (
                 <p role="status" className="text-sm text-text-muted">
-                  Cargando actividad…
+                  {t("candidates.activityLoading")}
                 </p>
               ) : visibleActivityStatus === "error" ? (
                 <p role="alert" className="text-sm text-text">
                   {visibleActivityError}
                 </p>
               ) : visibleActivity.length === 0 ? (
-                <p className="text-sm text-text-muted">Sin actividad registrada.</p>
+                <p className="text-sm text-text-muted">{t("candidates.activityEmpty")}</p>
               ) : (
                 <ul className="space-y-1">
                   {visibleActivity.map((entry) => (
@@ -366,7 +370,7 @@ export function CandidatesPanel() {
 
       <section aria-labelledby="candidate-form-heading" className="space-y-3">
         <h2 id="candidate-form-heading" className="text-lg font-semibold">
-          Alta de candidato
+          {t("candidates.form.title")}
         </h2>
         <CandidateForm onCreated={handleCreated} />
       </section>
