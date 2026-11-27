@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { ApiError, apiFetch } from "../lib/api";
+import { useI18n, type MessageKey } from "../lib/i18n";
 import type {
   InterviewFeedback,
   InterviewFeedbackList,
@@ -18,17 +19,19 @@ const MAX_LINES = 20;
 const MAX_LINE_LENGTH = 500;
 const MAX_NOTES = 1000;
 
-const STATUS_LABELS: Record<InterviewFeedbackStatus, string> = {
-  pending: "Pendiente",
-  submitted: "Enviado",
-  needs_review: "Requiere revisión",
+type Translate = (key: MessageKey) => string;
+
+const STATUS_KEYS: Record<InterviewFeedbackStatus, MessageKey> = {
+  pending: "feedback.status.pending",
+  submitted: "feedback.status.submitted",
+  needs_review: "feedback.status.needs_review",
 };
 
-function describeError(cause: unknown): string {
+function describeError(cause: unknown, fallback: string): string {
   if (cause instanceof ApiError) {
     return `${cause.status}: ${cause.message}`;
   }
-  return "No se pudo registrar el feedback.";
+  return fallback;
 }
 
 function parseLines(value: string): string[] {
@@ -38,12 +41,12 @@ function parseLines(value: string): string[] {
     .filter((line) => line.length > 0);
 }
 
-function validateLines(lines: string[]): string | null {
+function validateLines(lines: string[], t: Translate): string | null {
   if (lines.length > MAX_LINES) {
-    return `Máximo ${MAX_LINES} elementos por lista.`;
+    return `${t("feedback.maxItemsPrefix")}${MAX_LINES}${t("feedback.maxItemsSuffix")}`;
   }
   if (lines.some((line) => line.length > MAX_LINE_LENGTH)) {
-    return `Cada elemento admite hasta ${MAX_LINE_LENGTH} caracteres.`;
+    return `${t("feedback.maxCharsPrefix")}${MAX_LINE_LENGTH}${t("feedback.maxCharsSuffix")}`;
   }
   return null;
 }
@@ -54,6 +57,7 @@ interface FeedbackFormProps {
 }
 
 export function FeedbackForm({ questionId, requirementId }: FeedbackFormProps) {
+  const { t } = useI18n();
   const [observedText, setObservedText] = useState("");
   const [gapsText, setGapsText] = useState("");
   const [followUpNeeded, setFollowUpNeeded] = useState(false);
@@ -80,7 +84,7 @@ export function FeedbackForm({ questionId, requirementId }: FeedbackFormProps) {
       const result = await requestHistory();
       setHistory(result.items);
     } catch (cause) {
-      setError(describeError(cause));
+      setError(describeError(cause, t("feedback.error")));
     } finally {
       setLoading(false);
     }
@@ -96,14 +100,14 @@ export function FeedbackForm({ questionId, requirementId }: FeedbackFormProps) {
       },
       (cause: unknown) => {
         if (!active) return;
-        setError(describeError(cause));
+        setError(describeError(cause, t("feedback.error")));
         setLoading(false);
       },
     );
     return () => {
       active = false;
     };
-  }, [requestHistory]);
+  }, [requestHistory, t]);
 
   async function submit(event: FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -111,7 +115,7 @@ export function FeedbackForm({ questionId, requirementId }: FeedbackFormProps) {
 
     const observedEvidence = parseLines(observedText);
     const gaps = parseLines(gapsText);
-    const invalid = validateLines(observedEvidence) ?? validateLines(gaps);
+    const invalid = validateLines(observedEvidence, t) ?? validateLines(gaps, t);
     if (invalid) {
       setError(invalid);
       return;
@@ -132,14 +136,14 @@ export function FeedbackForm({ questionId, requirementId }: FeedbackFormProps) {
         { method: "POST", body: JSON.stringify(payload) },
       );
       setLatest(created);
-      setNotice("Feedback registrado.");
+      setNotice(t("feedback.saved"));
       setObservedText("");
       setGapsText("");
       setFollowUpNeeded(false);
       setNotes("");
       await load();
     } catch (cause) {
-      setError(describeError(cause));
+      setError(describeError(cause, t("feedback.error")));
     } finally {
       setSubmitting(false);
     }
@@ -151,12 +155,13 @@ export function FeedbackForm({ questionId, requirementId }: FeedbackFormProps) {
     <section aria-labelledby={`feedback-heading-${questionId}`} className="space-y-3 border-t border-border pt-3">
       <div className="space-y-1">
         <h5 id={`feedback-heading-${questionId}`} className="text-sm font-semibold">
-          Feedback humano
+          {t("feedback.title")}
         </h5>
+        <p className="text-xs text-text-muted">{t("feedback.note")}</p>
         <p className="text-xs text-text-muted">
-          Evidencia observada y brechas por requisito. Sin puntuación ni decisión de contratación.
+          {t("feedback.requirement")}
+          {requirementId}
         </p>
-        <p className="text-xs text-text-muted">Requisito vinculado: {requirementId}</p>
       </div>
 
       <form onSubmit={(event) => void submit(event)} aria-busy={submitting}>
@@ -166,7 +171,9 @@ export function FeedbackForm({ questionId, requirementId }: FeedbackFormProps) {
               htmlFor={`feedback-evidence-${questionId}`}
               className="block text-xs"
             >
-              Evidencia observada (una por línea, máx. {MAX_LINES})
+              {t("feedback.evidenceLabelPrefix")}
+              {MAX_LINES}
+              {t("feedback.evidenceLabelSuffix")}
             </Label>
             <Textarea
               id={`feedback-evidence-${questionId}`}
@@ -177,7 +184,9 @@ export function FeedbackForm({ questionId, requirementId }: FeedbackFormProps) {
           </div>
           <div className="space-y-1">
             <Label htmlFor={`feedback-gaps-${questionId}`} className="block text-xs">
-              Brechas (una por línea, máx. {MAX_LINES})
+              {t("feedback.gapsLabelPrefix")}
+              {MAX_LINES}
+              {t("feedback.gapsLabelSuffix")}
             </Label>
             <Textarea
               id={`feedback-gaps-${questionId}`}
@@ -192,11 +201,11 @@ export function FeedbackForm({ questionId, requirementId }: FeedbackFormProps) {
               checked={followUpNeeded}
               onChange={(event) => setFollowUpNeeded(event.target.checked)}
             />
-            Requiere seguimiento
+            {t("feedback.followUp")}
           </Label>
           <div className="space-y-1">
             <Label htmlFor={`feedback-notes-${questionId}`} className="block text-xs">
-              Notas opcionales
+              {t("feedback.notes")}
             </Label>
             <Textarea
               id={`feedback-notes-${questionId}`}
@@ -207,60 +216,60 @@ export function FeedbackForm({ questionId, requirementId }: FeedbackFormProps) {
             />
           </div>
           <Button type="submit" size="sm" disabled={submitting}>
-            {submitting ? "Registrando…" : "Registrar feedback"}
+            {submitting ? t("feedback.submitting") : t("feedback.submit")}
           </Button>
         </Card>
       </form>
 
       <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
-        {loading ? "Cargando historial de feedback…" : notice}
+        {loading ? t("feedback.loading") : notice}
       </p>
       {error ? (
         <Card role="alert" className="p-2 text-sm">
-          Error: {error}
+          {t("feedback.errorPrefix")} {error}
         </Card>
       ) : null}
 
       {recorded ? (
         <dl className="grid gap-x-6 gap-y-1 text-xs text-text-muted">
           <div>
-            <dt className="inline font-semibold">Requisito: </dt>
+            <dt className="inline font-semibold">{t("feedback.requirementLabel")}</dt>
             <dd className="inline">{recorded.requirement_id}</dd>
           </div>
           <div>
-            <dt className="inline font-semibold">Entrevistador: </dt>
+            <dt className="inline font-semibold">{t("feedback.interviewerLabel")}</dt>
             <dd className="inline">{recorded.interviewer_id}</dd>
           </div>
           <div>
-            <dt className="inline font-semibold">Enviado: </dt>
+            <dt className="inline font-semibold">{t("feedback.submittedLabel")}</dt>
             <dd className="inline">{recorded.submitted_at ?? "—"}</dd>
           </div>
         </dl>
       ) : null}
 
-      <h6 className="text-xs font-semibold text-text-muted">Historial de feedback</h6>
+      <h6 className="text-xs font-semibold text-text-muted">{t("feedback.history")}</h6>
       {!loading && history.length === 0 && !error ? (
-        <p className="text-sm text-text-muted">Todavía no hay feedback para esta pregunta.</p>
+        <p className="text-sm text-text-muted">{t("feedback.empty")}</p>
       ) : history.length > 0 ? (
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left text-xs">
-            <caption className="sr-only">Historial de feedback</caption>
+            <caption className="sr-only">{t("feedback.history")}</caption>
             <thead>
               <tr className="border-b border-border">
                 <th scope="col" className="py-1 pr-3 font-semibold">
-                  Requisito
+                  {t("feedback.col.requirement")}
                 </th>
                 <th scope="col" className="py-1 pr-3 font-semibold">
-                  Entrevistador
+                  {t("feedback.col.interviewer")}
                 </th>
                 <th scope="col" className="py-1 pr-3 font-semibold">
-                  Enviado
+                  {t("feedback.col.submitted")}
                 </th>
                 <th scope="col" className="py-1 pr-3 font-semibold">
-                  Estado
+                  {t("feedback.col.status")}
                 </th>
                 <th scope="col" className="py-1 font-semibold">
-                  Evidencia / brechas
+                  {t("feedback.col.evidence")}
                 </th>
               </tr>
             </thead>
@@ -270,9 +279,10 @@ export function FeedbackForm({ questionId, requirementId }: FeedbackFormProps) {
                   <td className="py-1 pr-3">{item.requirement_id}</td>
                   <td className="py-1 pr-3">{item.interviewer_id}</td>
                   <td className="py-1 pr-3">{item.submitted_at ?? "—"}</td>
-                  <td className="py-1 pr-3">{STATUS_LABELS[item.status]}</td>
+                  <td className="py-1 pr-3">{t(STATUS_KEYS[item.status])}</td>
                   <td className="py-1">
-                    {item.observed_evidence.length} evidencias · {item.gaps.length} brechas
+                    {item.observed_evidence.length} {t("feedback.evidenceCount")} ·{" "}
+                    {item.gaps.length} {t("feedback.gapCount")}
                   </td>
                 </tr>
               ))}
