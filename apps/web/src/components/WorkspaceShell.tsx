@@ -8,6 +8,7 @@ import type { MeResponse, Organization } from "../lib/types";
 import { Button } from "./ui/shadcn/button";
 import { Select } from "./ui/shadcn/select";
 import { CommandMenu } from "./CommandMenu";
+import { AssistantPanel, type AssistantSurface } from "./AssistantPanel";
 
 type LoadStatus = "idle" | "loading" | "ready" | "error";
 
@@ -36,6 +37,20 @@ const sectionKeys: Readonly<Record<string, MessageKey>> = {
   Vacantes: "shell.jobs",
 };
 
+const sectionSurfaces: Readonly<Record<string, AssistantSurface>> = {
+  Panel: "dashboard",
+  Analítica: "analytics",
+  Evaluación: "assessment",
+  Agentes: "agents",
+  Pipeline: "applications",
+  Candidatos: "candidates",
+  Automatizaciones: "automations",
+  Documentos: "documents",
+  Integraciones: "integrations",
+  Entrevistas: "interviews",
+  Vacantes: "jobs",
+};
+
 export function WorkspaceShell({
   children,
   section = "Panel",
@@ -52,6 +67,7 @@ export function WorkspaceShell({
   const [loggingOut, setLoggingOut] = useState(false);
   const { t } = useI18n();
   const sectionLabel = sectionKeys[section] ? t(sectionKeys[section]) : section;
+  const assistantSurface = sectionSurfaces[section];
 
   function loadSession(force = false) {
     if (!force && sessionStatus !== "idle") {
@@ -341,6 +357,15 @@ export function WorkspaceShell({
           </nav>
 
           {children}
+          {assistantSurface !== undefined && (
+            <section
+              aria-label={t("assistant.title")}
+              className="space-y-3 rounded-xl border border-border bg-surface p-4"
+            >
+              <p className="text-sm text-text-muted">{t("assistant.note")}</p>
+              <AssistantPanel surface={assistantSurface} />
+            </section>
+          )}
         </div>
       </div>
 

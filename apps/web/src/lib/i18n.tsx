@@ -837,6 +837,8 @@ const es = {
   "automations.status.active": "Activa",
   "automations.status.inactive": "Inactiva",
   "automations.status.archived": "Archivada",
+  "assistant.title": "Asistente",
+  "assistant.note": "Las respuestas pueden proponer acciones; la decisión final es humana.",
 };
 
 const en: typeof es = {
@@ -1663,6 +1665,8 @@ const en: typeof es = {
   "automations.status.active": "Active",
   "automations.status.inactive": "Inactive",
   "automations.status.archived": "Archived",
+  "assistant.title": "Assistant",
+  "assistant.note": "Answers may propose actions; a person makes the final decision.",
 };
 
 const messages: Record<Locale, typeof es> = { es, en };
