@@ -173,6 +173,30 @@ def test_local_allows_demo_reserved_email_login(client: TestClient) -> None:
     assert response.json()["error"]["code"] == "unauthorized"
 
 
+def test_local_allows_demo_web_origin_on_any_local_port(client: TestClient) -> None:
+    response = client.options(
+        "/api/v1/auth/login",
+        headers={
+            "Origin": "http://localhost:4345",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:4345"
+    assert response.headers["access-control-allow-credentials"] == "true"
+
+    login = client.post(
+        "/api/v1/auth/login",
+        json={"email": "superadmin.demo@example.test", "password": "SyntheticSuperPass789"},
+        headers={"Origin": "http://localhost:4345"},
+    )
+
+    assert login.status_code == 401
+    assert login.json()["error"]["code"] == "unauthorized"
+
+
 def test_me_without_cookie_returns_401(client: TestClient) -> None:
     response = client.get("/api/v1/auth/me")
 

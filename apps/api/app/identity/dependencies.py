@@ -13,6 +13,7 @@ Matriz de esta unidad (sin matrices genéricas):
 
 from __future__ import annotations
 
+import re
 import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -36,6 +37,7 @@ _ROLE_MESSAGE = "Rol insuficiente."
 _ORGANIZATION_MESSAGE = "Organización no disponible."
 _MUTATING_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 _DEPLOYED_ENVS = frozenset({"staging", "production"})
+_LOCAL_ORIGIN_PATTERN = re.compile(r"^http://(localhost|127\.0\.0\.1)(:\d+)?/?$")
 
 DbDependency = Annotated[DBSession, Depends(get_db)]
 
@@ -152,6 +154,9 @@ def verify_origin(request: Request) -> None:
     if not origin:
         if settings.APP_ENV in _DEPLOYED_ENVS:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=_FORBIDDEN_MESSAGE)
+        return
+
+    if settings.APP_ENV not in _DEPLOYED_ENVS and _LOCAL_ORIGIN_PATTERN.fullmatch(origin):
         return
 
     allowed: set[tuple[str, str]] = set()

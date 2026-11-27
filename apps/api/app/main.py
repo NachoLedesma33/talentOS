@@ -47,9 +47,15 @@ app = FastAPI(
 )
 
 # CORS explícito para el origen web; sin "*" porque la sesión usa cookies.
+_local_origin_regex = (
+    r"^http://(localhost|127\.0\.0\.1)(:\d+)?$"
+    if settings.APP_ENV in {"local", "test"}
+    else None
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[str(settings.WEB_BASE_URL).rstrip("/")],
+    allow_origin_regex=_local_origin_regex,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["X-Organization-ID", "X-Request-ID", "Content-Type"],
