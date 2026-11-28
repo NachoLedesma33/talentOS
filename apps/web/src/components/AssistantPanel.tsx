@@ -676,8 +676,8 @@ export function AssistantPanel({
                 placeholder={copy.placeholder}
                 disabled={submitting}
                 maxLength={2000}
-                rows={1}
-                className="min-h-10 max-h-28 resize-none"
+                rows={2}
+                className="min-h-16 max-h-32 resize-none"
               />
               <Button
                 type="submit"
