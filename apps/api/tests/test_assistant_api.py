@@ -23,6 +23,7 @@ import app.candidates.models  # noqa: F401
 import app.documents.models  # noqa: F401
 import app.identity.models  # noqa: F401
 import app.jobs.models  # noqa: F401
+from app.agents import assistant as assistant_module
 from app.agents.models import AgentRun, AgentRunStatus, Approval, ApprovalStatus
 from app.api.routes import agents as agents_routes
 from app.applications.models import Application, ApplicationStage
@@ -418,12 +419,35 @@ def test_message_returns_verified_citation_and_is_idempotent(
     assert body["answer"] == "Synthetic verified answer"
     assert body["citations"][0]["document_id"] == str(seeded.document_id)
     assert body["citations"][0]["quote"] == _QUOTE
+    assert "demo_mock" in body["limitations"]
 
     second = _post_message(client, seeded, payload)
 
     assert second.status_code == 200, second.text
     assert second.json()["run_id"] == body["run_id"]
     assert runtime.calls == 1
+
+
+def test_message_does_not_flag_demo_when_local_provider_is_configured(
+    client: TestClient,
+    seeded: Seed,
+    runtime: _Provider,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        assistant_module,
+        "get_settings",
+        lambda: get_settings().model_copy(update={"LLM_PROVIDER": "local"}),
+    )
+    runtime.output = _output(document_id=seeded.document_id)
+
+    payload = _message(
+        "assistant-api-local-provider", resource_ref=seeded.document_id
+    )
+    response = _post_message(client, seeded, payload)
+
+    assert response.status_code == 201, response.text
+    assert "demo_mock" not in response.json()["limitations"]
 
 
 def test_foreign_resource_ref_is_not_available_without_revealing_it(

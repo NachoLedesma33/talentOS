@@ -46,6 +46,7 @@ from app.agents.workflow import (
 )
 from app.applications.repositories import get_application
 from app.candidates.repositories import get_candidate
+from app.core.config import get_settings
 from app.documents.repositories import get_document
 from app.identity.models import MembershipRole
 from app.jobs.repositories import get_job
@@ -157,6 +158,9 @@ def initial_assistant_state(
 ) -> AssistantState:
     """Estado inicial sin mensajes crudos: solo huella, superficie y recursos."""
     fingerprint_source = "\n".join((message, *recent_messages))
+    limitations: list[str] = (
+        ["demo_mock"] if get_settings().LLM_PROVIDER == "mock" else []
+    )
     state: AssistantState = {
         **workflow_state(
             organization_id=organization_id,
@@ -179,7 +183,7 @@ def initial_assistant_state(
         "answer": _SAFE_ANSWER,
         "citations": [],
         "proposed_actions": [],
-        "limitations": [],
+        "limitations": limitations,
         "needs_review": False,
         "unsupported_reason": None,
         "approval_id": "",
@@ -390,7 +394,13 @@ def _validate_policy(
     schemas: dict[str, Mapping[str, object]] = {}
     allowed = _allowed_evidence(state)
 
-    limitations = [item for item in draft.limitations[:MAX_LIMITATIONS]]
+    limitations = [
+        str(item)
+        for item in cast(list[object], state.get("limitations") or [])
+        if isinstance(item, str)
+    ]
+    limitations.extend(draft.limitations[:MAX_LIMITATIONS])
+    limitations = list(dict.fromkeys(limitations))[:MAX_LIMITATIONS]
     needs_review = bool(draft.needs_review or state.get("injection_detected"))
     citations: list[EvidenceRef] = []
     for item in draft.citations[:MAX_CITATIONS]:
