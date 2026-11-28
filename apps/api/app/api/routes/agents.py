@@ -538,6 +538,8 @@ def post_assistant_message(
     created = existing is None
     if created:
         update_agent_run_status(db, run, AgentRunStatus.RUNNING)
+        # El checkpointer abre su propia sesión: el run debe ser visible antes de invocar.
+        db.commit()
         try:
             graph.invoke(_assistant_initial_state(payload, run), config)
         except GraphInterrupt:
