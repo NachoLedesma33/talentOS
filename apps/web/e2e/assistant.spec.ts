@@ -190,6 +190,7 @@ test("asistente muestra evidencia y confirma la acción aprobada", async ({ page
         body: makeResponse({
           status: "waiting_approval",
           proposed_actions: [makeAction()],
+          limitations: ["demo_mock"],
         }),
       };
     }
@@ -213,6 +214,7 @@ test("asistente muestra evidencia y confirma la acción aprobada", async ({ page
   await panel.getByRole("button", { name: "Consultar" }).click();
 
   await expect(panel.getByText(ANSWER)).toBeVisible();
+  await expect(panel.getByText(/Demo limitada:/)).toBeVisible();
   await expect(panel.getByText(QUOTE)).toBeVisible();
   await expect(panel.getByText(new RegExp(`Documento: ${DOCUMENT_ID}`))).toBeVisible();
   await expect(panel.getByText("/jobs")).toBeVisible();
