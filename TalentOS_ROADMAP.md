@@ -1171,7 +1171,7 @@ TalentOS está listo para presentarse como portfolio cuando:
 
 # 28. Fase 18 — Proveedor LLM local y demo limitada (2026-11-28)
 
-**Estado:** `IN_REVIEW`. **Origen:** petición del usuario 2026-11-27/28; `docs/decisions/ADR-021-proveedor-local-y-demo-limitada.md` aceptado. **RF:** extensión de `RF-ASSIST-001`. **Alcance:** solo proveedor local y aviso de demo limitada; planes, suscripciones, facturación y fine-tuning quedan para fases futuras.
+**Estado:** `DONE`. **Origen:** petición del usuario 2026-11-27/28; `docs/decisions/ADR-021-proveedor-local-y-demo-limitada.md` aceptado. **RF:** extensión de `RF-ASSIST-001`. **Alcance:** solo proveedor local y aviso de demo limitada; planes, suscripciones, facturación y fine-tuning quedan para fases futuras.
 
 ## 28.1 Reglas del loop
 
@@ -1192,10 +1192,10 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 18-05 | Aviso en UI | `apps/web/src/components/AssistantPanel.tsx`, `apps/web/tests/assistant_panel.test.tsx` | `DONE` | `f6d7bc8`; aviso visible sin código técnico; `tsc`/`lint`/`vitest`/`build`/E2E en verde. |
 | 18-06 | Resiliencia local | `apps/api/app/llm/local.py`, `apps/api/tests/test_llm_provider.py` | `DONE` | `2ca2946`; `keep_alive=30m` y timeout mínimo de 180 s para carga fría; smoke real `qwen3:4b` en 2.76 s con modelo cargado. |
 | 18-07 | E2E del aviso | `apps/web/e2e/assistant.spec.ts` | `DONE` | `04b6269`; aviso `Demo limitada:` visible en navegador con API mockeada; `tsc`/ESLint limpios; Playwright 25 passed/1 skipped. |
-| 18-08 | Cierre | `TalentOS_ROADMAP.md`, `docs/ENVIRONMENTS.md`, `.env.example`, `ADR-021` | `IN_REVIEW` | Pendiente de CI final y push con `head_sha` verificado. |
+| 18-08 | Cierre | `TalentOS_ROADMAP.md`, `docs/ENVIRONMENTS.md`, `.env.example`, `ADR-021` | `DONE` | `a30f4ed`, `f04a06c`; CI `46097505327` success: backend (`ruff`, `mypy`, `pytest`, `alembic`), compose, secret scan y frontend (typecheck, lint, unit, build, E2E) en verde. |
 
 ## 28.3 Evidencia
 
 | Fecha | Lote | Commits | CI | Resultado |
 |---|---|---|---|---|
-| 2026-11-28 | 18-01/18-07 | `2b48d3f`, `ce45d96`, `01427a5`, `100ce64`, `f6d7bc8`, `2ca2946`, `a30f4ed`, `04b6269` | pendiente | Local: `ruff`, `mypy`, `pytest` completo 588 passed, `tsc`, ESLint, `vitest` 131 passed, `next build` y Playwright 25 passed/1 skipped. Latencia real: 2.76 s cargado, 108 s en frío, 144 s con thinking. Sin pesos ni secretos en el repo. |
+| 2026-11-28 | 18-01/18-08 | `2b48d3f`, `ce45d96`, `01427a5`, `100ce64`, `f6d7bc8`, `2ca2946`, `a30f4ed`, `04b6269`, `f04a06c` | `46097505327` success | Local: `ruff`, `mypy`, `pytest` completo 588 passed, `tsc`, ESLint, `vitest` 131 passed, `next build` y Playwright 25 passed/1 skipped. CI: backend, compose, secret scan y frontend verdes. Latencia real: 2.76 s cargado, 108 s en frío, 144 s con thinking. Sin pesos ni secretos en el repo. |
