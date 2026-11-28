@@ -69,7 +69,17 @@ export interface AssistantPanelProps {
 
 const COPY = {
   es: {
-    title: "Asistente del workspace",
+    title: "Mensajes",
+    regionTitle: "Asistente del workspace",
+    avatar: "Asistente en línea",
+    moreOptions: "Más opciones",
+    newMessage: "Nuevo mensaje",
+    expand: "Expandir chat",
+    collapse: "Colapsar chat",
+    conversation: "Conversación",
+    you: "Tú",
+    assistantLabel: "Asistente",
+    newConversation: "Nueva conversación iniciada.",
     description: "Pregunta sobre datos del workspace. Las acciones requieren confirmación.",
     label: "Pregunta para el asistente",
     placeholder: "Por ejemplo: ¿qué evidencia confirma este perfil?",
@@ -99,7 +109,17 @@ const COPY = {
     error: "No se pudo completar la solicitud.",
   },
   en: {
-    title: "Workspace assistant",
+    title: "Messages",
+    regionTitle: "Workspace assistant",
+    avatar: "Assistant online",
+    moreOptions: "More options",
+    newMessage: "New message",
+    expand: "Expand chat",
+    collapse: "Collapse chat",
+    conversation: "Conversation",
+    you: "You",
+    assistantLabel: "Assistant",
+    newConversation: "New conversation started.",
     description: "Ask about workspace data. Actions always require confirmation.",
     label: "Question for the assistant",
     placeholder: "For example: which evidence supports this profile?",
@@ -137,6 +157,53 @@ function describeError(cause: unknown, fallback: string): string {
   return fallback;
 }
 
+function BotIcon() {
+  return (
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} className="size-5">
+      <rect x="5" y="8" width="14" height="11" rx="3" />
+      <path d="M12 8V5M9 5h6" strokeLinecap="round" />
+      <circle cx="9" cy="13" r="1" fill="currentColor" stroke="none" />
+      <circle cx="15" cy="13" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function DotsIcon() {
+  return (
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="currentColor" className="size-4">
+      <circle cx="5" cy="12" r="1.6" />
+      <circle cx="12" cy="12" r="1.6" />
+      <circle cx="19" cy="12" r="1.6" />
+    </svg>
+  );
+}
+
+function ComposeIcon() {
+  return (
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="size-4">
+      <path d="M4 20h4l10-10-4-4L4 16v4Z" />
+      <path d="m13.5 6.5 4 4" />
+    </svg>
+  );
+}
+
+function ChevronIcon() {
+  return (
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="size-4">
+      <path d="m6 15 6-6 6 6" />
+    </svg>
+  );
+}
+
+function SendIcon() {
+  return (
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" className="size-4">
+      <path d="M4 12 20 4l-4 16-4-6-8-2Z" />
+      <path d="m12 14 8-10" />
+    </svg>
+  );
+}
+
 function nextKey(seed: string | undefined, attempt: number): string {
   if (seed) {
     return (attempt === 0 ? seed : `${seed}-${attempt}`).slice(0, 100);
@@ -160,8 +227,10 @@ export function AssistantPanel({
   resourceRef,
   idempotencyKey,
 }: AssistantPanelProps) {
-  const { locale } = useI18n();
+  const { locale, t } = useI18n();
   const copy = COPY[locale];
+  const [expanded, setExpanded] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [history, setHistory] = useState<AssistantSnapshot[]>([]);
   const [response, setResponse] = useState<AssistantResponse | null>(null);
@@ -172,6 +241,18 @@ export function AssistantPanel({
   const [confirmDiscard, setConfirmDiscard] = useState<string | null>(null);
   const keyRef = useRef<string>("");
   const attemptRef = useRef(0);
+
+  function startNewConversation() {
+    setMessage("");
+    setHistory([]);
+    setResponse(null);
+    setError(null);
+    setNotice(copy.newConversation);
+    setConfirmDiscard(null);
+    setOptionsOpen(false);
+    keyRef.current = "";
+    attemptRef.current = 0;
+  }
 
   async function send(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -246,160 +327,258 @@ export function AssistantPanel({
 
   return (
     <section
-      aria-labelledby="assistant-panel-heading"
+      aria-label={copy.regionTitle}
       aria-busy={submitting || ackPending !== null}
-      className="space-y-3"
+      className={`fixed bottom-0 right-4 z-50 flex w-[min(24rem,calc(100vw-2rem))] flex-col border border-border bg-surface shadow-lg sm:right-6 ${
+        expanded ? "rounded-t-xl" : "rounded-xl"
+      }`}
     >
-      <div className="space-y-1">
-        <h3 id="assistant-panel-heading" className="text-base font-semibold">
+      <div className="flex shrink-0 items-center gap-2 rounded-t-xl border-b border-border-subtle bg-surface px-3 py-2">
+        <span
+          role="img"
+          aria-label={copy.avatar}
+          className="relative flex size-9 shrink-0 items-center justify-center rounded-full bg-accent text-on-accent"
+        >
+          <BotIcon />
+          <span
+            aria-hidden="true"
+            className="absolute bottom-0 right-0 size-2.5 rounded-full bg-success ring-2 ring-surface"
+          />
+        </span>
+        <h3 id="assistant-panel-heading" className="text-sm font-semibold">
           {copy.title}
         </h3>
-        <p className="text-sm text-text-muted">{copy.description}</p>
+        <div className="ml-auto flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={copy.moreOptions}
+            aria-expanded={optionsOpen}
+            aria-controls={optionsOpen ? "assistant-panel-options" : undefined}
+            onClick={() => setOptionsOpen((open) => !open)}
+            className="size-8"
+          >
+            <DotsIcon />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={copy.newMessage}
+            disabled={submitting || ackPending !== null}
+            onClick={startNewConversation}
+            className="size-8"
+          >
+            <ComposeIcon />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={expanded ? copy.collapse : copy.expand}
+            aria-expanded={expanded}
+            aria-controls={expanded ? "assistant-panel-body" : undefined}
+            onClick={() => setExpanded((open) => !open)}
+            className="size-8"
+          >
+            <span className={`transition-transform motion-reduce:transition-none ${expanded ? "rotate-180" : ""}`}>
+              <ChevronIcon />
+            </span>
+          </Button>
+        </div>
       </div>
 
-      <p aria-live="polite" className="min-h-5 text-sm text-text-muted">
-        {notice}
-      </p>
-
-      {error !== null && (
-        <Card role="alert" className="border-destructive p-3 text-sm">
-          {error}
-        </Card>
+      {optionsOpen && (
+        <div id="assistant-panel-options" className="space-y-1 border-b border-border-subtle bg-surface-muted px-3 py-2 text-xs text-text-muted">
+          <p>{copy.description}</p>
+          <p>{t("assistant.note")}</p>
+        </div>
       )}
 
-      <form onSubmit={send} className="space-y-2">
-        <Label htmlFor="assistant-panel-message">{copy.label}</Label>
-        <Textarea
-          id="assistant-panel-message"
-          value={message}
-          onChange={(event) => setMessage(event.target.value)}
-          placeholder={copy.placeholder}
-          disabled={submitting}
-          maxLength={2000}
-        />
-        <Button type="submit" disabled={submitting || message.trim().length === 0}>
-          {submitting ? copy.sending : copy.send}
-        </Button>
-      </form>
+      {expanded && (
+        <div id="assistant-panel-body" className="flex max-h-[min(70vh,36rem)] flex-col">
+          <div
+            role="log"
+            aria-label={copy.conversation}
+            className="min-h-24 flex-1 space-y-3 overflow-y-auto px-3 py-3"
+          >
+            <p aria-live="polite" className="text-xs text-text-muted">
+              {notice}
+            </p>
 
-      {response === null ? (
-        <Card className="bg-secondary p-3 text-sm text-text-muted">{copy.empty}</Card>
-      ) : (
-        <div className="space-y-3">
-          <Card className="space-y-1 p-3">
-            <h4 className="text-sm font-semibold">{copy.answer}</h4>
-            <p className="text-sm">{response.answer}</p>
-            <p className="text-xs text-text-muted">{response.status}</p>
-          </Card>
+            {error !== null && (
+              <Card role="alert" className="border-destructive p-3 text-sm">
+                {error}
+              </Card>
+            )}
 
-          <div className="space-y-2">
-            <h4 className="text-sm font-semibold">{copy.citations}</h4>
-            {response.citations.length === 0 ? (
-              <p className="text-sm text-text-muted">{copy.noCitations}</p>
+            {history.length === 0 ? (
+              <Card className="bg-secondary p-3 text-sm text-text-muted">{copy.empty}</Card>
             ) : (
-              <ul className="space-y-2">
-                {response.citations.map((citation, index) => {
-                  const source = citation.document_id ?? citation.candidate_id;
-                  return (
-                    <li key={`${source ?? "unverified"}-${index}`} className="rounded-md border border-border p-3 text-sm">
-                      <blockquote className="border-l-2 border-border pl-2">{citation.quote}</blockquote>
-                      <p className="mt-1 text-xs text-text-muted">
-                        {source
-                          ? [
-                              citation.document_id ? `${copy.document}: ${citation.document_id}` : null,
-                              citation.candidate_id ? `${copy.candidate}: ${citation.candidate_id}` : null,
-                              citation.page ? `${copy.page}: ${citation.page}` : null,
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")
-                          : copy.unverified}
-                      </p>
-                    </li>
-                  );
-                })}
-              </ul>
+              history.map((entry, index) => (
+                <div
+                  key={`${entry.role}-${index}`}
+                  className={`rounded-lg px-3 py-2 text-sm ${
+                    entry.role === "user"
+                      ? "ml-6 bg-accent text-on-accent"
+                      : "mr-6 bg-secondary text-text"
+                  }`}
+                >
+                  <p className="text-xs font-semibold opacity-80">
+                    {entry.role === "user" ? copy.you : copy.assistantLabel}
+                  </p>
+                  <p className="whitespace-pre-wrap break-words">{entry.content}</p>
+                </div>
+              ))
+            )}
+
+            {response !== null && (
+              <div className="space-y-3 border-t border-border-subtle pt-3">
+                <p className="text-xs font-semibold text-text-muted">{copy.answer}</p>
+                <p className="text-xs text-text-muted">{response.status}</p>
+
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold">{copy.citations}</h4>
+                  {response.citations.length === 0 ? (
+                    <p className="text-xs text-text-muted">{copy.noCitations}</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {response.citations.map((citation, index) => {
+                        const source = citation.document_id ?? citation.candidate_id;
+                        return (
+                          <li key={`${source ?? "unverified"}-${index}`} className="rounded-md border border-border p-2 text-xs">
+                            <blockquote className="border-l-2 border-border pl-2">{citation.quote}</blockquote>
+                            <p className="mt-1 text-text-muted">
+                              {source
+                                ? [
+                                    citation.document_id ? `${copy.document}: ${citation.document_id}` : null,
+                                    citation.candidate_id ? `${copy.candidate}: ${citation.candidate_id}` : null,
+                                    citation.page ? `${copy.page}: ${citation.page}` : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" · ")
+                                : copy.unverified}
+                            </p>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+
+                {response.limitations.length > 0 && (
+                  <Card className="space-y-1 bg-secondary p-3 text-xs">
+                    <h4 className="font-semibold">{copy.limitations}</h4>
+                    <ul className="list-disc pl-5">
+                      {response.limitations.map((limitation, index) => (
+                        <li key={`${limitation}-${index}`}>{limitation}</li>
+                      ))}
+                    </ul>
+                  </Card>
+                )}
+
+                {response.unsupported_reason !== null && (
+                  <Card role="status" className="p-3 text-xs">
+                    {copy.unsupported}: {response.unsupported_reason}
+                  </Card>
+                )}
+
+                <div className="space-y-2">
+                  <h4 className="text-xs font-semibold">{copy.actions}</h4>
+                  {!canDecide && <p className="text-xs text-text-muted">{copy.locked}</p>}
+                  {actions.length === 0 ? (
+                    <p className="text-xs text-text-muted">{copy.noActions}</p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {actions.map((action) => (
+                        <li key={action.action_id} className="space-y-2 rounded-md border border-border p-3 text-xs">
+                          <p className="font-medium">{action.type}</p>
+                          {action.route !== null && action.route !== undefined && (
+                            <p className="text-text-muted">{action.route}</p>
+                          )}
+                          {action.form_id !== null && action.form_id !== undefined && (
+                            <p className="text-text-muted">{action.form_id}</p>
+                          )}
+                          {confirmDiscard === action.action_id ? (
+                            <Card className="space-y-2 p-2">
+                              <p>{copy.confirmQuestion}</p>
+                              <div className="flex flex-wrap gap-2">
+                                <Button
+                                  type="button"
+                                  variant="destructive"
+                                  size="sm"
+                                  disabled={ackPending !== null}
+                                  onClick={() => void ack(action.action_id, "discarded")}
+                                >
+                                  {copy.confirmDiscard}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  disabled={ackPending !== null}
+                                  onClick={() => setConfirmDiscard(null)}
+                                >
+                                  {copy.cancel}
+                                </Button>
+                              </div>
+                            </Card>
+                          ) : (
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                type="button"
+                                size="sm"
+                                disabled={!canDecide || !action.requires_confirmation || ackPending !== null}
+                                onClick={() => void ack(action.action_id, "applied")}
+                              >
+                                {copy.apply}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={!canDecide || !action.requires_confirmation || ackPending !== null}
+                                onClick={() => setConfirmDiscard(action.action_id)}
+                              >
+                                {copy.discard}
+                              </Button>
+                            </div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
             )}
           </div>
 
-          {response.limitations.length > 0 && (
-            <Card className="space-y-1 bg-secondary p-3 text-sm">
-              <h4 className="font-semibold">{copy.limitations}</h4>
-              <ul className="list-disc pl-5">
-                {response.limitations.map((limitation, index) => (
-                  <li key={`${limitation}-${index}`}>{limitation}</li>
-                ))}
-              </ul>
-            </Card>
-          )}
-
-          {response.unsupported_reason !== null && (
-            <Card role="status" className="p-3 text-sm">
-              {copy.unsupported}: {response.unsupported_reason}
-            </Card>
-          )}
-
-          <div className="space-y-2">
-            <h4 className="text-sm font-semibold">{copy.actions}</h4>
-            {!canDecide && <p className="text-sm text-text-muted">{copy.locked}</p>}
-            {actions.length === 0 ? (
-              <p className="text-sm text-text-muted">{copy.noActions}</p>
-            ) : (
-              <ul className="space-y-2">
-                {actions.map((action) => (
-                  <li key={action.action_id} className="space-y-2 rounded-md border border-border p-3 text-sm">
-                    <p className="font-medium">{action.type}</p>
-                    {action.route !== null && action.route !== undefined && (
-                      <p className="text-xs text-text-muted">{action.route}</p>
-                    )}
-                    {action.form_id !== null && action.form_id !== undefined && (
-                      <p className="text-xs text-text-muted">{action.form_id}</p>
-                    )}
-                    {confirmDiscard === action.action_id ? (
-                      <Card className="space-y-2 p-2">
-                        <p>{copy.confirmQuestion}</p>
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            disabled={ackPending !== null}
-                            onClick={() => void ack(action.action_id, "discarded")}
-                          >
-                            {copy.confirmDiscard}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            disabled={ackPending !== null}
-                            onClick={() => setConfirmDiscard(null)}
-                          >
-                            {copy.cancel}
-                          </Button>
-                        </div>
-                      </Card>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        <Button
-                          type="button"
-                          disabled={!canDecide || !action.requires_confirmation || ackPending !== null}
-                          onClick={() => void ack(action.action_id, "applied")}
-                        >
-                          {copy.apply}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          disabled={!canDecide || !action.requires_confirmation || ackPending !== null}
-                          onClick={() => setConfirmDiscard(action.action_id)}
-                        >
-                          {copy.discard}
-                        </Button>
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          <form onSubmit={send} className="shrink-0 border-t border-border-subtle p-3">
+            <Label htmlFor="assistant-panel-message" className="sr-only">
+              {copy.label}
+            </Label>
+            <div className="flex items-end gap-2">
+              <Textarea
+                id="assistant-panel-message"
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+                placeholder={copy.placeholder}
+                disabled={submitting}
+                maxLength={2000}
+                rows={1}
+                className="min-h-10 max-h-28 resize-none"
+              />
+              <Button
+                type="submit"
+                size="icon"
+                aria-label={submitting ? copy.sending : copy.send}
+                disabled={submitting || message.trim().length === 0}
+              >
+                <SendIcon />
+              </Button>
+            </div>
+          </form>
         </div>
       )}
     </section>

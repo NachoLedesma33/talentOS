@@ -357,15 +357,7 @@ export function WorkspaceShell({
           </nav>
 
           {children}
-          {assistantSurface !== undefined && (
-            <section
-              aria-label={t("assistant.title")}
-              className="space-y-3 rounded-xl border border-border bg-surface p-4"
-            >
-              <p className="text-sm text-text-muted">{t("assistant.note")}</p>
-              <AssistantPanel surface={assistantSurface} />
-            </section>
-          )}
+          {assistantSurface !== undefined && <AssistantPanel surface={assistantSurface} />}
         </div>
       </div>
 
