@@ -1,6 +1,13 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { ApiError, apiFetch } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import { Button } from "./ui/shadcn/button";
@@ -67,6 +74,11 @@ export interface AssistantPanelProps {
   idempotencyKey?: string;
 }
 
+const MIN_PANEL_HEIGHT = 240;
+const DEFAULT_PANEL_HEIGHT = 360;
+const MAX_PANEL_HEIGHT = 720;
+const RESIZE_STEP = 24;
+
 const COPY = {
   es: {
     title: "Mensajes",
@@ -76,6 +88,7 @@ const COPY = {
     newMessage: "Nuevo mensaje",
     expand: "Expandir chat",
     collapse: "Colapsar chat",
+    resize: "Redimensionar chat",
     conversation: "Conversación",
     you: "Tú",
     assistantLabel: "Asistente",
@@ -116,6 +129,7 @@ const COPY = {
     newMessage: "New message",
     expand: "Expand chat",
     collapse: "Collapse chat",
+    resize: "Resize chat",
     conversation: "Conversation",
     you: "You",
     assistantLabel: "Assistant",
@@ -204,6 +218,19 @@ function SendIcon() {
   );
 }
 
+function GripIcon() {
+  return (
+    <svg aria-hidden="true" focusable="false" viewBox="0 0 16 16" fill="currentColor" className="size-4">
+      <circle cx="6" cy="4" r="1" />
+      <circle cx="10" cy="4" r="1" />
+      <circle cx="6" cy="8" r="1" />
+      <circle cx="10" cy="8" r="1" />
+      <circle cx="6" cy="12" r="1" />
+      <circle cx="10" cy="12" r="1" />
+    </svg>
+  );
+}
+
 function nextKey(seed: string | undefined, attempt: number): string {
   if (seed) {
     return (attempt === 0 ? seed : `${seed}-${attempt}`).slice(0, 100);
@@ -241,6 +268,65 @@ export function AssistantPanel({
   const [confirmDiscard, setConfirmDiscard] = useState<string | null>(null);
   const keyRef = useRef<string>("");
   const attemptRef = useRef(0);
+  const [panelHeight, setPanelHeight] = useState(DEFAULT_PANEL_HEIGHT);
+  const [maxPanelHeight, setMaxPanelHeight] = useState(MAX_PANEL_HEIGHT);
+  const resizeRef = useRef<{ pointerId: number; startY: number; startHeight: number } | null>(null);
+
+  useEffect(() => {
+    const updateLimit = () => {
+      setMaxPanelHeight(
+        Math.max(MIN_PANEL_HEIGHT, Math.min(MAX_PANEL_HEIGHT, window.innerHeight - 160)),
+      );
+    };
+    updateLimit();
+    window.addEventListener("resize", updateLimit);
+    return () => window.removeEventListener("resize", updateLimit);
+  }, []);
+
+  const effectiveHeight = Math.min(panelHeight, maxPanelHeight);
+
+  function clampHeight(value: number): number {
+    return Math.round(Math.min(Math.max(value, MIN_PANEL_HEIGHT), maxPanelHeight));
+  }
+
+  function startResize(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!expanded) return;
+    event.preventDefault();
+    event.currentTarget.focus();
+    resizeRef.current = {
+      pointerId: event.pointerId,
+      startY: event.clientY,
+      startHeight: effectiveHeight,
+    };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }
+
+  function moveResize(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = resizeRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    setPanelHeight(clampHeight(drag.startHeight + (drag.startY - event.clientY)));
+  }
+
+  function stopResize(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = resizeRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+      event.currentTarget.releasePointerCapture?.(event.pointerId);
+    }
+    resizeRef.current = null;
+  }
+
+  function resizeWithKeyboard(event: ReactKeyboardEvent<HTMLDivElement>) {
+    if (!expanded) return;
+    let next: number | null = null;
+    if (event.key === "ArrowUp") next = effectiveHeight + RESIZE_STEP;
+    if (event.key === "ArrowDown") next = effectiveHeight - RESIZE_STEP;
+    if (event.key === "Home") next = MIN_PANEL_HEIGHT;
+    if (event.key === "End") next = maxPanelHeight;
+    if (next === null) return;
+    event.preventDefault();
+    setPanelHeight(clampHeight(next));
+  }
 
   function startNewConversation() {
     setMessage("");
@@ -334,6 +420,26 @@ export function AssistantPanel({
       }`}
     >
       <div className="flex shrink-0 items-center gap-2 rounded-t-xl border-b border-border-subtle bg-surface px-3 py-2">
+        <div
+          role="separator"
+          aria-label={copy.resize}
+          aria-orientation="horizontal"
+          aria-valuemin={MIN_PANEL_HEIGHT}
+          aria-valuemax={maxPanelHeight}
+          aria-valuenow={effectiveHeight}
+          aria-controls={expanded ? "assistant-panel-body" : undefined}
+          tabIndex={expanded ? 0 : -1}
+          onPointerDown={startResize}
+          onPointerMove={moveResize}
+          onPointerUp={stopResize}
+          onPointerCancel={stopResize}
+          onKeyDown={resizeWithKeyboard}
+          className={`flex size-8 shrink-0 touch-none items-center justify-center rounded text-text-muted outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+            expanded ? "cursor-ns-resize" : "cursor-default opacity-50"
+          }`}
+        >
+          <GripIcon />
+        </div>
         <span
           role="img"
           aria-label={copy.avatar}
@@ -397,7 +503,11 @@ export function AssistantPanel({
       )}
 
       {expanded && (
-        <div id="assistant-panel-body" className="flex max-h-[min(70vh,36rem)] flex-col">
+        <div
+          id="assistant-panel-body"
+          className="flex flex-col"
+          style={{ height: `${effectiveHeight}px`, maxHeight: `${maxPanelHeight}px` }}
+        >
           <div
             role="log"
             aria-label={copy.conversation}
