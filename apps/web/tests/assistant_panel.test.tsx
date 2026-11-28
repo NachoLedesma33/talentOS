@@ -72,7 +72,14 @@ function makeAction() {
   };
 }
 
+function openChat() {
+  if (!screen.queryByLabelText(/Pregunta para el asistente/i)) {
+    fireEvent.click(screen.getByRole("button", { name: "Expandir chat" }));
+  }
+}
+
 function ask(question = "¿Qué evidencia confirma el perfil?") {
+  openChat();
   fireEvent.change(screen.getByLabelText(/Pregunta para el asistente/i), {
     target: { value: question },
   });
@@ -107,6 +114,7 @@ describe("AssistantPanel", () => {
     });
 
     render(<AssistantPanel idempotencyKey={IDEMPOTENCY_KEY} resourceRef={DOCUMENT_ID} />);
+    openChat();
     expect(screen.getByText(/Todavía no hay respuesta/i)).toBeTruthy();
 
     ask();
@@ -215,5 +223,50 @@ describe("AssistantPanel", () => {
     expect(await screen.findByText("Fuente sin confirmar")).toBeTruthy();
     expect(screen.getByText(/not_available/)).toBeTruthy();
     expect(screen.getByText(/Sin evidencia verificable/i)).toBeTruthy();
+  });
+
+  it("empieza colapsado y la flecha expande y colapsa el cuerpo", () => {
+    render(<AssistantPanel idempotencyKey={IDEMPOTENCY_KEY} />);
+
+    const region = screen.getByRole("region", { name: "Asistente del workspace" });
+    expect(region.className).toContain("fixed");
+    expect(region.className).toContain("bottom-0");
+    expect(region.className).toContain("right-4");
+    expect(screen.queryByRole("log", { name: "Conversación" })).toBeNull();
+
+    const expand = screen.getByRole("button", { name: "Expandir chat" });
+    expect(expand.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(expand);
+
+    expect(screen.getByRole("log", { name: "Conversación" })).toBeTruthy();
+    const collapse = screen.getByRole("button", { name: "Colapsar chat" });
+    expect(collapse.getAttribute("aria-expanded")).toBe("true");
+    expect(collapse.querySelector("span")?.className).toContain("rotate-180");
+
+    fireEvent.click(collapse);
+    expect(screen.queryByRole("log", { name: "Conversación" })).toBeNull();
+  });
+
+  it("muestra opciones sin consultar la API", () => {
+    const fetchMock = mockFetch(() => jsonResponse(makeResponse(), 201));
+    render(<AssistantPanel idempotencyKey={IDEMPOTENCY_KEY} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Más opciones" }));
+    expect(screen.getByText(/Pregunta sobre datos del workspace/i)).toBeTruthy();
+    expect(screen.getByText(/la decisión final es humana/i)).toBeTruthy();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("nuevo mensaje reinicia la conversación local", async () => {
+    mockFetch(() => jsonResponse(makeResponse(), 201));
+    render(<AssistantPanel idempotencyKey={IDEMPOTENCY_KEY} />);
+    ask();
+
+    expect(await screen.findByText("Respuesta sintética verificada")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Nuevo mensaje" }));
+
+    expect(screen.getByText(/Todavía no hay respuesta/i)).toBeTruthy();
+    expect(screen.getByText(/Nueva conversación iniciada/i)).toBeTruthy();
+    expect(screen.queryByText("Respuesta sintética verificada")).toBeNull();
   });
 });

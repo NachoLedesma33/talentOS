@@ -127,6 +127,36 @@ function assistantPanel(page: Page) {
   return page.getByRole("region", { name: "Asistente del workspace" });
 }
 
+async function openChat(page: Page) {
+  const expand = assistantPanel(page).getByRole("button", { name: "Expandir chat" });
+  await expect(expand).toBeVisible();
+  await expand.click();
+}
+
+test("widget colapsable queda anclado abajo a la derecha", async ({ page }) => {
+  await mockApi(page, workspaceApi());
+  await page.goto("/dashboard");
+
+  const panel = assistantPanel(page);
+  await expect(panel).toBeVisible();
+  const box = await panel.boundingBox();
+  const viewport = page.viewportSize();
+  expect(box).not.toBeNull();
+  expect(viewport).not.toBeNull();
+  expect(box!.x + box!.width).toBeGreaterThan(viewport!.width - 80);
+  expect(box!.y + box!.height).toBeGreaterThan(viewport!.height - 8);
+  await expect(panel.getByRole("log", { name: "Conversación" })).toHaveCount(0);
+
+  await panel.getByRole("button", { name: "Expandir chat" }).click();
+  await expect(panel.getByRole("log", { name: "Conversación" })).toBeVisible();
+  const toggle = panel.getByRole("button", { name: "Colapsar chat" });
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  await expect(toggle.locator("span").first()).toHaveClass(/rotate-180/);
+
+  await toggle.click();
+  await expect(panel.getByRole("log", { name: "Conversación" })).toHaveCount(0);
+});
+
 test("asistente muestra evidencia y confirma la acción aprobada", async ({ page }) => {
   let messageBody: Record<string, unknown> = {};
   let ackBody: Record<string, unknown> = {};
@@ -157,6 +187,7 @@ test("asistente muestra evidencia y confirma la acción aprobada", async ({ page
   await page.goto("/dashboard");
   const panel = assistantPanel(page);
   await expect(panel).toBeVisible();
+  await openChat(page);
   await expect(panel.getByText(/Todavía no hay respuesta/)).toBeVisible();
 
   await panel.getByLabel("Pregunta para el asistente").fill("¿Qué evidencia confirma el perfil?");
@@ -207,6 +238,7 @@ test("asistente exige confirmación explícita antes de descartar", async ({ pag
 
   await page.goto("/dashboard");
   const panel = assistantPanel(page);
+  await openChat(page);
   await panel.getByLabel("Pregunta para el asistente").fill("¿Descarto la navegación?");
   await panel.getByRole("button", { name: "Consultar" }).click();
 
@@ -243,6 +275,7 @@ test("asistente muestra error de la API sin simular respuesta", async ({ page })
 
   await page.goto("/dashboard");
   const panel = assistantPanel(page);
+  await openChat(page);
   await panel.getByLabel("Pregunta para el asistente").fill("¿Puedo ver datos privados?");
   await panel.getByRole("button", { name: "Consultar" }).click();
 
