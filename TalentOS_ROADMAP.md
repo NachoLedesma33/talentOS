@@ -1191,10 +1191,11 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 18-04 | Demo limitada en API | `apps/api/app/agents/assistant.py`, `apps/api/tests/test_assistant_api.py` | `DONE` | `100ce64`; `demo_mock` aparece solo con `LLM_PROVIDER=mock`. |
 | 18-05 | Aviso en UI | `apps/web/src/components/AssistantPanel.tsx`, `apps/web/tests/assistant_panel.test.tsx` | `DONE` | `f6d7bc8`; aviso visible sin código técnico; `tsc`/`lint`/`vitest`/`build`/E2E en verde. |
 | 18-06 | Resiliencia local | `apps/api/app/llm/local.py`, `apps/api/tests/test_llm_provider.py` | `DONE` | `2ca2946`; `keep_alive=30m` y timeout mínimo de 180 s para carga fría; smoke real `qwen3:4b` en 2.76 s con modelo cargado. |
-| 18-07 | Cierre | `TalentOS_ROADMAP.md`, `docs/ENVIRONMENTS.md`, `.env.example`, `ADR-021` | `IN_REVIEW` | Pendiente de CI final y push con `head_sha` verificado. |
+| 18-07 | E2E del aviso | `apps/web/e2e/assistant.spec.ts` | `DONE` | `04b6269`; aviso `Demo limitada:` visible en navegador con API mockeada; `tsc`/ESLint limpios; Playwright 25 passed/1 skipped. |
+| 18-08 | Cierre | `TalentOS_ROADMAP.md`, `docs/ENVIRONMENTS.md`, `.env.example`, `ADR-021` | `IN_REVIEW` | Pendiente de CI final y push con `head_sha` verificado. |
 
 ## 28.3 Evidencia
 
 | Fecha | Lote | Commits | CI | Resultado |
 |---|---|---|---|---|
-| 2026-11-28 | 18-01/18-06 | `2b48d3f`, `ce45d96`, `01427a5`, `100ce64`, `f6d7bc8`, `2ca2946` | pendiente | Local: `ruff`, `mypy`, `pytest` de proveedor/asistente, `tsc`, ESLint, `vitest` 131 passed, `next build` y Playwright 25 passed/1 skipped. Latencia real: 2.76 s cargado, 108 s en frío, 144 s con thinking. Sin pesos ni secretos en el repo. |
+| 2026-11-28 | 18-01/18-07 | `2b48d3f`, `ce45d96`, `01427a5`, `100ce64`, `f6d7bc8`, `2ca2946`, `a30f4ed`, `04b6269` | pendiente | Local: `ruff`, `mypy`, `pytest` completo 588 passed, `tsc`, ESLint, `vitest` 131 passed, `next build` y Playwright 25 passed/1 skipped. Latencia real: 2.76 s cargado, 108 s en frío, 144 s con thinking. Sin pesos ni secretos en el repo. |
