@@ -269,4 +269,25 @@ describe("AssistantPanel", () => {
     expect(screen.getByText(/Nueva conversación iniciada/i)).toBeTruthy();
     expect(screen.queryByText("Respuesta sintética verificada")).toBeNull();
   });
+
+  it("redimensiona el cuerpo con teclado y arrastre", () => {
+    render(<AssistantPanel idempotencyKey={IDEMPOTENCY_KEY} />);
+    const handle = screen.getByRole("separator", { name: "Redimensionar chat" });
+    expect(handle.getAttribute("tabindex")).toBe("-1");
+
+    openChat();
+    const body = screen.getByRole("log", { name: "Conversación" }).parentElement;
+    if (!body) throw new Error("Cuerpo del chat no disponible");
+    expect(body.style.height).toBe("360px");
+
+    fireEvent.keyDown(handle, { key: "ArrowUp" });
+    expect(body.style.height).toBe("384px");
+    fireEvent.keyDown(handle, { key: "ArrowDown" });
+    expect(body.style.height).toBe("360px");
+
+    fireEvent.pointerDown(handle, { pointerId: 1, clientY: 400 });
+    fireEvent.pointerMove(handle, { pointerId: 1, clientY: 320 });
+    fireEvent.pointerUp(handle, { pointerId: 1, clientY: 320 });
+    expect(body.style.height).toBe("440px");
+  });
 });

@@ -153,6 +153,25 @@ test("widget colapsable queda anclado abajo a la derecha", async ({ page }) => {
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
   await expect(toggle.locator("span").first()).toHaveClass(/rotate-180/);
 
+  const body = panel.locator("#assistant-panel-body");
+  const handle = panel.getByRole("separator", { name: "Redimensionar chat" });
+  const before = await body.boundingBox();
+  const grip = await handle.boundingBox();
+  expect(before).not.toBeNull();
+  expect(grip).not.toBeNull();
+  await page.mouse.move(grip!.x + grip!.width / 2, grip!.y + grip!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(grip!.x + grip!.width / 2, grip!.y + grip!.height / 2 - 60, { steps: 4 });
+  await page.mouse.up();
+  const dragged = await body.boundingBox();
+  expect(dragged!.height).toBeGreaterThan(before!.height);
+  await expect(handle).toHaveAttribute("aria-valuenow", String(Math.round(dragged!.height)));
+
+  await handle.focus();
+  await page.keyboard.press("ArrowUp");
+  const resized = await body.boundingBox();
+  expect(resized!.height).toBeGreaterThan(dragged!.height);
+
   await toggle.click();
   await expect(panel.getByRole("log", { name: "Conversación" })).toHaveCount(0);
 });
