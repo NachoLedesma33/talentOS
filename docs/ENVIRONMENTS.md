@@ -21,7 +21,7 @@ Consecuencias operativas: comandos Python se ejecutan con `python -m ...` (módu
 
 | Entorno | Propósito | Datos | Proveedores y servicios |
 |---|---|---|---|
-| `local` | Desarrollo con Docker Compose. | Datos sintéticos; seed reproducible y reinicio de demo. | PostgreSQL y Redis locales, storage local de desarrollo, `LLM_PROVIDER=mock`. Sin credenciales pagas. |
+| `local` | Desarrollo con Docker Compose. | Datos sintéticos; seed reproducible y reinicio de demo. | PostgreSQL y Redis locales, storage local de desarrollo, `LLM_PROVIDER=mock` por defecto. Opcionalmente `LLM_PROVIDER=local` con Ollama en loopback (ADR-021). Sin credenciales pagas. |
 | `test` | Ejecución automatizada de pytest, Vitest y Playwright. | Datos aislados por suite; base efímera; ningún dato personal real. | Proveedores mock obligatorios; adaptadores externos simulados; sin dependencia de red pagada. Incluye tests de aislamiento cross-tenant. |
 | `staging` | Validación antes de producción; despliegue solo tras aprobación. | Datos ficticios/demo; datos reales solo con base legal y autorización explícita. | Integraciones en sandbox; migraciones aplicadas con plan de rollback; observabilidad activa. |
 | `production` | Despliegue real. | Datos personales bajo política de retención, acceso por rol y separación de datos sintéticos. | Secretos en gestor, HTTPS, CORS restrictivo, backups probados, logs y alertas. Sin migraciones destructivas automáticas ni acciones externas sin aprobación. |
@@ -57,6 +57,10 @@ LLM_PROVIDER=mock
 LLM_API_KEY=
 LLM_MODEL=
 LLM_BASE_URL=
+# Modo local opcional (ADR-021), sin credenciales y con pesos fuera del repo:
+# LLM_PROVIDER=local
+# LLM_BASE_URL=http://127.0.0.1:11434
+# LLM_MODEL=qwen3:4b
 
 # Fernet de 32 bytes en base64 url-safe; sin valor en el repositorio.
 INTEGRATION_ENCRYPTION_KEY=
@@ -72,7 +76,7 @@ AGENT_EVENT_RETENTION_DAYS=30
 | `DATABASE_URL`, `REDIS_URL` | Conexiones a PostgreSQL y Redis; la URL de DB incluye driver `psycopg`. |
 | `AUTH_SECRET` | Firma de sesiones/tokens; obligatorio fuera de modo mock. |
 | `STORAGE_*` | Configuración de storage privado compatible S3; se habilita con el flujo de documentos. |
-| `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_BASE_URL` | Selección de proveedor; `mock` es el default de desarrollo y test. |
+| `LLM_PROVIDER`, `LLM_API_KEY`, `LLM_MODEL`, `LLM_BASE_URL` | Selección de proveedor: `mock` (default de desarrollo y test), `local` (Ollama en loopback, sin clave) o `remote` (servicio HTTP con clave). En `local`, `LLM_BASE_URL` es la raíz nativa de Ollama, sin sufijo `/v1`. |
 | `INTEGRATION_ENCRYPTION_KEY` | Clave Fernet (32 bytes en base64 url-safe) para cifrar la configuración de integraciones. Se genera por despliegue y nunca se versiona; vacía permite arrancar en modo mock, pero las operaciones de integración responden `integration_key_missing`. No exigida por `missing_required_settings`. Formato: una clave Fernet de 32 bytes codificada en base64; sin valor real aquí. |
 | `LOG_LEVEL` | Nivel de logs estructurados; sin CVs, tokens ni datos personales en los mensajes. |
 | `AGENT_EVENT_RETENTION_DAYS` | Días de retención de eventos de agentes; purga diaria a las 03:00 UTC de traza de ejecuciones terminales por organización. Default 30, debe ser mayor que 0. |
@@ -82,3 +86,17 @@ AGENT_EVENT_RETENTION_DAYS=30
 No existe `.env` en esta máquina. Tampoco existe todavía `.env.example`: se crea en Fase 1. `.env` nunca debe versionarse; el repo debe ignorarlo. Cualquier clave real que se haya usado durante desarrollo queda fuera de este documento y de cualquier fixture, log o commit.
 
 Cuando se creen, la validación de configuración debe comprobar al arranque: variables obligatorias presentes, `APP_ENV` dentro de los cuatro valores documentados, `LLM_PROVIDER=mock` en `test`, y URLs sintácticamente válidas; ante error, mensaje explícito sin imprimir valores secretos.
+
+## Proveedor local (ADR-021)
+
+El modo `local` usa Ollama en `http://127.0.0.1:11434` y el modelo configurado en `LLM_MODEL`, por ejemplo `qwen3:4b`. En esta máquina hay Ollama `0.40.3` y `qwen3:4b` (Apache-2.0, Q4_K_M, 2.5 GB) instalado en `%USERPROFILE%\.ollama\models`. Esa ruta se puede mover con `OLLAMA_MODELS`; en cualquier caso queda fuera del repositorio.
+
+Medición puntual del 2026-11-28: `/api/chat` con `format` JSON y `think:false` respondió en 2.2 s; sin formato y con thinking por defecto tardó 144 s. No es una garantía de rendimiento: depende del hardware, del tamaño del contexto y de que Ollama esté ejecutándose. No se versionan pesos, blobs, adapters ni datasets. Para activar el modo local se edita el entorno, no el código:
+
+```env
+LLM_PROVIDER=local
+LLM_BASE_URL=http://127.0.0.1:11434
+LLM_MODEL=qwen3:4b
+```
+
+Con `LLM_PROVIDER=mock`, el asistente añade la limitación `demo_mock` y la web muestra que la demo usa respuestas simuladas sin modelo cargado.
