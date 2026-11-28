@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import json
 import uuid
 
 import httpx
 import pytest
+from pydantic import BaseModel
 
 from app.agents.extraction_schema import ExtractedFieldPayload, ExtractedProfile, FieldName
 from app.core.config import Settings
+from app.llm.local import LocalLLMProvider
 from app.llm.mock import MockLLMProvider
 from app.llm.provider import ProviderError
 from app.llm.registry import get_llm_provider
@@ -167,3 +170,106 @@ def test_usage_estimate_is_numeric_and_contains_no_cv() -> None:
     assert set(usage) == {"prompt_tokens", "completion_tokens"}
     assert all(value >= 0 for value in usage.values())
     assert "Synthetic Candidate" not in str(usage)
+
+
+class _LocalAnswer(BaseModel):
+    answer: str
+
+
+def _local_settings(**overrides: object) -> Settings:
+    values: dict[str, object] = {
+        "LLM_PROVIDER": "local",
+        "LLM_BASE_URL": "http://127.0.0.1:11434",
+        "LLM_MODEL": "qwen3:4b",
+    }
+    values.update(overrides)
+    return Settings(**values)
+
+
+def test_registry_selects_local_provider_and_requires_url_and_model() -> None:
+    provider = get_llm_provider(_local_settings())
+    assert isinstance(provider, LocalLLMProvider)
+    provider.close()
+
+    with pytest.raises(ProviderError) as error:
+        get_llm_provider(_local_settings(LLM_MODEL=""))
+
+    assert error.value.code == "provider_configuration"
+    assert "qwen3:4b" not in str(error.value)
+
+
+def test_local_structured_output_uses_native_chat_without_auth() -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["path"] = request.url.path
+        captured["authorization"] = request.headers.get("authorization")
+        captured["payload"] = json.loads(request.content)
+        content = 'Razonamiento</think> {"answer": "Synthetic local answer"}'
+        return httpx.Response(200, json={"message": {"content": content}})
+
+    provider = LocalLLMProvider(
+        _local_settings(), transport=httpx.MockTransport(handler)
+    )
+    result = provider.generate_structured_output(
+        "assistant-v1", _LocalAnswer, {"question": "Synthetic question"}
+    )
+    provider.close()
+
+    assert result == {"answer": "Synthetic local answer"}
+    assert captured["path"] == "/api/chat"
+    assert captured["authorization"] is None
+    payload = captured["payload"]
+    assert isinstance(payload, dict)
+    assert payload["model"] == "qwen3:4b"
+    assert payload["stream"] is False
+    assert payload["think"] is False
+    assert payload["format"] == _LocalAnswer.model_json_schema()
+    messages = payload["messages"]
+    assert isinstance(messages, list)
+    assert "assistant-v1" in messages[1]["content"]
+
+
+def test_local_generate_text_uses_text_schema() -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["payload"] = json.loads(request.content)
+        return httpx.Response(
+            200, json={"message": {"content": '{"text":"Synthetic local text"}'}}
+        )
+
+    provider = LocalLLMProvider(
+        _local_settings(), transport=httpx.MockTransport(handler)
+    )
+    text = provider.generate_text("assistant-v1", {"question": "Synthetic question"})
+    provider.close()
+
+    assert text == "Synthetic local text"
+    payload = captured["payload"]
+    assert isinstance(payload, dict)
+    assert payload["format"] == {
+        "type": "object",
+        "properties": {"text": {"type": "string"}},
+        "required": ["text"],
+    }
+
+
+def test_local_timeout_becomes_typed_error_without_payload() -> None:
+    timeout_detail = "synthetic-timeout-detail"
+
+    def raise_timeout(request: httpx.Request) -> httpx.Response:
+        raise httpx.TimeoutException(timeout_detail, request=request)
+
+    provider = LocalLLMProvider(
+        _local_settings(LLM_TIMEOUT_SECONDS=0.01),
+        transport=httpx.MockTransport(raise_timeout),
+    )
+
+    with pytest.raises(ProviderError) as error:
+        provider.generate_structured_output(
+            "assistant-v1", _LocalAnswer, {"question": "Synthetic question"}
+        )
+
+    assert error.value.code == "provider_timeout"
+    assert timeout_detail not in str(error.value)

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from app.core.config import Settings, get_settings
+from app.llm.local import LocalLLMProvider
 from app.llm.mock import MockLLMProvider
 from app.llm.provider import LLMProvider, ProviderError
 from app.llm.remote import RemoteLLMProvider
@@ -11,6 +12,8 @@ def get_llm_provider(settings: Settings | None = None) -> LLMProvider:
     config = settings or get_settings()
     if config.LLM_PROVIDER == "mock":
         return MockLLMProvider()
+    if config.LLM_PROVIDER == "local":
+        return LocalLLMProvider(config)
     if config.LLM_PROVIDER == "remote":
         return RemoteLLMProvider(config)
     # `Literal` ya bloquea otros valores; mensaje sin valores ni credenciales.
