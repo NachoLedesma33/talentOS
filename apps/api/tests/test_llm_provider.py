@@ -198,6 +198,14 @@ def test_registry_selects_local_provider_and_requires_url_and_model() -> None:
     assert "qwen3:4b" not in str(error.value)
 
 
+def test_local_provider_allows_cold_model_load_timeout() -> None:
+    provider = LocalLLMProvider(_local_settings(LLM_TIMEOUT_SECONDS=1))
+    try:
+        assert provider._client.timeout.read >= 180
+    finally:
+        provider.close()
+
+
 def test_local_structured_output_uses_native_chat_without_auth() -> None:
     captured: dict[str, object] = {}
 
@@ -224,6 +232,7 @@ def test_local_structured_output_uses_native_chat_without_auth() -> None:
     assert payload["model"] == "qwen3:4b"
     assert payload["stream"] is False
     assert payload["think"] is False
+    assert payload["keep_alive"] == "30m"
     assert payload["format"] == _LocalAnswer.model_json_schema()
     messages = payload["messages"]
     assert isinstance(messages, list)
