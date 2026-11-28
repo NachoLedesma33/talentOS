@@ -9,7 +9,7 @@ TalentOS ya define `LLMProvider` como contrato único (`apps/api/app/llm/provide
 
 El usuario quiere ejecutar un modelo open weights en su propia máquina, sin subir pesos ni artefactos de entrenamiento al repositorio, y que el chat siga visible en la demo pero indique explícitamente que está limitado cuando no hay modelo cargado. También quiere poder habilitar el modelo local después sin cambiar reglas de negocio ni permisos.
 
-Entorno medido en esta máquina: Ollama `0.40.3` en `127.0.0.1:11434`, con `qwen3:4b` instalado fuera del repo (`C:\Users\nacho\.ollama\models`). `ollama show qwen3:4b` declara licencia Apache-2.0, 4.0B parámetros, cuantización Q4_K_M y 2.5 GB en disco. Una petición `/api/chat` con `format` JSON y `think:false` tardó 2.2 s; la misma sin formato y con thinking por defecto tardó 144 s. La latencia depende del hardware y no es una promesa de producto.
+Entorno medido en esta máquina: Ollama `0.40.3` en `127.0.0.1:11434`, con `qwen3:4b` instalado fuera del repo (`C:\Users\nacho\.ollama\models`). `ollama show qwen3:4b` declara licencia Apache-2.0, 4.0B parámetros, cuantización Q4_K_M y 2.5 GB en disco. Una petición `/api/chat` con `format` JSON y `think:false` tardó 2.2 s con el modelo cargado y 108 s tras descarga; una petición sin formato y con thinking por defecto tardó 144 s. La latencia depende del hardware y no es una promesa de producto.
 
 El SDD excluye del MVP la facturación real, los planes comerciales y el fine-tuning de modelos propios (`TalentOS_SDD.md` §2.2). Esta decisión no los incorpora.
 
@@ -22,8 +22,10 @@ Se añade `LocalLLMProvider` en `apps/api/app/llm/local.py`. Usa `httpx`, ya pre
 - Sin cabecera `Authorization`.
 - `stream: false`.
 - `think: false`.
+- `keep_alive: "30m"` para evitar recargas frecuentes del modelo.
 - `format` con el JSON Schema de la respuesta estructurada para forzar salida válida y evitar razonamiento largo.
 - `options.temperature: 0`.
+- Timeout mínimo de 180 s, porque la carga fría medida fue de 108 s; `LLM_TIMEOUT_SECONDS` puede aumentarlo.
 - Salida parseada como JSON y validada por el llamador con el esquema Pydantic correspondiente.
 - Errores mapeados a `ProviderError` sin payload, texto de candidato ni credenciales en mensajes o logs.
 

@@ -1166,3 +1166,35 @@ TalentOS está listo para presentarse como portfolio cuando:
 | 2026-11-27 | 17-08 | `bf8ca85` | `46077876061` | success; seed sintético con evidencia verificable, borradores, regla `draft` y aprobaciones resueltas; 1 test nuevo; `pytest` 574 passed. |
 | 2026-11-27 | 17-09 | `f5e640a` | `46080547217` | success; evaluación determinista con dataset `assistant-eval-1.0.0`, 7 tests nuevos; `pytest` 581 passed. |
 | 2026-11-27 | 17-10 | `8c2c4da` | `46082047742` | success; E2E del asistente en shell real con evidencia citada, ack aprobado, descarte confirmado y error 403 sin respuesta simulada; `vitest` 126 passed; 23 passed/1 skipped. |
+
+---
+
+# 28. Fase 18 — Proveedor LLM local y demo limitada (2026-11-28)
+
+**Estado:** `IN_REVIEW`. **Origen:** petición del usuario 2026-11-27/28; `docs/decisions/ADR-021-proveedor-local-y-demo-limitada.md` aceptado. **RF:** extensión de `RF-ASSIST-001`. **Alcance:** solo proveedor local y aviso de demo limitada; planes, suscripciones, facturación y fine-tuning quedan para fases futuras.
+
+## 28.1 Reglas del loop
+
+1. Misma disciplina de §27.1: ≤2 archivos de implementación por lote, gates reales y evidencia antes de marcar `DONE`.
+2. `LLMProvider` sigue siendo el único contrato; dominio, permisos y reglas de negocio no cambian.
+3. Sin dependencias Python nuevas: se reutiliza `httpx`.
+4. Pesos, blobs, adapters y datasets del modelo quedan fuera del repositorio.
+5. Backend decide la limitación `demo_mock`; la UI solo la traduce a texto visible.
+
+## 28.2 Backlog y estado
+
+| Lote | Pedido | Unidad prevista | Estado | Evidencia |
+|---|---|---|---|---|
+| 18-01 | ADR y entorno | `ADR-021`, `.env.example`, `docs/ENVIRONMENTS.md`, `TalentOS_ROADMAP.md` | `DONE` | `2b48d3f`; define `local`, demo limitada y artefactos fuera del repo. |
+| 18-02 | Adaptador local | `apps/api/app/llm/local.py`, `apps/api/app/core/config.py` | `DONE` | `ce45d96`; `/api/chat` nativo con JSON schema, sin `Authorization`. |
+| 18-03 | Registro y tests | `apps/api/app/llm/registry.py`, `apps/api/tests/test_llm_provider.py` | `DONE` | `01427a5`; registry `mock|local|remote`; `ruff`/`mypy` limpios; 12 tests en archivo. |
+| 18-04 | Demo limitada en API | `apps/api/app/agents/assistant.py`, `apps/api/tests/test_assistant_api.py` | `DONE` | `100ce64`; `demo_mock` aparece solo con `LLM_PROVIDER=mock`. |
+| 18-05 | Aviso en UI | `apps/web/src/components/AssistantPanel.tsx`, `apps/web/tests/assistant_panel.test.tsx` | `DONE` | `f6d7bc8`; aviso visible sin código técnico; `tsc`/`lint`/`vitest`/`build`/E2E en verde. |
+| 18-06 | Resiliencia local | `apps/api/app/llm/local.py`, `apps/api/tests/test_llm_provider.py` | `DONE` | `2ca2946`; `keep_alive=30m` y timeout mínimo de 180 s para carga fría; smoke real `qwen3:4b` en 2.76 s con modelo cargado. |
+| 18-07 | Cierre | `TalentOS_ROADMAP.md`, `docs/ENVIRONMENTS.md`, `.env.example`, `ADR-021` | `IN_REVIEW` | Pendiente de CI final y push con `head_sha` verificado. |
+
+## 28.3 Evidencia
+
+| Fecha | Lote | Commits | CI | Resultado |
+|---|---|---|---|---|
+| 2026-11-28 | 18-01/18-06 | `2b48d3f`, `ce45d96`, `01427a5`, `100ce64`, `f6d7bc8`, `2ca2946` | pendiente | Local: `ruff`, `mypy`, `pytest` de proveedor/asistente, `tsc`, ESLint, `vitest` 131 passed, `next build` y Playwright 25 passed/1 skipped. Latencia real: 2.76 s cargado, 108 s en frío, 144 s con thinking. Sin pesos ni secretos en el repo. |
