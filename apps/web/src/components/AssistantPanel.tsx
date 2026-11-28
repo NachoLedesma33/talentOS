@@ -78,6 +78,7 @@ const MIN_PANEL_HEIGHT = 240;
 const DEFAULT_PANEL_HEIGHT = 360;
 const MAX_PANEL_HEIGHT = 720;
 const RESIZE_STEP = 24;
+const DEMO_LIMITATION = "demo_mock";
 
 const COPY = {
   es: {
@@ -107,6 +108,7 @@ const COPY = {
     page: "Página",
     unverified: "Cita sin origen verificable",
     limitations: "Limitaciones",
+    demoMock: "Demo limitada: respuestas simuladas sin modelo cargado.",
     unsupported: "Motivo de no disponibilidad",
     actions: "Acciones propuestas",
     noActions: "No hay acciones propuestas.",
@@ -148,6 +150,7 @@ const COPY = {
     page: "Page",
     unverified: "Citation without verifiable source",
     limitations: "Limitations",
+    demoMock: "Limited demo: simulated answers, no model loaded.",
     unsupported: "Reason not available",
     actions: "Proposed actions",
     noActions: "No proposed actions.",
@@ -261,6 +264,8 @@ export function AssistantPanel({
   const [message, setMessage] = useState("");
   const [history, setHistory] = useState<AssistantSnapshot[]>([]);
   const [response, setResponse] = useState<AssistantResponse | null>(null);
+  const visibleLimitations =
+    response?.limitations.filter((item) => item !== DEMO_LIMITATION) ?? [];
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -513,6 +518,12 @@ export function AssistantPanel({
             aria-label={copy.conversation}
             className="min-h-24 flex-1 space-y-3 overflow-y-auto px-3 py-3"
           >
+            {response?.limitations.includes(DEMO_LIMITATION) && (
+              <Card role="status" className="border-warning/40 bg-warning/10 p-2 text-xs text-warning">
+                {copy.demoMock}
+              </Card>
+            )}
+
             <p aria-live="polite" className="text-xs text-text-muted">
               {notice}
             </p>
@@ -577,11 +588,11 @@ export function AssistantPanel({
                   )}
                 </div>
 
-                {response.limitations.length > 0 && (
+                {visibleLimitations.length > 0 && (
                   <Card className="space-y-1 bg-secondary p-3 text-xs">
                     <h4 className="font-semibold">{copy.limitations}</h4>
                     <ul className="list-disc pl-5">
-                      {response.limitations.map((limitation, index) => (
+                      {visibleLimitations.map((limitation, index) => (
                         <li key={`${limitation}-${index}`}>{limitation}</li>
                       ))}
                     </ul>

@@ -225,6 +225,21 @@ describe("AssistantPanel", () => {
     expect(screen.getByText(/Sin evidencia verificable/i)).toBeTruthy();
   });
 
+  it("muestra aviso de demo limitada sin exponer el código técnico", async () => {
+    mockFetch(() =>
+      jsonResponse(
+        makeResponse({ limitations: ["demo_mock", "Fuente sin confirmar"] }),
+      ),
+    );
+
+    render(<AssistantPanel idempotencyKey={IDEMPOTENCY_KEY} />);
+    ask("¿Qué pasa con este recurso?");
+
+    expect(await screen.findByText(/Demo limitada:/)).toBeTruthy();
+    expect(screen.getByText("Fuente sin confirmar")).toBeTruthy();
+    expect(screen.queryByText("demo_mock")).toBeNull();
+  });
+
   it("empieza colapsado y la flecha expande y colapsa el cuerpo", () => {
     render(<AssistantPanel idempotencyKey={IDEMPOTENCY_KEY} />);
 
